@@ -98,55 +98,55 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
     <div className="space-y-6">
       
       {/* Metrics Bar */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         
-        <div className="bg-white rounded-2xl p-4 border border-stone-200 shadow-sm flex items-center justify-between">
+        <div className="bg-white rounded-2xl p-3.5 sm:p-4 border border-stone-200 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-bold text-stone-400 uppercase">Inventory Items</p>
-            <h3 className="text-2xl font-extrabold text-stone-900 mt-1">{totalItems}</h3>
+            <p className="text-[10px] sm:text-[11px] font-bold text-stone-400 uppercase">Items</p>
+            <h3 className="text-xl sm:text-2xl font-extrabold text-stone-900 mt-1">{totalItems}</h3>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center">
-            <Package className="w-5 h-5" />
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center">
+            <Package className="w-4 sm:w-5 h-4 sm:h-5" />
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-4 border border-stone-200 shadow-sm flex items-center justify-between">
+        <div className="bg-white rounded-2xl p-3.5 sm:p-4 border border-stone-200 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-bold text-stone-400 uppercase">Stock Valuation</p>
-            <h3 className="text-2xl font-extrabold text-amber-900 mt-1">₹{totalValuation.toLocaleString()}</h3>
+            <p className="text-[10px] sm:text-[11px] font-bold text-stone-400 uppercase">Stock Valuation</p>
+            <h3 className="text-xl sm:text-2xl font-extrabold text-amber-900 mt-1">₹{totalValuation.toLocaleString()}</h3>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
-            <Layers className="w-5 h-5" />
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
+            <Layers className="w-4 sm:w-5 h-4 sm:h-5" />
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-4 border border-stone-200 shadow-sm flex items-center justify-between">
+        <div className="bg-white rounded-2xl p-3.5 sm:p-4 border border-stone-200 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-bold text-stone-400 uppercase">Low Stock Alerts</p>
-            <h3 className="text-2xl font-extrabold text-amber-700 mt-1">{lowStockCount}</h3>
+            <p className="text-[10px] sm:text-[11px] font-bold text-stone-400 uppercase">Low Alerts</p>
+            <h3 className="text-xl sm:text-2xl font-extrabold text-amber-700 mt-1">{lowStockCount}</h3>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center">
-            <AlertTriangle className="w-5 h-5" />
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center">
+            <AlertTriangle className="w-4 sm:w-5 h-4 sm:h-5" />
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-4 border border-stone-200 shadow-sm flex items-center justify-between">
+        <div className="bg-white rounded-2xl p-3.5 sm:p-4 border border-stone-200 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-bold text-stone-400 uppercase">Out of Stock</p>
-            <h3 className="text-2xl font-extrabold text-rose-700 mt-1">{outOfStockCount}</h3>
+            <p className="text-[10px] sm:text-[11px] font-bold text-stone-400 uppercase">Out of Stock</p>
+            <h3 className="text-xl sm:text-2xl font-extrabold text-rose-700 mt-1">{outOfStockCount}</h3>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center">
-            <XCircle className="w-5 h-5" />
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center">
+            <XCircle className="w-4 sm:w-5 h-4 sm:h-5" />
           </div>
         </div>
 
       </div>
 
       {/* Control Bar: Search & Add Item */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-4 shadow-sm space-y-4">
-        <div className="flex flex-col md:flex-row gap-3 items-center justify-between">
+      <div className="bg-white rounded-2xl border border-stone-200 p-3.5 sm:p-4 shadow-sm space-y-3 sm:space-y-4">
+        <div className="flex flex-col lg:flex-row gap-2.5 sm:gap-3 items-stretch lg:items-center justify-between">
           
-          <div className="w-full md:w-80 relative">
+          <div className="w-full lg:w-80 relative">
             <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
             <input
               type="text"
@@ -157,11 +157,11 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-between">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full lg:w-auto">
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-xs font-semibold text-stone-700"
+              className="flex-1 sm:flex-initial bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-xs font-semibold text-stone-700"
             >
               <option value="ALL">All Categories</option>
               {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
@@ -170,7 +170,7 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-xs font-semibold text-stone-700"
+              className="flex-1 sm:flex-initial bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-xs font-semibold text-stone-700"
             >
               <option value="ALL">All Stock Status</option>
               <option value="OK">In Stock Only</option>
@@ -180,7 +180,7 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
 
             <button
               onClick={handleOpenAdd}
-              className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-xl shadow transition-all flex items-center gap-1.5 cursor-pointer"
+              className="w-full sm:w-auto px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-xl shadow transition-all flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Add Raw Material Item</span>
@@ -190,14 +190,17 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
         </div>
       </div>
 
-      {/* Inventory Table */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm overflow-x-auto">
-        <h3 className="text-base font-bold text-stone-900 mb-4">Stock Levels & Inventory Status</h3>
+      {/* Inventory List Container */}
+      <div className="bg-white rounded-2xl border border-stone-200 p-4 sm:p-6 shadow-sm">
+        <h3 className="text-sm sm:text-base font-bold text-stone-900 mb-4">Stock Levels & Inventory Status</h3>
 
         {filteredItems.length === 0 ? (
           <p className="text-xs text-stone-400 py-8 text-center">No inventory items match the current filter.</p>
         ) : (
-          <table className="w-full text-left border-collapse text-sm">
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left border-collapse text-sm">
             <thead>
               <tr className="bg-stone-950 text-amber-100 text-xs font-bold uppercase tracking-wider">
                 <th className="py-3 px-4">Material Name</th>
@@ -316,6 +319,110 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
               })}
             </tbody>
           </table>
+        </div>
+
+            {/* Mobile Cards View */}
+            <div className="md:hidden space-y-3">
+              {filteredItems.map(item => {
+                const stockVal = item.currentStock * (item.unitCost || 0);
+                const isOut = item.currentStock <= 0;
+                const isLow = item.currentStock > 0 && item.currentStock <= item.reorderLevel;
+
+                return (
+                  <div key={item.id} className="p-3.5 bg-stone-50/70 border border-stone-200 rounded-2xl space-y-2.5 shadow-2xs">
+                    {/* Header */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <h4 className="font-bold text-stone-900 text-sm truncate">{item.materialName}</h4>
+                        <span className="text-[10px] font-semibold text-stone-600 bg-white px-2 py-0.5 rounded-full border border-stone-200 shrink-0">
+                          {item.category}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center space-x-1 shrink-0">
+                        <button
+                          onClick={() => handleOpenEdit(item)}
+                          className="p-1.5 text-stone-600 hover:text-amber-800 hover:bg-amber-50 rounded-lg cursor-pointer"
+                          title="Edit Item"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => onDeleteItem(item.id)}
+                          className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer"
+                          title="Delete Item"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Stock Details Grid */}
+                    <div className="grid grid-cols-3 gap-2 bg-white p-2.5 rounded-xl border border-stone-200/80 text-center">
+                      <div>
+                        <span className="text-[10px] text-stone-400 font-bold block uppercase">Current Stock</span>
+                        <span className={`text-sm font-extrabold ${isOut ? 'text-rose-600' : isLow ? 'text-amber-700' : 'text-stone-900'}`}>
+                          {item.currentStock} {item.unit}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-stone-400 font-bold block uppercase">Unit Cost</span>
+                        <span className="text-xs font-bold text-stone-700">₹{Number(item.unitCost || 0).toFixed(1)}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-stone-400 font-bold block uppercase">Total Value</span>
+                        <span className="text-xs font-extrabold text-amber-900">₹{Math.round(stockVal).toLocaleString()}</span>
+                      </div>
+                    </div>
+
+                    {/* Status & Quick Adjust Footer */}
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <div>
+                        {isOut ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-800">
+                            🚫 Out of Stock
+                          </span>
+                        ) : isLow ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800">
+                            ⚡ Low ({item.reorderLevel} alert)
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                            ✓ In Stock
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-bold text-stone-400 uppercase mr-1">Adjust:</span>
+                        <button
+                          onClick={() => onAdjustStock(item.id, -1)}
+                          className="w-7 h-7 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold flex items-center justify-center border border-stone-300 cursor-pointer active:scale-95"
+                          title="-1"
+                        >
+                          -1
+                        </button>
+                        <button
+                          onClick={() => onAdjustStock(item.id, 1)}
+                          className="w-7 h-7 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold flex items-center justify-center border border-stone-300 cursor-pointer active:scale-95"
+                          title="+1"
+                        >
+                          +1
+                        </button>
+                        <button
+                          onClick={() => onAdjustStock(item.id, 5)}
+                          className="px-2 h-7 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold text-xs border border-stone-300 cursor-pointer active:scale-95"
+                          title="+5"
+                        >
+                          +5
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
 

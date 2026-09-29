@@ -166,109 +166,109 @@ export default function SalesTracker({ menuItems, salesLogs, inventoryItems = []
         </div>
 
         {/* Summary Stat Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5 pt-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3.5 pt-2">
           
           {/* Total Revenue */}
-          <div className="bg-stone-800/60 p-4 rounded-2xl border border-stone-700/50 flex flex-col justify-between">
-            <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider">Total Sales</span>
-            <div className="text-2xl font-extrabold text-amber-400 mt-1">
+          <div className="bg-stone-800/60 p-3.5 sm:p-4 rounded-2xl border border-stone-700/50 flex flex-col justify-between">
+            <span className="text-[10px] sm:text-[11px] font-bold text-stone-400 uppercase tracking-wider">Total Sales</span>
+            <div className="text-xl sm:text-2xl font-extrabold text-amber-400 mt-1">
               ₹{dailySummary.totalRevenue.toLocaleString()}
             </div>
-            <span className="text-[11px] text-stone-400 mt-1">{dailySummary.count} sales logged</span>
+            <span className="text-[10px] sm:text-[11px] text-stone-400 mt-0.5">{dailySummary.count} sales logged</span>
           </div>
 
           {/* Cash Sales */}
-          <div className="bg-stone-800/60 p-4 rounded-2xl border border-emerald-900/40 flex flex-col justify-between">
+          <div className="bg-stone-800/60 p-3.5 sm:p-4 rounded-2xl border border-emerald-900/40 flex flex-col justify-between">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">💵 Cash Sales</span>
+              <span className="text-[10px] sm:text-[11px] font-bold text-emerald-400 uppercase tracking-wider">💵 Cash</span>
             </div>
-            <div className="text-2xl font-extrabold text-emerald-300 mt-1">
+            <div className="text-xl sm:text-2xl font-extrabold text-emerald-300 mt-1">
               ₹{dailySummary.cashRevenue.toLocaleString()}
             </div>
-            <span className="text-[11px] text-emerald-400/70 mt-1">Cash received</span>
+            <span className="text-[10px] sm:text-[11px] text-emerald-400/70 mt-0.5">Cash received</span>
           </div>
 
           {/* Online Sales */}
-          <div className="bg-stone-800/60 p-4 rounded-2xl border border-sky-900/40 flex flex-col justify-between">
+          <div className="bg-stone-800/60 p-3.5 sm:p-4 rounded-2xl border border-sky-900/40 flex flex-col justify-between">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-sky-400 uppercase tracking-wider">📱 Online / UPI</span>
+              <span className="text-[10px] sm:text-[11px] font-bold text-sky-400 uppercase tracking-wider">📱 Online / UPI</span>
             </div>
-            <div className="text-2xl font-extrabold text-sky-300 mt-1">
+            <div className="text-xl sm:text-2xl font-extrabold text-sky-300 mt-1">
               ₹{dailySummary.onlineRevenue.toLocaleString()}
             </div>
-            <span className="text-[11px] text-sky-400/70 mt-1">UPI & Card pay</span>
+            <span className="text-[10px] sm:text-[11px] text-sky-400/70 mt-0.5">UPI & Card pay</span>
           </div>
 
           {/* Quantity Sold */}
-          <div className="bg-stone-800/60 p-4 rounded-2xl border border-stone-700/50 flex flex-col justify-between">
-            <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider">Items Sold</span>
-            <div className="text-2xl font-extrabold text-stone-100 mt-1">
+          <div className="bg-stone-800/60 p-3.5 sm:p-4 rounded-2xl border border-stone-700/50 flex flex-col justify-between">
+            <span className="text-[10px] sm:text-[11px] font-bold text-stone-400 uppercase tracking-wider">Items Sold</span>
+            <div className="text-xl sm:text-2xl font-extrabold text-stone-100 mt-1">
               {dailySummary.totalQty} <span className="text-xs font-semibold text-stone-400">pcs</span>
             </div>
-            <span className="text-[11px] text-stone-400 mt-1">Total quantity</span>
+            <span className="text-[10px] sm:text-[11px] text-stone-400 mt-0.5">Total quantity</span>
           </div>
 
-          {/* Daily Net Profit */}
-          <div className="bg-stone-800/60 p-4 rounded-2xl border border-stone-700/50 flex flex-col justify-between">
-            <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider">Daily Net Profit</span>
-            <div className={`text-2xl font-extrabold mt-1 ${dailySummary.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+          {/* Daily Net Profit (Spans full width on 2-col mobile) */}
+          <div className="col-span-2 sm:col-span-1 bg-stone-800/60 p-3.5 sm:p-4 rounded-2xl border border-stone-700/50 flex flex-col justify-between">
+            <span className="text-[10px] sm:text-[11px] font-bold text-stone-400 uppercase tracking-wider">Daily Net Profit</span>
+            <div className={`text-xl sm:text-2xl font-extrabold mt-1 ${dailySummary.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
               ₹{dailySummary.netProfit.toLocaleString()}
             </div>
-            <span className="text-[11px] text-amber-300/80 mt-1">{dailySummary.margin}% margin</span>
+            <span className="text-[10px] sm:text-[11px] text-amber-300/80 mt-0.5">{dailySummary.margin}% margin</span>
           </div>
 
         </div>
       </div>
 
       {/* 🏷️ CATEGORY-WISE SELECTION & SALES LOGGER */}
-      <div className="bg-white rounded-3xl border border-stone-200 p-6 shadow-sm space-y-6">
+      <div className="bg-white rounded-3xl border border-stone-200 p-4 sm:p-6 shadow-sm space-y-5">
         
         {/* Header, Payment Mode Toggle & Search */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-stone-100 pb-4">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 border-b border-stone-100 pb-4">
           <div>
-            <h3 className="text-base font-bold text-stone-900 flex items-center gap-2">
-              <Zap className="w-5 h-5 text-amber-600 fill-amber-600" />
+            <h3 className="text-sm sm:text-base font-bold text-stone-900 flex items-center gap-2">
+              <Zap className="w-4 sm:w-5 h-4 sm:h-5 text-amber-600 fill-amber-600" />
               <span>Select Item to Log Sale (Category-Wise)</span>
             </h3>
-            <p className="text-xs text-stone-500">Select payment mode and tap item buttons to log sales.</p>
+            <p className="text-xs text-stone-500">Tap item button to log sale. Stock automatically deducts.</p>
           </div>
 
           {/* PAYMENT MODE SELECTOR (CASH VS ONLINE) */}
-          <div className="flex items-center gap-2 bg-stone-100 p-1.5 rounded-2xl border border-stone-200">
-            <span className="text-xs font-extrabold text-stone-500 uppercase px-2">Payment Mode:</span>
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 bg-stone-100 p-1 sm:p-1.5 rounded-2xl border border-stone-200">
+            <span className="text-[11px] sm:text-xs font-extrabold text-stone-500 uppercase px-1.5">Mode:</span>
             
             <button
               type="button"
               onClick={() => setPaymentMode('Cash')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 paymentMode === 'Cash'
                   ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30 ring-2 ring-emerald-500'
                   : 'text-stone-600 hover:bg-stone-200'
               }`}
             >
-              <Banknote className="w-4 h-4" />
+              <Banknote className="w-3.5 h-3.5" />
               <span>💵 Cash</span>
             </button>
 
             <button
               type="button"
               onClick={() => setPaymentMode('Online')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 paymentMode === 'Online'
                   ? 'bg-sky-600 text-white shadow-md shadow-sky-600/30 ring-2 ring-sky-500'
                   : 'text-stone-600 hover:bg-stone-200'
               }`}
             >
-              <Smartphone className="w-4 h-4" />
+              <Smartphone className="w-3.5 h-3.5" />
               <span>📱 Online / UPI</span>
             </button>
           </div>
 
-          <div className="w-full md:w-56 relative">
+          <div className="w-full lg:w-56 relative">
             <Search className="w-4 h-4 text-stone-400 absolute left-3 top-2.5" />
             <input
               type="text"
-              placeholder="Search menu..."
+              placeholder="Search menu item..."
               value={searchItem}
               onChange={(e) => setSearchItem(e.target.value)}
               className="w-full pl-9 pr-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20"
@@ -332,7 +332,7 @@ export default function SalesTracker({ menuItems, salesLogs, inventoryItems = []
                 </div>
 
                 {/* Items Grid for this Category - Ultra Compact Mini Cards */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3">
                   {items.map((item) => {
                     const itemLogs = salesLogs.filter(s => (s.itemId === item.id || s.itemName === item.name) && s.date === saleDate);
                     const todayQtySold = itemLogs.reduce((acc, curr) => acc + Number(curr.quantitySold), 0);
@@ -341,7 +341,7 @@ export default function SalesTracker({ menuItems, salesLogs, inventoryItems = []
                     return (
                       <div
                         key={item.id}
-                        className={`rounded-xl p-2.5 border transition-all shadow-sm flex flex-col justify-between group ${
+                        className={`rounded-2xl p-3 border transition-all shadow-sm flex flex-col justify-between group ${
                           stockStatus.isOutOfStock
                             ? 'bg-rose-50/30 border-rose-200 hover:border-rose-300'
                             : 'bg-white hover:bg-amber-50/50 border-stone-200/90 hover:border-amber-400'
@@ -351,14 +351,14 @@ export default function SalesTracker({ menuItems, salesLogs, inventoryItems = []
                         <div>
                           <div className="flex items-start justify-between gap-1 mb-1">
                             <h5
-                              className={`text-xs font-bold line-clamp-1 leading-tight ${
+                              className={`text-xs sm:text-sm font-bold line-clamp-1 leading-tight ${
                                 stockStatus.isOutOfStock ? 'text-stone-600' : 'text-stone-900 group-hover:text-amber-900'
                               }`}
                               title={item.name}
                             >
                               {item.name}
                             </h5>
-                            <span className="text-xs font-black text-amber-900 shrink-0">
+                            <span className="text-xs sm:text-sm font-black text-amber-900 shrink-0">
                               ₹{item.sellingPrice}
                             </span>
                           </div>
@@ -380,7 +380,7 @@ export default function SalesTracker({ menuItems, salesLogs, inventoryItems = []
                             )}
 
                             {todayQtySold > 0 && (
-                              <span className="font-extrabold text-stone-600 bg-stone-100 px-1 rounded">
+                              <span className="font-extrabold text-stone-600 bg-stone-100 px-1.5 py-0.5 rounded">
                                 {todayQtySold} sold
                               </span>
                             )}
@@ -397,13 +397,13 @@ export default function SalesTracker({ menuItems, salesLogs, inventoryItems = []
                           )}
                         </div>
 
-                        {/* Quick Key Buttons: Remove (-1) & Add (+1, +2, +5) */}
-                        <div className="mt-2 pt-2 border-t border-stone-100 flex items-center gap-1">
+                        {/* Quick Key Buttons: Remove (-1) & Add (+1, +2, +5) with comfortable touch targets */}
+                        <div className="mt-3 pt-2.5 border-t border-stone-100 flex items-center gap-1.5">
                           <button
                             type="button"
                             onClick={() => handleQuickRemoveSale(item)}
                             disabled={todayQtySold === 0}
-                            className={`px-2 py-1 text-[11px] font-extrabold rounded-lg border transition-all cursor-pointer ${
+                            className={`px-2.5 py-2 text-xs font-extrabold rounded-xl border transition-all cursor-pointer min-h-[36px] flex items-center justify-center ${
                               todayQtySold > 0
                                 ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200 active:scale-95'
                                 : 'bg-stone-50 text-stone-300 border-stone-100 cursor-not-allowed'
@@ -417,7 +417,7 @@ export default function SalesTracker({ menuItems, salesLogs, inventoryItems = []
                             type="button"
                             onClick={() => handleQuickAddSale(item, 1)}
                             disabled={stockStatus.isOutOfStock}
-                            className={`flex-1 py-1 text-[11px] font-extrabold rounded-lg shadow-sm transition-all flex items-center justify-center gap-0.5 ${
+                            className={`flex-1 py-2 text-xs font-extrabold rounded-xl shadow-sm transition-all flex items-center justify-center gap-1 min-h-[36px] ${
                               stockStatus.isOutOfStock
                                 ? 'bg-stone-200 text-stone-400 cursor-not-allowed border border-stone-300'
                                 : paymentMode === 'Online'
@@ -426,7 +426,7 @@ export default function SalesTracker({ menuItems, salesLogs, inventoryItems = []
                             }`}
                             title={stockStatus.isOutOfStock ? `Out of Stock: Raw material khatam hai` : `Add 1 (${paymentMode})`}
                           >
-                            <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                            <Plus className="w-4 h-4 stroke-[3]" />
                             <span>+1</span>
                           </button>
 
@@ -434,7 +434,7 @@ export default function SalesTracker({ menuItems, salesLogs, inventoryItems = []
                             type="button"
                             onClick={() => handleQuickAddSale(item, 2)}
                             disabled={stockStatus.isOutOfStock || stockStatus.maxPortions < 2}
-                            className={`px-2 py-1 text-[11px] font-bold rounded-lg border transition-all ${
+                            className={`px-2.5 py-2 text-xs font-bold rounded-xl border transition-all min-h-[36px] flex items-center justify-center ${
                               stockStatus.isOutOfStock || stockStatus.maxPortions < 2
                                 ? 'bg-stone-100 text-stone-300 border-stone-200 cursor-not-allowed'
                                 : 'bg-stone-100 hover:bg-amber-100 text-stone-800 border-stone-200 cursor-pointer active:scale-95'
@@ -448,7 +448,7 @@ export default function SalesTracker({ menuItems, salesLogs, inventoryItems = []
                             type="button"
                             onClick={() => handleQuickAddSale(item, 5)}
                             disabled={stockStatus.isOutOfStock || stockStatus.maxPortions < 5}
-                            className={`px-2 py-1 text-[11px] font-bold rounded-lg border transition-all ${
+                            className={`px-2.5 py-2 text-xs font-bold rounded-xl border transition-all min-h-[36px] flex items-center justify-center ${
                               stockStatus.isOutOfStock || stockStatus.maxPortions < 5
                                 ? 'bg-stone-100 text-stone-300 border-stone-200 cursor-not-allowed'
                                 : 'bg-stone-100 hover:bg-amber-100 text-stone-800 border-stone-200 cursor-pointer active:scale-95'
@@ -471,17 +471,17 @@ export default function SalesTracker({ menuItems, salesLogs, inventoryItems = []
       </div>
 
       {/* 📜 SALES LOGS HISTORY TABLE WITH PAYMENT BADGES */}
-      <div className="bg-white rounded-3xl border border-stone-200 p-6 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-          <h3 className="text-base font-bold text-stone-900">Logged Sales History</h3>
+      <div className="bg-white rounded-3xl border border-stone-200 p-4 sm:p-6 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <h3 className="text-sm sm:text-base font-bold text-stone-900">Logged Sales History</h3>
           
-          <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
             <input
               type="text"
               placeholder="Search sale log..."
               value={searchItem}
               onChange={(e) => setSearchItem(e.target.value)}
-              className="px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs"
+              className="flex-1 sm:flex-initial px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs"
             />
             <input
               type="date"
@@ -490,7 +490,7 @@ export default function SalesTracker({ menuItems, salesLogs, inventoryItems = []
               className="px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-semibold"
             />
             {filterDate && (
-              <button onClick={() => setFilterDate('')} className="text-xs text-rose-600 font-bold">Clear Filter</button>
+              <button onClick={() => setFilterDate('')} className="text-xs text-rose-600 font-bold cursor-pointer">Clear</button>
             )}
           </div>
         </div>
@@ -498,60 +498,102 @@ export default function SalesTracker({ menuItems, salesLogs, inventoryItems = []
         {filteredLogs.length === 0 ? (
           <p className="text-xs text-stone-400 py-8 text-center">No sales logged for the selected filter.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-sm">
-              <thead>
-                <tr className="bg-stone-950 text-amber-100 text-xs font-bold uppercase tracking-wider">
-                  <th className="py-3.5 px-4">Date</th>
-                  <th className="py-3.5 px-4">Item Name</th>
-                  <th className="py-3.5 px-4">Category</th>
-                  <th className="py-3.5 px-4 text-center">Payment Mode</th>
-                  <th className="py-3.5 px-4 text-center">Qty Sold</th>
-                  <th className="py-3.5 px-4 text-right">Selling Price</th>
-                  <th className="py-3.5 px-4 text-right">Total Revenue</th>
-                  <th className="py-3.5 px-4 text-center">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-stone-200 text-stone-700">
-                {filteredLogs.map((sale) => (
-                  <tr key={sale.id} className="hover:bg-amber-50/40 transition-colors">
-                    <td className="py-3 px-4 text-xs font-semibold text-stone-500">{sale.date}</td>
-                    <td className="py-3 px-4 font-bold text-stone-900">{sale.itemName}</td>
-                    <td className="py-3 px-4">
-                      <span className="px-2.5 py-0.5 rounded-md bg-stone-100 font-semibold text-xs text-stone-700">
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left border-collapse text-sm">
+                <thead>
+                  <tr className="bg-stone-950 text-amber-100 text-xs font-bold uppercase tracking-wider">
+                    <th className="py-3.5 px-4">Date</th>
+                    <th className="py-3.5 px-4">Item Name</th>
+                    <th className="py-3.5 px-4">Category</th>
+                    <th className="py-3.5 px-4 text-center">Payment Mode</th>
+                    <th className="py-3.5 px-4 text-center">Qty Sold</th>
+                    <th className="py-3.5 px-4 text-right">Selling Price</th>
+                    <th className="py-3.5 px-4 text-right">Total Revenue</th>
+                    <th className="py-3.5 px-4 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stone-200 text-stone-700">
+                  {filteredLogs.map((sale) => (
+                    <tr key={sale.id} className="hover:bg-amber-50/40 transition-colors">
+                      <td className="py-3 px-4 text-xs font-semibold text-stone-500">{sale.date}</td>
+                      <td className="py-3 px-4 font-bold text-stone-900">{sale.itemName}</td>
+                      <td className="py-3 px-4">
+                        <span className="px-2.5 py-0.5 rounded-md bg-stone-100 font-semibold text-xs text-stone-700">
+                          {sale.category || 'General'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold inline-flex items-center gap-1 ${
+                          sale.paymentMethod === 'Online'
+                            ? 'bg-sky-100 text-sky-800 border border-sky-200'
+                            : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                        }`}>
+                          {sale.paymentMethod === 'Online' ? '📱 Online / UPI' : '💵 Cash'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-center font-bold text-stone-900">
+                        <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 text-xs font-bold">
+                          {sale.quantitySold}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-right text-stone-600 font-medium">₹{sale.sellingPrice}</td>
+                      <td className="py-3 px-4 text-right font-extrabold text-emerald-700">₹{sale.totalRevenue}</td>
+                      <td className="py-3 px-4 text-center">
+                        <button
+                          onClick={() => onDeleteSale(sale.id)}
+                          className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                          title="Delete sale log entry"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Cards View */}
+            <div className="md:hidden space-y-2.5">
+              {filteredLogs.map((sale) => (
+                <div key={sale.id} className="p-3 bg-stone-50/70 border border-stone-200 rounded-2xl flex items-center justify-between gap-3 shadow-2xs">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <h4 className="font-bold text-stone-900 text-xs sm:text-sm truncate">{sale.itemName}</h4>
+                      <span className="text-[9px] font-semibold text-stone-500 bg-white px-1.5 py-0.5 rounded border border-stone-200">
                         {sale.category || 'General'}
                       </span>
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold inline-flex items-center gap-1 ${
-                        sale.paymentMethod === 'Online'
-                          ? 'bg-sky-100 text-sky-800 border border-sky-200'
-                          : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                    </div>
+                    <div className="flex items-center gap-2 text-[11px] text-stone-500 mt-1">
+                      <span>{sale.date}</span>
+                      <span>•</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        sale.paymentMethod === 'Online' ? 'bg-sky-100 text-sky-800' : 'bg-emerald-100 text-emerald-800'
                       }`}>
-                        {sale.paymentMethod === 'Online' ? '📱 Online / UPI' : '💵 Cash'}
+                        {sale.paymentMethod === 'Online' ? '📱 UPI' : '💵 Cash'}
                       </span>
-                    </td>
-                    <td className="py-3 px-4 text-center font-bold text-stone-900">
-                      <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 text-xs font-bold">
-                        {sale.quantitySold}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-right text-stone-600 font-medium">₹{sale.sellingPrice}</td>
-                    <td className="py-3 px-4 text-right font-extrabold text-emerald-700">₹{sale.totalRevenue}</td>
-                    <td className="py-3 px-4 text-center">
-                      <button
-                        onClick={() => onDeleteSale(sale.id)}
-                        className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                        title="Delete sale log entry"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2.5 shrink-0">
+                    <div className="text-right">
+                      <div className="font-black text-emerald-700 text-sm sm:text-base">₹{sale.totalRevenue}</div>
+                      <span className="text-[10px] text-stone-500">{sale.quantitySold} × ₹{sale.sellingPrice}</span>
+                    </div>
+                    <button
+                      onClick={() => onDeleteSale(sale.id)}
+                      className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                      title="Delete sale log"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
 

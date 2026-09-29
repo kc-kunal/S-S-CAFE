@@ -571,60 +571,109 @@ export default function ProcurementLog({
             <p className="text-xs font-semibold">No raw material purchases found.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-sm">
-              <thead>
-                <tr className="bg-stone-950 text-amber-100 text-xs font-bold uppercase tracking-wider">
-                  <th className="py-3.5 px-4">Date</th>
-                  <th className="py-3.5 px-4">Raw Material</th>
-                  <th className="py-3.5 px-4">Category</th>
-                  <th className="py-3.5 px-4 text-center">Qty Received</th>
-                  <th className="py-3.5 px-4 text-right">Rate / Unit</th>
-                  <th className="py-3.5 px-4 text-right">Total Cost</th>
-                  <th className="py-3.5 px-4">Supplier</th>
-                  <th className="py-3.5 px-4 text-center">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-stone-200 text-stone-700">
-                {filteredLogs.map((proc) => (
-                  <tr key={proc.id} className="hover:bg-amber-50/40 transition-colors">
-                    <td className="py-3 px-4 text-xs font-semibold text-stone-500">{proc.date}</td>
-                    <td className="py-3 px-4 font-bold text-stone-900">
-                      <span>{proc.materialName}</span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className="px-2.5 py-0.5 rounded-md bg-stone-100 font-semibold text-xs text-stone-700 border border-stone-200">
-                        {proc.category || 'Groceries'}
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left border-collapse text-sm">
+                <thead>
+                  <tr className="bg-stone-950 text-amber-100 text-xs font-bold uppercase tracking-wider">
+                    <th className="py-3.5 px-4">Date</th>
+                    <th className="py-3.5 px-4">Raw Material</th>
+                    <th className="py-3.5 px-4">Category</th>
+                    <th className="py-3.5 px-4 text-center">Qty Received</th>
+                    <th className="py-3.5 px-4 text-right">Rate / Unit</th>
+                    <th className="py-3.5 px-4 text-right">Total Cost</th>
+                    <th className="py-3.5 px-4">Supplier</th>
+                    <th className="py-3.5 px-4 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stone-200 text-stone-700">
+                  {filteredLogs.map((proc) => (
+                    <tr key={proc.id} className="hover:bg-amber-50/40 transition-colors">
+                      <td className="py-3 px-4 text-xs font-semibold text-stone-500">{proc.date}</td>
+                      <td className="py-3 px-4 font-bold text-stone-900">
+                        <span>{proc.materialName}</span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="px-2.5 py-0.5 rounded-md bg-stone-100 font-semibold text-xs text-stone-700 border border-stone-200">
+                          {proc.category || 'Groceries'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-center font-extrabold text-stone-900">
+                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold">
+                          {proc.quantityReceived} {proc.unit}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-right font-medium text-stone-600">
+                        ₹{proc.ratePerUnit ? Number(proc.ratePerUnit).toFixed(2) : '-'}
+                      </td>
+                      <td className="py-3 px-4 text-right font-black text-emerald-800">
+                        ₹{Number(proc.totalCost).toLocaleString()}
+                      </td>
+                      <td className="py-3 px-4 text-xs text-stone-500 font-medium">
+                        {proc.supplier || '-'}
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <button
+                          onClick={() => onDeleteProcurement(proc.id)}
+                          className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                          title="Delete purchase log entry"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Cards View */}
+            <div className="md:hidden space-y-2.5">
+              {filteredLogs.map((proc) => (
+                <div key={proc.id} className="p-3.5 bg-stone-50/70 border border-stone-200 rounded-2xl flex items-center justify-between gap-3 shadow-2xs">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <h4 className="font-bold text-stone-900 text-sm truncate">{proc.materialName}</h4>
+                      <span className="text-[9px] font-semibold text-stone-600 bg-white px-1.5 py-0.5 rounded border border-stone-200">
+                        {proc.category || 'Material'}
                       </span>
-                    </td>
-                    <td className="py-3 px-4 text-center font-extrabold text-stone-900">
-                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold">
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-stone-500 mt-1">
+                      <span>{proc.date}</span>
+                      <span>•</span>
+                      <span className="font-bold text-stone-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 text-[10px]">
                         {proc.quantityReceived} {proc.unit}
                       </span>
-                    </td>
-                    <td className="py-3 px-4 text-right font-medium text-stone-600">
-                      ₹{proc.ratePerUnit ? Number(proc.ratePerUnit).toFixed(2) : '-'}
-                    </td>
-                    <td className="py-3 px-4 text-right font-black text-emerald-800">
-                      ₹{Number(proc.totalCost).toLocaleString()}
-                    </td>
-                    <td className="py-3 px-4 text-xs text-stone-500 font-medium">
-                      {proc.supplier || '-'}
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <button
-                        onClick={() => onDeleteProcurement(proc.id)}
-                        className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                        title="Delete purchase log entry"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      {proc.supplier && (
+                        <>
+                          <span>•</span>
+                          <span className="text-[10px] text-stone-400 truncate max-w-[100px]">{proc.supplier}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2.5 shrink-0">
+                    <div className="text-right">
+                      <div className="font-black text-emerald-800 text-base">₹{Number(proc.totalCost).toLocaleString()}</div>
+                      {proc.ratePerUnit && (
+                        <span className="text-[10px] text-stone-500">₹{Number(proc.ratePerUnit).toFixed(1)}/{proc.unit}</span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => onDeleteProcurement(proc.id)}
+                      className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                      title="Delete purchase"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
 

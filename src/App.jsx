@@ -555,69 +555,69 @@ export default function App() {
       />
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 pb-20 sm:pb-8">
         
         {/* Navigation Tabs Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-8 bg-white p-2 rounded-2xl border border-stone-200 shadow-sm cafe-glass">
+        <div className="flex items-center justify-between gap-3 mb-6 sm:mb-8 bg-white p-1.5 sm:p-2 rounded-2xl border border-stone-200 shadow-sm cafe-glass overflow-hidden">
           
-          <div className="flex items-center space-x-1 sm:space-x-2 overflow-x-auto w-full sm:w-auto p-0.5">
+          <div className="flex items-center space-x-1 sm:space-x-2 overflow-x-auto w-full no-scrollbar py-0.5 px-0.5">
             
             {/* Sales Tracker Tab */}
             <button
               onClick={() => setActiveTab('sales')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                 activeTab === 'sales'
                   ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
                   : 'text-stone-600 hover:bg-stone-100'
               }`}
             >
               <ShoppingBag className="w-4 h-4" />
-              <span>⚡ Daily Item Sales</span>
+              <span>⚡ Daily Sales</span>
             </button>
 
             {/* 📦 Raw Material Stock Tab */}
             <button
               onClick={() => setActiveTab('inventory')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                 activeTab === 'inventory'
                   ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
                   : 'text-stone-600 hover:bg-stone-100'
               }`}
             >
               <Boxes className="w-4 h-4" />
-              <span>📦 Raw Material Stock</span>
+              <span>📦 Stock</span>
             </button>
 
             {/* Dashboard Tab */}
             <button
               onClick={() => setActiveTab('dashboard')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                 activeTab === 'dashboard'
                   ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
                   : 'text-stone-600 hover:bg-stone-100'
               }`}
             >
               <PieChart className="w-4 h-4" />
-              <span>📊 P&L Dashboard</span>
+              <span>📊 P&L</span>
             </button>
 
             {/* Procurement Log Tab */}
             <button
               onClick={() => setActiveTab('procurement')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                 activeTab === 'procurement'
                   ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
                   : 'text-stone-600 hover:bg-stone-100'
               }`}
             >
               <PackageCheck className="w-4 h-4" />
-              <span>Purchases Log</span>
+              <span>Purchases</span>
             </button>
 
             {/* Menu Catalog Tab */}
             <button
               onClick={() => setActiveTab('menu')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                 activeTab === 'menu'
                   ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
                   : 'text-stone-600 hover:bg-stone-100'
@@ -632,10 +632,10 @@ export default function App() {
           {activeTab === 'menu' && (
             <button
               onClick={() => { setEditingItem(null); setIsModalOpen(true); }}
-              className="hidden sm:flex items-center gap-1.5 px-4 py-2 bg-stone-950 text-amber-100 hover:text-white text-xs font-bold rounded-xl hover:bg-stone-900 border border-amber-500/30 shadow-md cursor-pointer transition-all"
+              className="hidden lg:flex items-center gap-1.5 px-4 py-2 bg-stone-950 text-amber-100 hover:text-white text-xs font-bold rounded-xl hover:bg-stone-900 border border-amber-500/30 shadow-md cursor-pointer transition-all shrink-0"
             >
               <Plus className="w-3.5 h-3.5 text-amber-400" />
-              <span>Add Item & Recipe</span>
+              <span>Add Item</span>
             </button>
           )}
 
@@ -762,8 +762,61 @@ export default function App() {
         }}
       />
 
+      {/* Sticky Mobile Bottom Navigation Bar */}
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-stone-950/95 backdrop-blur-md border-t border-stone-800/80 py-1.5 px-3 flex items-center justify-around shadow-2xl safe-area-pb">
+        <button
+          onClick={() => setActiveTab('sales')}
+          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
+            activeTab === 'sales' ? 'text-amber-400 font-extrabold scale-105' : 'text-stone-400 hover:text-stone-200'
+          }`}
+        >
+          <ShoppingBag className="w-4 h-4" />
+          <span className="text-[10px]">Sales</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('inventory')}
+          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
+            activeTab === 'inventory' ? 'text-amber-400 font-extrabold scale-105' : 'text-stone-400 hover:text-stone-200'
+          }`}
+        >
+          <Boxes className="w-4 h-4" />
+          <span className="text-[10px]">Stock</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('dashboard')}
+          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
+            activeTab === 'dashboard' ? 'text-amber-400 font-extrabold scale-105' : 'text-stone-400 hover:text-stone-200'
+          }`}
+        >
+          <PieChart className="w-4 h-4" />
+          <span className="text-[10px]">P&L</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('procurement')}
+          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
+            activeTab === 'procurement' ? 'text-amber-400 font-extrabold scale-105' : 'text-stone-400 hover:text-stone-200'
+          }`}
+        >
+          <PackageCheck className="w-4 h-4" />
+          <span className="text-[10px]">Purchases</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('menu')}
+          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
+            activeTab === 'menu' ? 'text-amber-400 font-extrabold scale-105' : 'text-stone-400 hover:text-stone-200'
+          }`}
+        >
+          <Coffee className="w-4 h-4" />
+          <span className="text-[10px]">Menu</span>
+        </button>
+      </nav>
+
       {/* Footer */}
-      <footer className="bg-stone-950 text-stone-400 py-6 border-t border-stone-800 text-xs text-center mt-16">
+      <footer className="bg-stone-950 text-stone-400 py-6 border-t border-stone-800 text-xs text-center mt-12 mb-14 sm:mb-0">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center space-x-2 text-stone-300 font-semibold">
             <img src="/logo.jpg" alt="Logo" className="w-5 h-5 rounded-full" onError={(e) => e.target.style.display = 'none'} />

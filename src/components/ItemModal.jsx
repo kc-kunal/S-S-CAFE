@@ -179,21 +179,21 @@ export default function ItemModal({ isOpen, onClose, onSave, editingItem, existi
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto">
       
-      <div className="bg-white rounded-3xl shadow-2xl border border-stone-200 w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-stone-200 w-full max-w-2xl max-h-[94vh] sm:max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         
         {/* Modal Header */}
-        <div className="bg-stone-950 text-stone-100 px-6 py-4 flex items-center justify-between border-b border-stone-800 shrink-0">
+        <div className="bg-stone-950 text-stone-100 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between border-b border-stone-800 shrink-0">
           <div className="flex items-center space-x-2.5">
-            <div className="p-2 rounded-xl bg-amber-600 text-white shadow-sm">
-              <Coffee className="w-5 h-5" />
+            <div className="p-1.5 sm:p-2 rounded-xl bg-amber-600 text-white shadow-sm shrink-0">
+              <Coffee className="w-4 sm:w-5 h-4 sm:h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold font-serif-title text-amber-100">
+              <h2 className="text-base sm:text-lg font-bold font-serif-title text-amber-100">
                 {editingItem ? 'Edit Menu Item & Recipe' : 'Add New Menu Item & Recipe'}
               </h2>
-              <p className="text-xs text-stone-400">Configure item details and raw material consumption</p>
+              <p className="text-[11px] sm:text-xs text-stone-400">Configure item details and raw material consumption</p>
             </div>
           </div>
           <button onClick={onClose} className="text-stone-400 hover:text-white p-1 rounded-lg cursor-pointer">
@@ -202,7 +202,7 @@ export default function ItemModal({ isOpen, onClose, onSave, editingItem, existi
         </div>
 
         {/* Scrollable Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto flex-1">
+        <form onSubmit={handleSubmit} className="p-3.5 sm:p-6 space-y-4 sm:space-y-6 overflow-y-auto flex-1">
           
           {/* Item Name */}
           <div>
@@ -385,10 +385,10 @@ export default function ItemModal({ isOpen, onClose, onSave, editingItem, existi
                   const lineCost = Math.round((Number(ing.quantity) || 0) * ingUnitCost * 100) / 100;
 
                   return (
-                    <div key={idx} className="flex flex-wrap sm:flex-nowrap items-center gap-2 bg-white p-2.5 rounded-xl border border-stone-200 shadow-2xs">
+                    <div key={idx} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-white p-2.5 sm:p-3 rounded-xl border border-stone-200 shadow-2xs">
                       
                       {/* Select Raw Material or Custom Name */}
-                      <div className="flex-1 min-w-[150px]">
+                      <div className="flex-1 min-w-0">
                         {ing.isCustom ? (
                           <div className="flex items-center gap-1">
                             <input
@@ -426,45 +426,48 @@ export default function ItemModal({ isOpen, onClose, onSave, editingItem, existi
                         )}
                       </div>
 
-                      {/* Quantity */}
-                      <div className="w-24 shrink-0">
-                        <input
-                          type="number"
-                          step="any"
-                          value={ing.quantity}
-                          onChange={(e) => handleUpdateRecipeIngredient(idx, 'quantity', e.target.value)}
-                          placeholder="Qty"
-                          className="w-full px-2.5 py-1.5 text-xs font-bold text-center bg-stone-50 border border-stone-300 rounded-lg focus:outline-none"
-                        />
-                      </div>
+                      {/* Row for Quantity, Unit, Cost and Delete */}
+                      <div className="flex items-center justify-between sm:justify-start gap-2 shrink-0">
+                        {/* Quantity */}
+                        <div className="w-20 sm:w-24 shrink-0">
+                          <input
+                            type="number"
+                            step="any"
+                            value={ing.quantity}
+                            onChange={(e) => handleUpdateRecipeIngredient(idx, 'quantity', e.target.value)}
+                            placeholder="Qty"
+                            className="w-full px-2.5 py-1.5 text-xs font-bold text-center bg-stone-50 border border-stone-300 rounded-lg focus:outline-none"
+                          />
+                        </div>
 
-                      {/* Unit */}
-                      <div className="w-24 shrink-0">
-                        <select
-                          value={ing.unit || 'Piece'}
-                          onChange={(e) => handleUpdateRecipeIngredient(idx, 'unit', e.target.value)}
-                          className="w-full px-2 py-1.5 text-xs font-semibold bg-stone-50 border border-stone-300 rounded-lg focus:outline-none text-stone-700"
+                        {/* Unit */}
+                        <div className="w-20 sm:w-24 shrink-0">
+                          <select
+                            value={ing.unit || 'Piece'}
+                            onChange={(e) => handleUpdateRecipeIngredient(idx, 'unit', e.target.value)}
+                            className="w-full px-2 py-1.5 text-xs font-semibold bg-stone-50 border border-stone-300 rounded-lg focus:outline-none text-stone-700"
+                          >
+                            {INGREDIENT_UNITS.map(u => (
+                              <option key={u} value={u}>{u}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Estimated Subtotal Cost */}
+                        <div className="w-16 sm:w-20 shrink-0 text-right pr-1">
+                          <span className="text-xs font-extrabold text-stone-700">₹{lineCost}</span>
+                        </div>
+
+                        {/* Delete Ingredient */}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveRecipeIngredient(idx)}
+                          className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer shrink-0"
+                          title="Remove ingredient"
                         >
-                          {INGREDIENT_UNITS.map(u => (
-                            <option key={u} value={u}>{u}</option>
-                          ))}
-                        </select>
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
-
-                      {/* Estimated Subtotal Cost */}
-                      <div className="w-20 shrink-0 text-right pr-1">
-                        <span className="text-xs font-extrabold text-stone-700">₹{lineCost}</span>
-                      </div>
-
-                      {/* Delete Ingredient */}
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveRecipeIngredient(idx)}
-                        className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                        title="Remove ingredient"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
 
                     </div>
                   );
