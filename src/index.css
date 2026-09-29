@@ -1,0 +1,255 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --espresso-dark: #140f0c;
+  --espresso-card: #1c1612;
+  --amber-gold: #d97706;
+  --amber-gold-hover: #b45309;
+  --amber-gold-light: #fef3c7;
+  --amber-glow: rgba(217, 119, 6, 0.25);
+  --stone-bg: #faf7f2;
+}
+
+@layer base {
+  body {
+    background-color: var(--stone-bg);
+    color: #292524;
+    min-height: 100vh;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* Custom Typography */
+.font-serif-title {
+  font-family: 'Playfair Display', Georgia, serif;
+}
+
+/* Glassmorphism Utilities */
+.cafe-glass {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.cafe-glass-dark {
+  background: rgba(22, 17, 13, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* Custom Card Styles */
+.cafe-card {
+  background: #ffffff;
+  border: 1px solid rgba(231, 229, 228, 0.9);
+  border-radius: 1.25rem;
+  box-shadow: 0 4px 20px -2px rgba(28, 22, 18, 0.05), 0 2px 6px -1px rgba(28, 22, 18, 0.03);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cafe-card:hover {
+  border-color: rgba(217, 119, 6, 0.4);
+  box-shadow: 0 12px 28px -4px rgba(217, 119, 6, 0.12), 0 4px 12px -2px rgba(28, 22, 18, 0.05);
+}
+
+.cafe-card-dark {
+  background: linear-gradient(145deg, #1c1612, #140f0c);
+  border: 1px solid rgba(217, 119, 6, 0.2);
+  border-radius: 1.5rem;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.3);
+}
+
+/* Compact Micro Card for Sales Logger */
+.cafe-micro-card {
+  background: #ffffff;
+  border: 1px solid #e7e5e4;
+  border-radius: 0.875rem;
+  padding: 0.625rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+}
+
+.cafe-micro-card:hover {
+  border-color: #d97706;
+  background: rgba(254, 243, 199, 0.25);
+  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.1);
+}
+
+/* Input Fields & Select Control Styles */
+.cafe-input {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  background-color: #fafaf9;
+  border: 1px solid #d6d3d1;
+  border-radius: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.cafe-input:focus {
+  outline: none;
+  background-color: #ffffff;
+  border-color: #d97706;
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.2);
+}
+
+.cafe-select {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  background-color: #fafaf9;
+  border: 1px solid #d6d3d1;
+  border-radius: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.cafe-select:focus {
+  outline: none;
+  background-color: #ffffff;
+  border-color: #d97706;
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.2);
+}
+
+/* Standardized Button Styles */
+.cafe-btn-gold {
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  color: #ffffff;
+  font-weight: 700;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 14px rgba(217, 119, 6, 0.3);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.cafe-btn-gold:hover {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(217, 119, 6, 0.4);
+}
+
+.cafe-btn-emerald {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: #ffffff;
+  font-weight: 700;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.25);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.cafe-btn-emerald:hover {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(5, 150, 105, 0.35);
+}
+
+.cafe-btn-sky {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+  font-weight: 700;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.25);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.cafe-btn-sky:hover {
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(2, 132, 199, 0.35);
+}
+
+.cafe-btn-rose {
+  background: #fff1f2;
+  color: #be123c;
+  border: 1px solid #fecdd3;
+  font-weight: 700;
+  border-radius: 0.75rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.cafe-btn-rose:hover {
+  background: #ffe4e6;
+  color: #9f1239;
+  border-color: #fda4af;
+}
+
+/* Pill Badges */
+.cafe-badge-gold {
+  background-color: rgba(254, 243, 199, 0.9);
+  color: #78350f;
+  border: 1px solid rgba(252, 211, 77, 0.7);
+  font-weight: 700;
+  border-radius: 9999px;
+  padding: 0.15rem 0.625rem;
+  font-size: 0.75rem;
+}
+
+.cafe-badge-cash {
+  background-color: rgba(209, 250, 229, 0.9);
+  color: #065f46;
+  border: 1px solid rgba(110, 231, 183, 0.7);
+  font-weight: 700;
+  border-radius: 9999px;
+  padding: 0.15rem 0.625rem;
+  font-size: 0.75rem;
+}
+
+.cafe-badge-online {
+  background-color: rgba(224, 242, 254, 0.9);
+  color: #075985;
+  border: 1px solid rgba(125, 211, 252, 0.7);
+  font-weight: 700;
+  border-radius: 9999px;
+  padding: 0.15rem 0.625rem;
+  font-size: 0.75rem;
+}
+
+/* Table Design */
+.cafe-table-header {
+  background-color: #140f0c;
+  color: #fef3c7;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.cafe-table-row {
+  transition: background-color 0.15s ease;
+}
+
+.cafe-table-row:hover {
+  background-color: rgba(254, 243, 199, 0.35);
+}
+
+/* Animations & Scrollbar */
+@keyframes shimmer-gold {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, rgba(217,119,6,0.1) 0%, rgba(217,119,6,0.3) 50%, rgba(217,119,6,0.1) 100%);
+  background-size: 200% 100%;
+  animation: shimmer-gold 3s infinite;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f5f5f4;
+}
+::-webkit-scrollbar-thumb {
+  background: #d6d3d1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #d97706;
+}

@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>S&S Cafe - Sales, Inventory & Financial P&L System</title>
+  <link rel="icon" type="image/jpeg" href="logo.jpg" />
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- React 18 & ReactDOM CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  
+  <!-- Babel Standalone for JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    .font-serif-title {
+      font-family: 'Playfair Display', Georgia, serif;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #d5bea3;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="bg-amber-50/30 text-stone-800 min-h-screen antialiased">
+
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+
+    const MENU_STORAGE_KEY = 'ss_cafe_menu_items_v6';
+    const SALES_STORAGE_KEY = 'ss_cafe_sales_logs_v6';
+    const PROCUREMENT_STORAGE_KEY = 'ss_cafe_procurement_logs_v6';
+
+    const getTodayDate = (offset = 0) => {
+      const d = new Date();
+      d.setDate(d.getDate() - offset);
+      return d.toISOString().split('T')[0];
+    };
+
+    const INITIAL_MENU = [
+      // PIZZA
+      { id: 'pizza-1', name: 'Margarita Pizza', category: 'Pizza', sellingPrice: 69, costPrice: 30, unit: 'Piece', isAvailable: true },
+      { id: 'pizza-2', name: 'Veg Cheese Pizza', category: 'Pizza', sellingPrice: 79, costPrice: 35, unit: 'Piece', isAvailable: true },
+      { id: 'pizza-3', name: 'Schezwan Pizza', category: 'Pizza', sellingPrice: 89, costPrice: 40, unit: 'Piece', isAvailable: true },
+      { id: 'pizza-4', name: 'Cheese Corn Pizza', category: 'Pizza', sellingPrice: 99, costPrice: 45, unit: 'Piece', isAvailable: true },
+      { id: 'pizza-5', name: 'Paneer Makhni Pizza', category: 'Pizza', sellingPrice: 99, costPrice: 45, unit: 'Piece', isAvailable: true },
+      { id: 'pizza-6', name: 'Tandoori Paneer Pizza', category: 'Pizza', sellingPrice: 99, costPrice: 45, unit: 'Piece', isAvailable: true },
+      { id: 'pizza-7', name: 'S&S Special Pizza', category: 'Pizza', sellingPrice: 149, costPrice: 65, unit: 'Piece', isAvailable: true },
+
+      // BURGER (VEG)
+      { id: 'burger-1', name: 'Aloo Tikki Burger', category: 'Burgers', sellingPrice: 39, costPrice: 18, unit: 'Piece', isAvailable: true },
+      { id: 'burger-2', name: 'Classic Veg Burger', category: 'Burgers', sellingPrice: 39, costPrice: 18, unit: 'Piece', isAvailable: true },
+      { id: 'burger-3', name: 'Peri Peri Cheese Burger', category: 'Burgers', sellingPrice: 49, costPrice: 22, unit: 'Piece', isAvailable: true },
+      { id: 'burger-4', name: 'Tandoori Cheese Burger', category: 'Burgers', sellingPrice: 49, costPrice: 22, unit: 'Piece', isAvailable: true },
+      { id: 'burger-5', name: 'Schezwan Cheese Burger', category: 'Burgers', sellingPrice: 59, costPrice: 26, unit: 'Piece', isAvailable: true },
+      { id: 'burger-6', name: 'Crispy Paneer Burger', category: 'Burgers', sellingPrice: 99, costPrice: 45, unit: 'Piece', isAvailable: true },
+      { id: 'burger-7', name: 'S&S Snaker Burger', category: 'Burgers', sellingPrice: 119, costPrice: 55, unit: 'Piece', isAvailable: true },
+
+      // SANDWICH
+      { id: 'sandwich-1', name: 'Creamy Corn Sandwich', category: 'Sandwich', sellingPrice: 59, costPrice: 25, unit: 'Piece', isAvailable: true },
+      { id: 'sandwich-2', name: 'Cheese Chutney Sandwich', category: 'Sandwich', sellingPrice: 69, costPrice: 30, unit: 'Piece', isAvailable: true },
+      { id: 'sandwich-3', name: 'Tandoori Paneer Sandwich', category: 'Sandwich', sellingPrice: 79, costPrice: 35, unit: 'Piece', isAvailable: true },
+      { id: 'sandwich-4', name: 'Aloo Tikki Sandwich', category: 'Sandwich', sellingPrice: 89, costPrice: 40, unit: 'Piece', isAvailable: true },
+      { id: 'sandwich-5', name: 'Chargrill Veg Sandwich', category: 'Sandwich', sellingPrice: 89, costPrice: 40, unit: 'Piece', isAvailable: true },
+      { id: 'sandwich-6', name: 'Falafel Sandwich', category: 'Sandwich', sellingPrice: 99, costPrice: 45, unit: 'Piece', isAvailable: true },
+      { id: 'sandwich-7', name: 'Club Sandwich', category: 'Sandwich', sellingPrice: 119, costPrice: 55, unit: 'Piece', isAvailable: true },
+
+      // FRIES
+      { id: 'fries-1', name: 'Salted Fries', category: 'Fries', sellingPrice: 59, costPrice: 25, unit: 'Portion', isAvailable: true },
+      { id: 'fries-2', name: 'Peri Peri Fries', category: 'Fries', sellingPrice: 69, costPrice: 30, unit: 'Portion', isAvailable: true },
+      { id: 'fries-3', name: 'Loaded Fries', category: 'Fries', sellingPrice: 89, costPrice: 40, unit: 'Portion', isAvailable: true },
+
+      // GARLIC BREAD
+      { id: 'gb-1', name: 'Plain Garlic Bread', category: 'Garlic Bread', sellingPrice: 59, costPrice: 25, unit: 'Portion', isAvailable: true },
+      { id: 'gb-2', name: 'Cheese Garlic Bread', category: 'Garlic Bread', sellingPrice: 69, costPrice: 30, unit: 'Portion', isAvailable: true },
+      { id: 'gb-3', name: 'Chilli Cheese Garlic Bread', category: 'Garlic Bread', sellingPrice: 79, costPrice: 35, unit: 'Portion', isAvailable: true },
+
+      // COLD COFFEE & SHAKES
+      { id: 'shake-1', name: 'Classic Cold Coffee', category: 'Cold Coffee & Shakes', sellingPrice: 59, costPrice: 25, unit: 'Glass', isAvailable: true },
+      { id: 'shake-2', name: 'Belgian Chocolate Cold Coffee', category: 'Cold Coffee & Shakes', sellingPrice: 69, costPrice: 30, unit: 'Glass', isAvailable: true },
+      { id: 'shake-3', name: 'Double Chocolate Shake', category: 'Cold Coffee & Shakes', sellingPrice: 79, costPrice: 35, unit: 'Glass', isAvailable: true },
+      { id: 'shake-4', name: 'Oreo Shake', category: 'Cold Coffee & Shakes', sellingPrice: 89, costPrice: 40, unit: 'Glass', isAvailable: true },
+      { id: 'shake-5', name: 'Kitkat Shake', category: 'Cold Coffee & Shakes', sellingPrice: 99, costPrice: 45, unit: 'Glass', isAvailable: true },
+      { id: 'shake-6', name: 'Brownie Shake', category: 'Cold Coffee & Shakes', sellingPrice: 99, costPrice: 45, unit: 'Glass', isAvailable: true },
+
+      // WRAPS
+      { id: 'wrap-1', name: 'Veggie Wrap', category: 'Wraps', sellingPrice: 59, costPrice: 25, unit: 'Piece', isAvailable: true },
+      { id: 'wrap-2', name: 'Falafel Wrap', category: 'Wraps', sellingPrice: 69, costPrice: 30, unit: 'Piece', isAvailable: true },
+      { id: 'wrap-3', name: 'Sechwan Paneer Wrap', category: 'Wraps', sellingPrice: 79, costPrice: 35, unit: 'Piece', isAvailable: true },
+
+      // MOCKTAILS
+      { id: 'mocktail-1', name: 'Banta Masala Soda', category: 'Mocktails', sellingPrice: 39, costPrice: 15, unit: 'Glass', isAvailable: true },
+      { id: 'mocktail-2', name: 'Classic Mint', category: 'Mocktails', sellingPrice: 59, costPrice: 25, unit: 'Glass', isAvailable: true },
+      { id: 'mocktail-3', name: 'Peach Ice Tea', category: 'Mocktails', sellingPrice: 59, costPrice: 25, unit: 'Glass', isAvailable: true },
+      { id: 'mocktail-4', name: 'Water Melon Cooler', category: 'Mocktails', sellingPrice: 59, costPrice: 25, unit: 'Glass', isAvailable: true },
+      { id: 'mocktail-5', name: 'Strawberry Cooler', category: 'Mocktails', sellingPrice: 69, costPrice: 30, unit: 'Glass', isAvailable: true },
+      { id: 'mocktail-6', name: 'Mango Mint', category: 'Mocktails', sellingPrice: 69, costPrice: 30, unit: 'Glass', isAvailable: true },
+      { id: 'mocktail-7', name: 'Blue Lagoon', category: 'Mocktails', sellingPrice: 69, costPrice: 30, unit: 'Glass', isAvailable: true },
+
+      // MEAL COMBOS
+      { id: 'combo-1', name: 'Combo 1 (Fries + Coke 200ml)', category: 'Meal Combos', sellingPrice: 49, costPrice: 20, unit: 'Combo', isAvailable: true },
+      { id: 'combo-2', name: 'Combo 2 (Fries + Cold Coffee)', category: 'Meal Combos', sellingPrice: 89, costPrice: 40, unit: 'Combo', isAvailable: true },
+      { id: 'combo-3', name: 'Combo 3 (Fries + Banta)', category: 'Meal Combos', sellingPrice: 69, costPrice: 30, unit: 'Combo', isAvailable: true },
+
+      // ADD ONS
+      { id: 'addon-1', name: 'Dips', category: 'Add Ons', sellingPrice: 10, costPrice: 4, unit: 'Serving', isAvailable: true },
+      { id: 'addon-2', name: 'Extra Cheese', category: 'Add Ons', sellingPrice: 20, costPrice: 8, unit: 'Serving', isAvailable: true },
+      { id: 'addon-3', name: 'Cheese Slice', category: 'Add Ons', sellingPrice: 20, costPrice: 8, unit: 'Piece', isAvailable: true }
+    ];
+
+    const INITIAL_SALES = [
+      { id: 's-1', itemId: 'burger-1', itemName: 'Aloo Tikki Burger', category: 'Burgers', quantitySold: 3, sellingPrice: 39, costPrice: 18, totalRevenue: 117, totalCost: 54, paymentMethod: 'Cash', date: getTodayDate(0) },
+      { id: 's-2', itemId: 'shake-1', itemName: 'Classic Cold Coffee', category: 'Cold Coffee & Shakes', quantitySold: 2, sellingPrice: 59, costPrice: 25, totalRevenue: 118, totalCost: 50, paymentMethod: 'Online', date: getTodayDate(0) }
+    ];
+
+    const INITIAL_PROCUREMENT = [
+      { id: 'p-1', materialName: 'Whole Milk', category: 'Dairy', quantityReceived: 20, unit: 'Liters', totalCost: 1100, supplier: 'Amul Dairy', date: getTodayDate(0) }
+    ];
+
+    function App() {
+      const [tab, setTab] = useState('sales');
+      const [menu, setMenu] = useState([]);
+      const [sales, setSales] = useState([]);
+      const [procurement, setProcurement] = useState([]);
+      const [toast, setToast] = useState(null);
+
+      const showToast = (msg) => {
+        setToast(msg);
+        setTimeout(() => setToast(null), 3000);
+      };
+
+      useEffect(() => {
+        try {
+          const m = localStorage.getItem(MENU_STORAGE_KEY); setMenu(m ? JSON.parse(m) : INITIAL_MENU);
+          const s = localStorage.getItem(SALES_STORAGE_KEY); setSales(s ? JSON.parse(s) : INITIAL_SALES);
+          const p = localStorage.getItem(PROCUREMENT_STORAGE_KEY); setProcurement(p ? JSON.parse(p) : INITIAL_PROCUREMENT);
+        } catch(e) {
+          setMenu(INITIAL_MENU); setSales(INITIAL_SALES); setProcurement(INITIAL_PROCUREMENT);
+        }
+      }, []);
+
+      const updateMenu = (newM) => { setMenu(newM); localStorage.setItem(MENU_STORAGE_KEY, JSON.stringify(newM)); };
+      const updateSales = (newS) => { setSales(newS); localStorage.setItem(SALES_STORAGE_KEY, JSON.stringify(newS)); };
+      const updateProc = (newP) => { setProcurement(newP); localStorage.setItem(PROCUREMENT_STORAGE_KEY, JSON.stringify(newP)); };
+
+      const handleAddSale = (s) => {
+        updateSales([s, ...sales]);
+        showToast(`Logged sale: ${s.quantitySold}x ${s.itemName} (₹${s.totalRevenue})`);
+      };
+
+      const handleDeleteSale = (id) => {
+        const saleToDelete = sales.find(x => x.id === id);
+        updateSales(sales.filter(x => x.id !== id));
+        if (saleToDelete) {
+          showToast(`Deleted sale log entry for "${saleToDelete.itemName}"`);
+        }
+      };
+
+      return (
+        <div className="min-h-screen flex flex-col">
+          
+          {toast && (
+            <div className="fixed bottom-6 right-6 z-50 flex items-center space-x-2 bg-stone-950 text-amber-100 px-5 py-3.5 rounded-2xl shadow-2xl border border-stone-800 animate-bounce">
+              <span className="text-amber-500 font-bold">✓</span>
+              <span className="text-sm font-semibold">{toast}</span>
+            </div>
+          )}
+
+          {/* Header */}
+          <header className="bg-stone-950 text-amber-50 sticky top-0 z-30 shadow-xl border-b border-stone-800">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <img src="logo.jpg" alt="S&S Logo" className="w-12 h-12 rounded-xl object-cover ring-2 ring-amber-500/50" />
+                <div>
+                  <h1 className="text-2xl font-bold font-serif-title tracking-wide text-amber-100">
+                    S&S Cafe
+                  </h1>
+                  <p className="text-xs text-amber-300/70">Sales, Category Menu & Financial System</p>
+                </div>
+              </div>
+
+              <div className="hidden md:flex items-center gap-1 text-xs text-amber-300 font-semibold bg-amber-500/20 px-3 py-1 rounded-xl border border-amber-500/30">
+                🔒 Data Protected
+              </div>
+            </div>
+          </header>
+
+          {/* Main */}
+          <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            
+            {/* Tabs */}
+            <div className="flex space-x-2 mb-8 bg-white p-2 rounded-2xl border border-stone-200 shadow-sm overflow-x-auto">
+              <button onClick={() => setTab('sales')} className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold ${tab === 'sales' ? 'bg-amber-600 text-white' : 'text-stone-600'}`}>
+                ⚡ Daily Sales
+              </button>
+              <button onClick={() => setTab('dashboard')} className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold ${tab === 'dashboard' ? 'bg-amber-600 text-white' : 'text-stone-600'}`}>
+                📊 P&L Dashboard
+              </button>
+              <button onClick={() => setTab('procurement')} className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold ${tab === 'procurement' ? 'bg-amber-600 text-white' : 'text-stone-600'}`}>
+                🛍️ Raw Material Purchases
+              </button>
+              <button onClick={() => setTab('menu')} className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold ${tab === 'menu' ? 'bg-amber-600 text-white' : 'text-stone-600'}`}>
+                ☕ Menu Items
+              </button>
+            </div>
+
+            {/* TAB: SALES TRACKER */}
+            {tab === 'sales' && (
+              <EasySalesView
+                menu={menu}
+                sales={sales}
+                onAdd={handleAddSale}
+                onUpdate={(updatedSale) => {
+                  const updated = sales.map(s => s.id === updatedSale.id ? updatedSale : s);
+                  updateSales(updated);
+                  showToast(`Deducted 1 item: ${updatedSale.itemName} (${updatedSale.quantitySold} pcs remaining)`);
+                }}
+                onDelete={handleDeleteSale}
+              />
+            )}
+
+            {/* TAB: DASHBOARD */}
+            {tab === 'dashboard' && (
+              <DashboardView sales={sales} procurement={procurement} />
+            )}
+
+            {/* TAB: RAW MATERIAL PROCUREMENT */}
+            {tab === 'procurement' && (
+              <ProcurementView procurement={procurement} onAdd={(p) => {
+                updateProc([p, ...procurement]);
+                showToast(`Logged procurement of "${p.materialName}"`);
+              }} onDelete={(id) => { updateProc(procurement.filter(x => x.id !== id)); showToast('Entry deleted'); }} />
+            )}
+
+            {/* TAB: MENU ITEMS */}
+            {tab === 'menu' && (
+              <MenuView menu={menu} onAdd={(m) => updateMenu([m, ...menu])} onDelete={(id) => updateMenu(menu.filter(x => x.id !== id))} onUpdate={(item) => updateMenu(menu.map(x => x.id === item.id ? item : x))} />
+            )}
+
+          </main>
+
+          {/* Footer */}
+          <footer className="bg-stone-950 text-stone-400 py-6 text-xs text-center border-t border-stone-800 mt-12">
+            S&S Cafe — Daily Sales, Category Menu & P&L Control System
+          </footer>
+
+        </div>
+      );
+    }
+
+    // Easy 1-Tap Sales Logger Sub-component with Sales Summary & Category-Wise View
+    function EasySalesView({ menu, sales, onAdd, onUpdate, onDelete }) {
+      const [saleDate, setSaleDate] = useState(getTodayDate(0));
+      const [paymentMode, setPaymentMode] = useState('Cash'); // 'Cash' or 'Online'
+      const [selectedCat, setSelectedCat] = useState('All');
+      const [searchTerm, setSearchTerm] = useState('');
+
+      const logSale = (item, qty) => {
+        onAdd({
+          id: 's-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+          itemId: item.id, itemName: item.name, category: item.category || 'General', quantitySold: qty, sellingPrice: item.sellingPrice, costPrice: item.costPrice, totalRevenue: item.sellingPrice * qty, totalCost: item.costPrice * qty, paymentMethod: paymentMode, date: saleDate
+        });
+      };
+
+      const removeQuickSale = (item) => {
+        const match = sales.find(s => (s.itemId === item.id || s.itemName === item.name) && s.date === saleDate && s.paymentMethod === paymentMode)
+                   || sales.find(s => (s.itemId === item.id || s.itemName === item.name) && s.date === saleDate);
+        if (!match) return;
+        if (match.quantitySold > 1) {
+          onUpdate({
+            ...match,
+            quantitySold: match.quantitySold - 1,
+            totalRevenue: (match.quantitySold - 1) * match.sellingPrice,
+            totalCost: (match.quantitySold - 1) * match.costPrice
+          });
+        } else {
+          onDelete(match.id);
+        }
+      };
+
+      const dailySummary = useMemo(() => {
+        const logs = sales.filter(s => s.date === saleDate);
+        const totalRev = logs.reduce((sum, x) => sum + (x.totalRevenue || 0), 0);
+        const cashRev = logs.reduce((sum, x) => sum + (x.paymentMethod === 'Online' ? 0 : (x.totalRevenue || 0)), 0);
+        const onlineRev = logs.reduce((sum, x) => sum + (x.paymentMethod === 'Online' ? (x.totalRevenue || 0) : 0), 0);
+
+        const totalCost = logs.reduce((sum, x) => sum + (x.totalCost || 0), 0);
+        const totalQty = logs.reduce((sum, x) => sum + (x.quantitySold || 0), 0);
+        const netProfit = totalRev - totalCost;
+
+        let topItem = '-'; let maxQ = 0; const counts = {};
+        logs.forEach(l => { counts[l.itemName] = (counts[l.itemName] || 0) + (l.quantitySold || 0); });
+        Object.entries(counts).forEach(([k, v]) => { if (v > maxQ) { maxQ = v; topItem = `${k} (${v})`; } });
+
+        return { totalRev, cashRev, onlineRev, totalQty, netProfit, topItem, count: logs.length };
+      }, [sales, saleDate]);
+
+      const categories = useMemo(() => {
+        return ['All', ...Array.from(new Set(menu.map(i => i.category || 'General')))];
+      }, [menu]);
+
+      const groupedMenu = useMemo(() => {
+        const groups = {};
+        menu.forEach(item => {
+          const cat = item.category || 'General';
+          if (selectedCat !== 'All' && cat !== selectedCat) return;
+          if (searchTerm && !item.name.toLowerCase().includes(searchTerm.toLowerCase())) return;
+          if (!groups[cat]) groups[cat] = [];
+          groups[cat].push(item);
+        });
+        return groups;
+      }, [menu, selectedCat, searchTerm]);
+
+      return (
+        <div className="space-y-6">
+          
+          {/* Daily Sales Summary Cards */}
+          <div className="bg-stone-900 text-white p-6 rounded-3xl border border-stone-800 space-y-4 shadow-xl">
+            <div className="flex justify-between items-center border-b border-stone-800 pb-3">
+              <h3 className="text-base font-bold text-amber-100">📊 Daily Sales Summary ({saleDate})</h3>
+              <div className="flex items-center gap-2 bg-stone-800 px-3 py-1 rounded-xl">
+                <span className="text-xs font-bold text-amber-300">Date:</span>
+                <input type="date" value={saleDate} onChange={e => setSaleDate(e.target.value)} className="bg-transparent text-xs font-bold text-white focus:outline-none" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5 pt-1">
+              <div className="bg-stone-800/80 p-4 rounded-2xl">
+                <span className="text-[10px] font-bold text-stone-400 uppercase">Sales Revenue</span>
+                <h4 className="text-2xl font-extrabold text-amber-400 mt-1">₹{dailySummary.totalRev.toLocaleString()}</h4>
+              </div>
+              <div className="bg-stone-800/80 p-4 rounded-2xl border border-emerald-900/50">
+                <span className="text-[10px] font-bold text-emerald-400 uppercase">💵 Cash Sales</span>
+                <h4 className="text-2xl font-extrabold text-emerald-300 mt-1">₹{dailySummary.cashRev.toLocaleString()}</h4>
+              </div>
+              <div className="bg-stone-800/80 p-4 rounded-2xl border border-sky-900/50">
+                <span className="text-[10px] font-bold text-sky-400 uppercase">📱 Online / UPI</span>
+                <h4 className="text-2xl font-extrabold text-sky-300 mt-1">₹{dailySummary.onlineRev.toLocaleString()}</h4>
+              </div>
+              <div className="bg-stone-800/80 p-4 rounded-2xl">
+                <span className="text-[10px] font-bold text-stone-400 uppercase">Items Sold</span>
+                <h4 className="text-2xl font-extrabold text-stone-100 mt-1">{dailySummary.totalQty} pcs</h4>
+              </div>
+              <div className="bg-stone-800/80 p-4 rounded-2xl">
+                <span className="text-[10px] font-bold text-stone-400 uppercase">Net Profit</span>
+                <h4 className={`text-2xl font-extrabold mt-1 ${dailySummary.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>₹{dailySummary.netProfit.toLocaleString()}</h4>
+              </div>
+            </div>
+          </div>
+
+          {/* Category-Wise Item Selection */}
+          <div className="bg-white p-6 rounded-3xl border border-stone-200 shadow-sm space-y-4">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+              <div>
+                <h3 className="text-base font-bold text-stone-900">⚡ Select Menu Item (Category-Wise)</h3>
+                <p className="text-xs text-stone-500">Select payment mode & tap to log sale.</p>
+              </div>
+
+              {/* Payment Mode Selector */}
+              <div className="flex items-center gap-2 bg-stone-100 p-1.5 rounded-2xl border border-stone-200">
+                <span className="text-xs font-bold text-stone-500 uppercase px-1">Payment Mode:</span>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMode('Cash')}
+                  className={`px-3 py-1 rounded-xl text-xs font-bold ${paymentMode === 'Cash' ? 'bg-emerald-600 text-white shadow' : 'text-stone-600'}`}
+                >
+                  💵 Cash
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMode('Online')}
+                  className={`px-3 py-1 rounded-xl text-xs font-bold ${paymentMode === 'Online' ? 'bg-sky-600 text-white shadow' : 'text-stone-600'}`}
+                >
+                  📱 Online / UPI
+                </button>
+              </div>
+
+              <input type="text" placeholder="Search menu..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="px-3 py-1.5 bg-stone-50 border rounded-xl text-xs w-full sm:w-56" />
+            </div>
+
+            {/* Category Tabs */}
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {categories.map(cat => (
+                <button key={cat} onClick={() => setSelectedCat(cat)} className={`px-4 py-1.5 rounded-full text-xs font-bold ${selectedCat === cat ? 'bg-amber-600 text-white' : 'bg-stone-100 text-stone-600'}`}>
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            {/* Grouped Category Sections */}
+            {Object.keys(groupedMenu).length === 0 ? (
+              <p className="text-xs text-stone-400 py-6 text-center">No menu items match your search.</p>
+            ) : (
+              <div className="space-y-6 pt-2">
+                {Object.entries(groupedMenu).map(([category, items]) => (
+                  <div key={category} className="space-y-3">
+                    <h4 className="text-xs font-extrabold text-stone-900 uppercase tracking-wider border-b pb-1">{category}</h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                      {items.map(item => {
+                        const todayLogs = sales.filter(s => (s.itemId === item.id || s.itemName === item.name) && s.date === saleDate);
+                        const soldQty = todayLogs.reduce((acc, curr) => acc + (curr.quantitySold || 0), 0);
+                        return (
+                          <div key={item.id} className="bg-white hover:bg-amber-50/50 rounded-xl p-2.5 border border-stone-200 flex flex-col justify-between shadow-sm">
+                            <div>
+                              <div className="flex justify-between items-start gap-1">
+                                <h5 className="text-xs font-bold text-stone-900 truncate" title={item.name}>{item.name}</h5>
+                                <span className="text-xs font-black text-amber-900 shrink-0">₹{item.sellingPrice}</span>
+                              </div>
+                              <div className="flex justify-between text-[10px] text-stone-400 mt-0.5">
+                                <span>{item.unit || 'Piece'}</span>
+                                {soldQty > 0 && <span className="font-extrabold text-emerald-700 bg-emerald-50 px-1 rounded">{soldQty} sold</span>}
+                              </div>
+                            </div>
+                            <div className="mt-2 pt-1.5 border-t flex items-center gap-1">
+                              <button onClick={() => removeQuickSale(item)} disabled={soldQty === 0} className={`px-2 py-0.5 text-xs font-extrabold rounded border ${soldQty > 0 ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100' : 'bg-stone-50 text-stone-300 border-stone-100'}`}>-1</button>
+                              <button onClick={() => logSale(item, 1)} className={`flex-1 py-0.5 text-xs font-extrabold text-white rounded shadow ${paymentMode === 'Online' ? 'bg-sky-600' : 'bg-emerald-600'}`}>+1</button>
+                              <button onClick={() => logSale(item, 2)} className="px-1.5 py-0.5 text-xs font-bold bg-stone-100 border rounded">+2</button>
+                              <button onClick={() => logSale(item, 5)} className="px-1.5 py-0.5 text-xs font-bold bg-stone-100 border rounded">+5</button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Sales History Table */}
+          <div className="bg-white p-6 rounded-3xl border border-stone-200 shadow-sm overflow-x-auto">
+            <h3 className="text-base font-bold text-stone-900 mb-4">Logged Sales History</h3>
+            <table className="w-full text-left border-collapse text-sm">
+              <thead>
+                <tr className="bg-stone-950 text-amber-100 text-xs font-bold uppercase">
+                  <th className="py-3 px-4">Date</th>
+                  <th className="py-3 px-4">Item Name</th>
+                  <th className="py-3 px-4">Category</th>
+                  <th className="py-3 px-4 text-center">Payment Mode</th>
+                  <th className="py-3 px-4 text-center">Qty Sold</th>
+                  <th className="py-3 px-4 text-right">Selling Price</th>
+                  <th className="py-3 px-4 text-right">Total Revenue</th>
+                  <th className="py-3 px-4 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y text-stone-700">
+                {sales.map(s => (
+                  <tr key={s.id} className="hover:bg-amber-50/40">
+                    <td className="py-3 px-4 text-xs font-semibold text-stone-500">{s.date}</td>
+                    <td className="py-3 px-4 font-bold text-stone-900">{s.itemName}</td>
+                    <td className="py-3 px-4"><span className="px-2 py-0.5 rounded bg-stone-100 font-semibold text-xs">{s.category || 'General'}</span></td>
+                    <td className="py-3 px-4 text-center">
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                        s.paymentMethod === 'Online' ? 'bg-sky-100 text-sky-800' : 'bg-emerald-100 text-emerald-800'
+                      }`}>
+                        {s.paymentMethod === 'Online' ? '📱 Online' : '💵 Cash'}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-center font-bold"><span className="px-2 py-0.5 bg-amber-100 text-amber-900 rounded text-xs">{s.quantitySold}</span></td>
+                    <td className="py-3 px-4 text-right">₹{s.sellingPrice}</td>
+                    <td className="py-3 px-4 text-right font-extrabold text-emerald-700">₹{s.totalRevenue}</td>
+                    <td className="py-3 px-4 text-center"><button onClick={() => onDelete(s.id)} className="text-xs bg-rose-50 text-rose-600 px-2.5 py-1 rounded">Delete</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      );
+    }
+
+    // Dashboard View Sub-component
+    function DashboardView({ sales, procurement }) {
+      const [timeframe, setTimeframe] = useState('daily');
+      const todayStr = getTodayDate(0);
+      const [dateFilter, setDateFilter] = useState(todayStr);
+
+      const filtered = useMemo(() => {
+        let sList = []; let pList = [];
+        if (timeframe === 'daily') {
+          sList = sales.filter(s => s.date === dateFilter); pList = procurement.filter(p => p.date === dateFilter);
+        } else if (timeframe === 'weekly') {
+          const minD = getTodayDate(7); sList = sales.filter(s => s.date >= minD); pList = procurement.filter(p => p.date >= minD);
+        } else if (timeframe === 'monthly') {
+          const ym = new Date().toISOString().slice(0, 7); sList = sales.filter(s => s.date.startsWith(ym)); pList = procurement.filter(p => p.date.startsWith(ym));
+        } else {
+          sList = sales; pList = procurement;
+        }
+
+        const totalRevenue = sList.reduce((sum, x) => sum + Number(x.totalRevenue), 0);
+        const totalProcurement = pList.reduce((sum, x) => sum + Number(x.totalCost), 0);
+        const totalUnits = sList.reduce((sum, x) => sum + Number(x.quantitySold), 0);
+        const totalMaterialConsumed = sList.reduce((sum, x) => sum + (Number(x.totalCost) || ((Number(x.costPrice) || 0) * Number(x.quantitySold || 1))), 0);
+        const actualProfit = totalRevenue - totalMaterialConsumed;
+        const margin = totalRevenue > 0 ? ((actualProfit / totalRevenue) * 100).toFixed(1) : 0;
+        const netCashFlow = totalRevenue - totalProcurement;
+        return { totalRevenue, totalProcurement, totalUnits, totalMaterialConsumed, actualProfit, margin, netCashFlow };
+      }, [sales, procurement, timeframe, dateFilter]);
+
+      return (
+        <div className="space-y-6">
+          <div className="bg-white p-4 rounded-2xl border border-stone-200 flex justify-between items-center">
+            <h3 className="text-base font-bold text-stone-900">Financial P&L Summary (COGS-Based)</h3>
+            <div className="flex gap-2">
+              {timeframe === 'daily' && <input type="date" value={dateFilter} onChange={e => setDateFilter(e.target.value)} className="text-xs border rounded-xl px-3 py-1 font-bold" />}
+              <div className="bg-stone-100 p-1 rounded-xl text-xs font-bold flex">
+                <button onClick={() => setTimeframe('daily')} className={`px-3 py-1 rounded-lg ${timeframe === 'daily' ? 'bg-amber-600 text-white' : ''}`}>Daily</button>
+                <button onClick={() => setTimeframe('weekly')} className={`px-3 py-1 rounded-lg ${timeframe === 'weekly' ? 'bg-amber-600 text-white' : ''}`}>Weekly</button>
+                <button onClick={() => setTimeframe('monthly')} className={`px-3 py-1 rounded-lg ${timeframe === 'monthly' ? 'bg-amber-600 text-white' : ''}`}>Monthly</button>
+                <button onClick={() => setTimeframe('all')} className={`px-3 py-1 rounded-lg ${timeframe === 'all' ? 'bg-amber-600 text-white' : ''}`}>All</button>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
+              <span className="text-xs font-bold text-stone-400 uppercase">Sales Revenue</span>
+              <h3 className="text-3xl font-extrabold text-stone-900 mt-1">₹{filtered.totalRevenue.toLocaleString()}</h3>
+              <p className="text-xs text-stone-400 mt-1">{filtered.totalUnits} items sold</p>
+            </div>
+            <div className="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
+              <span className="text-xs font-bold text-stone-400 uppercase">Material Consumed (COGS)</span>
+              <h3 className="text-3xl font-extrabold text-amber-800 mt-1">₹{filtered.totalMaterialConsumed.toLocaleString()}</h3>
+              <p className="text-xs text-stone-400 mt-1">Purchases: ₹{filtered.totalProcurement.toLocaleString()}</p>
+            </div>
+            <div className={`p-5 rounded-2xl border shadow-sm ${filtered.actualProfit >= 0 ? 'bg-emerald-950 text-white' : 'bg-rose-950 text-white'}`}>
+              <span className="text-xs font-bold uppercase text-emerald-300">Actual {filtered.actualProfit >= 0 ? 'Profit' : 'Loss'}</span>
+              <h3 className="text-3xl font-extrabold mt-1">₹{Math.abs(filtered.actualProfit).toLocaleString()}</h3>
+              <p className="text-xs text-emerald-200/70 mt-1">Sales − Material Consumed</p>
+            </div>
+            <div className="bg-gradient-to-br from-amber-600 to-amber-800 text-white p-5 rounded-2xl border border-amber-600 shadow-sm">
+              <span className="text-xs font-bold uppercase text-amber-200">Profit Margin</span>
+              <h3 className="text-3xl font-extrabold mt-1">{filtered.margin}%</h3>
+              <p className="text-xs text-amber-200/70 mt-1">Cash Flow: ₹{filtered.netCashFlow.toLocaleString()}</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Procurement View Sub-component
+    function ProcurementView({ procurement, onAdd, onDelete }) {
+      const [name, setName] = useState('');
+      const [cat, setCat] = useState('Frozen');
+      const [qty, setQty] = useState('');
+      const [unit, setUnit] = useState('Kg');
+      const [rate, setRate] = useState('');
+      const [cost, setCost] = useState('');
+      const [supplier, setSupplier] = useState('');
+      const [date, setDate] = useState(getTodayDate(0));
+
+      const handleQtyChange = (v) => {
+        setQty(v);
+        if (v && rate) setCost(parseFloat((Number(v) * Number(rate)).toFixed(2)));
+      };
+
+      const handleRateChange = (v) => {
+        setRate(v);
+        if (qty && v) setCost(parseFloat((Number(qty) * Number(v)).toFixed(2)));
+      };
+
+      const handleCostChange = (v) => {
+        setCost(v);
+        if (qty && Number(qty) > 0 && v) setRate(parseFloat((Number(v) / Number(qty)).toFixed(2)));
+      };
+
+      const handleSubmit = (e) => {
+        e.preventDefault(); if (!name || !qty || !cost) return;
+        onAdd({
+          id: 'proc-' + Date.now(),
+          materialName: name,
+          category: cat,
+          quantityReceived: Number(qty),
+          unit,
+          ratePerUnit: Number(rate) || (Number(cost) / Number(qty)),
+          totalCost: Number(cost),
+          supplier,
+          date
+        });
+        setName(''); setQty(''); setRate(''); setCost(''); setSupplier('');
+      };
+
+      return (
+        <div className="space-y-6">
+          <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm space-y-4">
+            <div className="flex justify-between items-center border-b pb-2">
+              <h3 className="text-base font-bold text-stone-900">📦 Log Raw Material Purchase</h3>
+              <span className="text-xs text-amber-800 bg-amber-50 px-2.5 py-1 rounded font-semibold border border-amber-200">Fractional Qty Allowed (e.g. 0.5 Kg / 0.5 Liters)</span>
+            </div>
+
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+              <div><label className="block text-xs font-bold text-stone-700 uppercase mb-1">Material Name *</label><input type="text" required value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Frozen Fries" className="w-full px-3 py-2 border rounded-xl text-sm" /></div>
+              <div><label className="block text-xs font-bold text-stone-700 uppercase mb-1">Category *</label><select value={cat} onChange={e => setCat(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-sm font-bold"><option value="Frozen">Frozen</option><option value="Bakery">Bakery</option><option value="Dry">Dry</option><option value="Packaging">Packaging</option></select></div>
+              <div className="grid grid-cols-2 gap-2">
+                <div><label className="block text-xs font-bold text-stone-700 uppercase mb-1">Qty *</label><input type="number" required min="0.001" step="any" value={qty} onChange={e => handleQtyChange(e.target.value)} placeholder="0.5" className="w-full px-3 py-2 border rounded-xl text-sm font-bold text-stone-900" /></div>
+                <div><label className="block text-xs font-bold text-stone-700 uppercase mb-1">Unit *</label><select value={unit} onChange={e => setUnit(e.target.value)} className="w-full px-2 py-2 border rounded-xl text-xs font-extrabold text-amber-900"><option value="Kg">Kg</option><option value="Liters">Liters</option><option value="Piece">Piece</option></select></div>
+              </div>
+              <div><label className="block text-xs font-bold text-stone-700 uppercase mb-1">Rate (₹ / {unit}) *</label><input type="number" step="any" min="0" value={rate} onChange={e => handleRateChange(e.target.value)} placeholder={`Rate per ${unit}`} className="w-full px-3 py-2 border rounded-xl text-sm font-semibold" /></div>
+
+              <div><label className="block text-xs font-bold text-stone-700 uppercase mb-1">Total Cost (₹) *</label><input type="number" required step="any" min="0" value={cost} onChange={e => handleCostChange(e.target.value)} placeholder="Auto-calculated" className="w-full px-3 py-2 border rounded-xl text-sm font-black bg-amber-50/60 text-amber-950" /></div>
+              <div><label className="block text-xs font-bold text-stone-700 uppercase mb-1">Supplier / Vendor</label><input type="text" value={supplier} onChange={e => setSupplier(e.target.value)} placeholder="e.g. Metro Wholesale" className="w-full px-3 py-2 border rounded-xl text-sm" /></div>
+              <div><label className="block text-xs font-bold text-stone-700 uppercase mb-1">Date *</label><input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs font-semibold" /></div>
+              <div><button type="submit" className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-sm shadow">Log Purchase</button></div>
+            </form>
+          </div>
+
+          <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm overflow-x-auto">
+            <h3 className="text-base font-bold text-stone-900 mb-4">Raw Material Purchase History</h3>
+            <table className="w-full text-left border-collapse text-sm">
+              <thead><tr className="bg-stone-950 text-amber-100 text-xs font-bold uppercase"><th className="py-3 px-4">Date</th><th className="py-3 px-4">Material</th><th className="py-3 px-4">Category</th><th className="py-3 px-4 text-center">Qty Received</th><th className="py-3 px-4 text-right">Rate / Unit</th><th className="py-3 px-4">Supplier</th><th className="py-3 px-4 text-right">Total Cost</th><th className="py-3 px-4 text-center">Action</th></tr></thead>
+              <tbody className="divide-y text-stone-700">
+                {procurement.map(p => {
+                  const r = p.ratePerUnit || (p.quantityReceived > 0 ? (p.totalCost / p.quantityReceived).toFixed(2) : '-');
+                  return (
+                    <tr key={p.id} className="hover:bg-amber-50/40">
+                      <td className="py-3 px-4 text-xs font-semibold text-stone-500">{p.date}</td>
+                      <td className="py-3 px-4 font-bold text-stone-900">{p.materialName}</td>
+                      <td className="py-3 px-4"><span className="px-2 py-0.5 rounded bg-amber-100/70 text-amber-900 font-bold text-xs">{p.category}</span></td>
+                      <td className="py-3 px-4 text-center font-bold">{p.quantityReceived} {p.unit}</td>
+                      <td className="py-3 px-4 text-right text-xs font-semibold text-stone-600">₹{r} / {p.unit}</td>
+                      <td className="py-3 px-4 text-xs font-bold text-stone-800">{p.supplier ? `🏬 ${p.supplier}` : '—'}</td>
+                      <td className="py-3 px-4 text-right font-extrabold text-rose-700">₹{p.totalCost}</td>
+                      <td className="py-3 px-4 text-center"><button onClick={() => onDelete(p.id)} className="text-xs bg-rose-50 text-rose-600 px-2.5 py-1 rounded">Delete</button></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+
+    // Category-Wise Menu View Sub-component
+    function MenuView({ menu, onAdd, onDelete, onUpdate }) {
+      const PRESET_CATEGORIES = ['Pizza', 'Burgers', 'Sandwich', 'Fries', 'Garlic Bread', 'Cold Coffee & Shakes', 'Wraps', 'Mocktails', 'Meal Combos', 'Add Ons'];
+      const [name, setName] = useState(''); const [cat, setCat] = useState('Burgers'); const [price, setPrice] = useState(''); const [cost, setCost] = useState(''); const [unit, setUnit] = useState('Piece');
+      const [editingId, setEditingId] = useState(null);
+      const [editPrices, setEditPrices] = useState({ sellingPrice: '', costPrice: '' });
+
+      const handleAdd = (e) => {
+        e.preventDefault(); if (!name || !price || !cost) return;
+        onAdd({ id: 'item-' + Date.now(), name, category: cat, sellingPrice: Number(price), costPrice: Number(cost), unit });
+        setName(''); setPrice(''); setCost('');
+      };
+
+      const startEdit = (m) => {
+        setEditingId(m.id);
+        setEditPrices({ sellingPrice: m.sellingPrice, costPrice: m.costPrice });
+      };
+
+      const saveEdit = (m) => {
+        const s = Number(editPrices.sellingPrice);
+        const c = Number(editPrices.costPrice);
+        if (isNaN(s) || s <= 0 || isNaN(c) || c < 0) return;
+        onUpdate({ ...m, sellingPrice: s, costPrice: c });
+        setEditingId(null);
+      };
+
+      const groupedMenu = useMemo(() => {
+        const groups = {};
+        menu.forEach(item => {
+          const c = item.category || 'General';
+          if (!groups[c]) groups[c] = [];
+          groups[c].push(item);
+        });
+        return groups;
+      }, [menu]);
+
+      return (
+        <div className="space-y-6">
+          <div className="bg-white p-6 rounded-3xl border border-stone-200 shadow-sm space-y-4">
+            <h3 className="text-base font-bold text-stone-900">☕ Add New Menu Item</h3>
+            <form onSubmit={handleAdd} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-stone-700 uppercase mb-1">Select Category *</label>
+                <div className="flex flex-wrap gap-1.5 p-2 bg-stone-50 border rounded-2xl">
+                  {PRESET_CATEGORIES.map(c => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setCat(c)}
+                      className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
+                        cat === c ? 'bg-amber-600 text-white shadow' : 'bg-white text-stone-700 border hover:bg-stone-100'
+                      }`}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+                <div><label className="block text-xs font-bold text-stone-700 uppercase mb-1">Item Name *</label><input type="text" required value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Cheese Pizza" className="w-full px-3 py-2 border rounded-xl text-sm" /></div>
+                <div><label className="block text-xs font-bold text-stone-700 uppercase mb-1">Selling Price (₹) *</label><input type="number" required value={price} onChange={e => setPrice(e.target.value)} placeholder="99" className="w-full px-3 py-2 border rounded-xl text-sm font-bold text-amber-900" /></div>
+                <div><label className="block text-xs font-bold text-stone-700 uppercase mb-1">Cost Price (₹) *</label><input type="number" required value={cost} onChange={e => setCost(e.target.value)} placeholder="45" className="w-full px-3 py-2 border rounded-xl text-sm" /></div>
+                <div><button type="submit" className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-sm shadow">Add to {cat}</button></div>
+              </div>
+            </form>
+          </div>
+
+          <div className="bg-white p-6 rounded-3xl border border-stone-200 shadow-sm space-y-6">
+            <h3 className="text-base font-bold text-stone-900">S&S Cafe Menu Catalog (Category-Wise)</h3>
+            
+            {Object.entries(groupedMenu).map(([category, items]) => (
+              <div key={category} className="space-y-3">
+                <h4 className="text-xs font-extrabold text-stone-900 uppercase border-b pb-1">{category} ({items.length})</h4>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-sm">
+                    <thead><tr className="bg-stone-950 text-amber-100 text-xs font-bold uppercase"><th className="py-3 px-4">Item Name</th><th className="py-3 px-4">Category</th><th className="py-3 px-4 text-right">Selling Price</th><th className="py-3 px-4 text-right">Cost Price</th><th className="py-3 px-4 text-center">Unit</th><th className="py-3 px-4 text-center">Action</th></tr></thead>
+                    <tbody className="divide-y text-stone-700">
+                      {items.map(m => {
+                        const isEd = editingId === m.id;
+                        return (
+                          <tr key={m.id} className="hover:bg-amber-50/40">
+                            <td className="py-3 px-4 font-bold text-stone-900">{m.name}</td>
+                            <td className="py-3 px-4"><span className="px-2 py-0.5 bg-stone-100 rounded text-xs font-semibold">{m.category}</span></td>
+                            <td className="py-3 px-4 text-right">
+                              {isEd ? (
+                                <input type="number" value={editPrices.sellingPrice} onChange={e => setEditPrices({ ...editPrices, sellingPrice: e.target.value })} className="w-20 px-2 py-1 border border-amber-500 text-right rounded font-bold text-amber-900 text-xs" />
+                              ) : (
+                                <span className="font-bold text-amber-900">₹{m.sellingPrice}</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              {isEd ? (
+                                <input type="number" value={editPrices.costPrice} onChange={e => setEditPrices({ ...editPrices, costPrice: e.target.value })} className="w-20 px-2 py-1 border border-stone-400 text-right rounded font-semibold text-stone-700 text-xs" />
+                              ) : (
+                                <span className="text-stone-500 font-medium">₹{m.costPrice}</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-center text-xs">{m.unit}</td>
+                            <td className="py-3 px-4 text-center">
+                              {isEd ? (
+                                <div className="flex gap-1 justify-center">
+                                  <button onClick={() => saveEdit(m)} className="text-xs bg-emerald-600 text-white font-bold px-2 py-1 rounded">Save</button>
+                                  <button onClick={() => setEditingId(null)} className="text-xs bg-stone-200 text-stone-700 px-2 py-1 rounded">Cancel</button>
+                                </div>
+                              ) : (
+                                <div className="flex gap-1 justify-center">
+                                  <button onClick={() => startEdit(m)} className="text-xs bg-amber-100 text-amber-900 font-bold px-2 py-1 rounded">✏️ Edit Price</button>
+                                  <button onClick={() => onDelete(m.id)} className="text-xs bg-rose-50 text-rose-600 px-2.5 py-1 rounded">Delete</button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

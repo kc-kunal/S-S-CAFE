@@ -1,0 +1,779 @@
+import React, { useState, useEffect } from 'react';
+import Navbar from './components/Navbar';
+import FinancialDashboard from './components/FinancialDashboard';
+import SalesTracker from './components/SalesTracker';
+import ProcurementLog from './components/ProcurementLog';
+import InventoryTracker from './components/InventoryTracker';
+import ItemTable from './components/ItemTable';
+import ItemCards from './components/ItemCards';
+import ItemModal from './components/ItemModal';
+import DeleteConfirmModal from './components/DeleteConfirmModal';
+import CloudConfigModal from './components/CloudConfigModal';
+import {
+  getStoredMenu, saveStoredMenu,
+  getStoredSales, saveStoredSales,
+  getStoredProcurement, saveStoredProcurement,
+  getStoredInventory, saveStoredInventory,
+  checkItemStock,
+  convertQuantity,
+  findMatchingInventoryItem,
+  KNOWN_MATERIAL_ALIASES,
+  INITIAL_INVENTORY_ITEMS
+} from './utils/storage';
+import { isFirebaseConfigured } from './utils/firebase';
+import {
+  syncCloudMenu,
+  syncCloudInventory,
+  syncCloudSales,
+  syncCloudProcurement,
+  fetchAllCloudData,
+  subscribeToCloudData
+} from './utils/cloudSync';
+import { PieChart, ShoppingBag, PackageCheck, Coffee, CheckCircle2, Plus, Boxes } from 'lucide-react';
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState('sales'); // 'sales', 'inventory', 'dashboard', 'procurement', 'menu'
+  
+  const [menuItems, setMenuItems] = useState([]);
+  const [salesLogs, setSalesLogs] = useState([]);
+  const [procurementLogs, setProcurementLogs] = useState([]);
+  const [inventoryItems, setInventoryItems] = useState([]);
+
+  // Cloud Database Sync State
+  const [isCloudConnected, setIsCloudConnected] = useState(isFirebaseConfigured());
+  const [isCloudModalOpen, setIsCloudModalOpen] = useState(false);
+
+  // Modal State for Menu
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+  const [deletingItem, setDeletingItem] = useState(null);
+  const [viewMode, setViewMode] = useState('cards');
+
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message) => {
+    setToast(message);
+    setTimeout(() => setToast(null), 3500);
+  };
+
+  // Load Initial Data with Auto-Consolidation of misspellings
+  useEffect(() => {
+    const rawMenu = getStoredMenu();
+    const rawSales = getStoredSales();
+    const rawProc = getStoredProcurement();
+    let rawInv = getStoredInventory();
+
+    // Auto-fix/normalize any existing misspelled items in inventory (e.g. "mozzerella" -> "Mozzarella Cheese", "souce" -> "Pizza Sauce")
+    let invChanged = false;
+    const consolidatedInv = [];
+
+    const getCanonicalName = (name) => {
+      const lower = (name || '').toLowerCase().trim();
+      for (const [canonical, aliases] of Object.entries(KNOWN_MATERIAL_ALIASES)) {
+        if (aliases.some(a => lower === a || lower.includes(a) || a.includes(lower))) {
+          const match = INITIAL_INVENTORY_ITEMS.find(p => p.materialName.toLowerCase() === canonical);
+          return match ? match.materialName : canonical;
+        }
+      }
+      return name;
+    };
+
+    rawInv.forEach(item => {
+      const canonicalName = getCanonicalName(item.materialName);
+      if (canonicalName !== item.materialName) {
+        invChanged = true;
+        const standardDef = INITIAL_INVENTORY_ITEMS.find(p => p.materialName.toLowerCase() === canonicalName.toLowerCase());
+        const targetUnit = standardDef ? standardDef.unit : item.unit;
+        const targetCategory = standardDef ? standardDef.category : item.category;
+
+        // If purchased in small numbers (<= 20) with unit Kg or Piece and target is Gram, convert 1 -> 1000g
+        let stockToAdd = Number(item.currentStock) || 0;
+        if ((item.unit === 'Kg' || item.unit === 'Piece' || stockToAdd <= 20) && targetUnit === 'Gram') {
+          stockToAdd = stockToAdd * 1000;
+        } else {
+          stockToAdd = convertQuantity(stockToAdd, item.unit, targetUnit);
+        }
+
+        const existing = consolidatedInv.find(c => c.materialName.toLowerCase() === canonicalName.toLowerCase());
+        if (existing) {
+          existing.currentStock = Math.round((existing.currentStock + stockToAdd) * 100) / 100;
+        } else {
+          consolidatedInv.push({
+            ...item,
+            materialName: canonicalName,
+            category: targetCategory,
+            unit: targetUnit,
+            currentStock: stockToAdd
+          });
+        }
+      } else {
+        const existing = consolidatedInv.find(c => c.materialName.toLowerCase() === item.materialName.toLowerCase());
+        if (existing) {
+          existing.currentStock = Math.round((existing.currentStock + Number(item.currentStock)) * 100) / 100;
+          invChanged = true;
+        } else {
+          consolidatedInv.push(item);
+        }
+      }
+    });
+
+    if (invChanged) {
+      saveStoredInventory(consolidatedInv);
+      rawInv = consolidatedInv;
+    }
+
+    setMenuItems(rawMenu);
+    setSalesLogs(rawSales);
+    setProcurementLogs(rawProc);
+    setInventoryItems(rawInv);
+  }, []);
+
+  // Real-time Firebase Sync listener
+  useEffect(() => {
+    if (!isFirebaseConfigured()) {
+      setIsCloudConnected(false);
+      return;
+    }
+
+    setIsCloudConnected(true);
+
+    // Initial fetch from cloud if cloud has data
+    fetchAllCloudData().then((cloudData) => {
+      if (cloudData) {
+        if (cloudData.menu && Array.isArray(cloudData.menu) && cloudData.menu.length > 0) {
+          setMenuItems(cloudData.menu);
+          saveStoredMenu(cloudData.menu);
+        }
+        if (cloudData.inventory && Array.isArray(cloudData.inventory) && cloudData.inventory.length > 0) {
+          setInventoryItems(cloudData.inventory);
+          saveStoredInventory(cloudData.inventory);
+        }
+        if (cloudData.sales && Array.isArray(cloudData.sales) && cloudData.sales.length > 0) {
+          setSalesLogs(cloudData.sales);
+          saveStoredSales(cloudData.sales);
+        }
+        if (cloudData.procurement && Array.isArray(cloudData.procurement) && cloudData.procurement.length > 0) {
+          setProcurementLogs(cloudData.procurement);
+          saveStoredProcurement(cloudData.procurement);
+        }
+      }
+    });
+
+    // Realtime subscription across phones/laptops
+    const unsubscribe = subscribeToCloudData((cloudData) => {
+      if (cloudData.menu && Array.isArray(cloudData.menu)) {
+        setMenuItems(cloudData.menu);
+        saveStoredMenu(cloudData.menu);
+      }
+      if (cloudData.inventory && Array.isArray(cloudData.inventory)) {
+        setInventoryItems(cloudData.inventory);
+        saveStoredInventory(cloudData.inventory);
+      }
+      if (cloudData.sales && Array.isArray(cloudData.sales)) {
+        setSalesLogs(cloudData.sales);
+        saveStoredSales(cloudData.sales);
+      }
+      if (cloudData.procurement && Array.isArray(cloudData.procurement)) {
+        setProcurementLogs(cloudData.procurement);
+        saveStoredProcurement(cloudData.procurement);
+      }
+    });
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [isCloudConnected]);
+
+  // Save State (LocalStorage + Cloud Firestore)
+  const updateMenu = (newItems) => {
+    setMenuItems(newItems);
+    saveStoredMenu(newItems);
+    if (isFirebaseConfigured()) syncCloudMenu(newItems);
+  };
+  const updateSales = (newSales) => {
+    setSalesLogs(newSales);
+    saveStoredSales(newSales);
+    if (isFirebaseConfigured()) syncCloudSales(newSales);
+  };
+  const updateProcurement = (newProc) => {
+    setProcurementLogs(newProc);
+    saveStoredProcurement(newProc);
+    if (isFirebaseConfigured()) syncCloudProcurement(newProc);
+  };
+  const updateInventory = (newInv) => {
+    setInventoryItems(newInv);
+    saveStoredInventory(newInv);
+    if (isFirebaseConfigured()) syncCloudInventory(newInv);
+  };
+
+  // ⚡ Sales Handlers with Automatic Recipe Raw Material Deduction & Strict Stock Guard
+  const handleAddSale = (newSale) => {
+    // 1. Verify that raw materials exist and are in stock
+    const targetMenuItem = menuItems.find(m => m.id === newSale.itemId || m.name === newSale.itemName);
+    const qty = Number(newSale.quantitySold) || 1;
+
+    if (targetMenuItem) {
+      const stockStatus = checkItemStock(targetMenuItem, inventoryItems);
+      if (stockStatus.isOutOfStock) {
+        const missingList = stockStatus.missing && stockStatus.missing.length > 0
+          ? stockStatus.missing.map(m => m.name).join(', ')
+          : 'Raw Material 0 stock';
+        showToast(`🚫 Sale Blocked: "${newSale.itemName}" OUT OF STOCK hai! Raw material uplabdh nahi hai (${missingList}).`);
+        return false; // Stop! Strict block.
+      }
+
+      if (stockStatus.maxPortions < qty) {
+        showToast(`⚠️ Stock kam hai! "${newSale.itemName}" ke sirf ${stockStatus.maxPortions} portions ban sakte hain.`);
+        return false;
+      }
+    }
+
+    // 2. Commit Sale
+    const updatedSales = [newSale, ...salesLogs];
+    updateSales(updatedSales);
+
+    // 3. Deduct raw materials from inventory based on recipe with unit conversion
+    if (targetMenuItem && Array.isArray(targetMenuItem.recipe) && targetMenuItem.recipe.length > 0) {
+      let deductedInfo = [];
+      const updatedInv = inventoryItems.map(invItem => {
+        const recipeMatch = targetMenuItem.recipe.find(r => {
+          const matched = findMatchingInventoryItem(r.ingredientId, [invItem]) ||
+                          findMatchingInventoryItem(r.name, [invItem]);
+          return Boolean(matched);
+        });
+
+        if (recipeMatch) {
+          const recipeNeeded = (Number(recipeMatch.quantity) || 0) * qty;
+          const deductAmount = convertQuantity(recipeNeeded, recipeMatch.unit, invItem.unit);
+          const newStock = Math.max(0, Math.round((Number(invItem.currentStock) - deductAmount) * 100) / 100);
+          deductedInfo.push(`${deductAmount} ${invItem.unit} ${invItem.materialName}`);
+          return {
+            ...invItem,
+            currentStock: newStock,
+            lastUpdated: new Date().toISOString().split('T')[0]
+          };
+        }
+        return invItem;
+      });
+
+      updateInventory(updatedInv);
+      if (deductedInfo.length > 0) {
+        showToast(`⚡ Sale: ${qty}x ${newSale.itemName} • Raw Material Deducted: ${deductedInfo.join(', ')}`);
+        return true;
+      }
+    } else if (targetMenuItem) {
+      // Check direct raw material deduction if matching item exists
+      const directIndex = inventoryItems.findIndex(
+        i => i.materialName.toLowerCase() === targetMenuItem.name.toLowerCase()
+      );
+      if (directIndex !== -1) {
+        const updatedInv = inventoryItems.map((inv, idx) => {
+          if (idx === directIndex) {
+            const newStock = Math.max(0, Math.round((Number(inv.currentStock) - qty) * 100) / 100);
+            return {
+              ...inv,
+              currentStock: newStock,
+              lastUpdated: new Date().toISOString().split('T')[0]
+            };
+          }
+          return inv;
+        });
+        updateInventory(updatedInv);
+      }
+    }
+
+    showToast(`Logged sale: ${qty}x ${newSale.itemName} (₹${newSale.totalRevenue})`);
+    return true;
+  };
+
+  const handleUpdateSale = (updatedSale) => {
+    const oldSale = salesLogs.find(s => s.id === updatedSale.id);
+    const diff = oldSale ? (Number(oldSale.quantitySold) - Number(updatedSale.quantitySold)) : 0;
+
+    const updatedSales = salesLogs.map(s => s.id === updatedSale.id ? updatedSale : s);
+    updateSales(updatedSales);
+
+    // If sale quantity decreased (diff > 0), restore recipe ingredients back into stock
+    if (diff > 0) {
+      const targetMenuItem = menuItems.find(m => m.id === updatedSale.itemId || m.name === updatedSale.itemName);
+      if (targetMenuItem && Array.isArray(targetMenuItem.recipe) && targetMenuItem.recipe.length > 0) {
+        const updatedInv = inventoryItems.map(invItem => {
+          const recipeMatch = targetMenuItem.recipe.find(r => {
+            const matched = findMatchingInventoryItem(r.ingredientId, [invItem]) ||
+                            findMatchingInventoryItem(r.name, [invItem]);
+            return Boolean(matched);
+          });
+          if (recipeMatch) {
+            const restoreInRecipe = (Number(recipeMatch.quantity) || 0) * diff;
+            const restoreAmount = convertQuantity(restoreInRecipe, recipeMatch.unit, invItem.unit);
+            const newStock = Math.round((Number(invItem.currentStock) + restoreAmount) * 100) / 100;
+            return {
+              ...invItem,
+              currentStock: newStock,
+              lastUpdated: new Date().toISOString().split('T')[0]
+            };
+          }
+          return invItem;
+        });
+        updateInventory(updatedInv);
+      }
+    }
+
+    showToast(`Deducted 1 item: ${updatedSale.itemName} (${updatedSale.quantitySold} pcs remaining in sale log)`);
+  };
+
+  const handleDeleteSale = (id) => {
+    const saleToDelete = salesLogs.find(s => s.id === id);
+    const updatedSales = salesLogs.filter(s => s.id !== id);
+    updateSales(updatedSales);
+
+    // Restore all recipe ingredients for the deleted sale
+    if (saleToDelete) {
+      const targetMenuItem = menuItems.find(m => m.id === saleToDelete.itemId || m.name === saleToDelete.itemName);
+      if (targetMenuItem && Array.isArray(targetMenuItem.recipe) && targetMenuItem.recipe.length > 0) {
+        const returnUnits = Number(saleToDelete.quantitySold) || 1;
+        const updatedInv = inventoryItems.map(invItem => {
+          const recipeMatch = targetMenuItem.recipe.find(r => {
+            const matched = findMatchingInventoryItem(r.ingredientId, [invItem]) ||
+                            findMatchingInventoryItem(r.name, [invItem]);
+            return Boolean(matched);
+          });
+          if (recipeMatch) {
+            const returnInRecipe = (Number(recipeMatch.quantity) || 0) * returnUnits;
+            const returnAmount = convertQuantity(returnInRecipe, recipeMatch.unit, invItem.unit);
+            const newStock = Math.round((Number(invItem.currentStock) + returnAmount) * 100) / 100;
+            return {
+              ...invItem,
+              currentStock: newStock,
+              lastUpdated: new Date().toISOString().split('T')[0]
+            };
+          }
+          return invItem;
+        });
+        updateInventory(updatedInv);
+      }
+      showToast(`Removed sale log for "${saleToDelete.itemName}" & restored raw material stock`);
+    }
+  };
+
+  // 🛒 Procurement Handlers (Purchases automatically increase raw material stock with Unit Conversion & Smart Alias Matching)
+  const handleAddProcurement = (newProc) => {
+    const updated = [newProc, ...procurementLogs];
+    updateProcurement(updated);
+
+    const qty = Number(newProc.quantityReceived) || 0;
+    // 1. Find matching existing inventory item using smart alias & fuzzy matcher
+    const matchedItem = findMatchingInventoryItem(newProc.materialName, inventoryItems);
+
+    let updatedInv;
+    if (matchedItem) {
+      // Convert purchased qty to the inventory item's unit!
+      const convertedQty = convertQuantity(qty, newProc.unit, matchedItem.unit);
+      const unitCost = Number(newProc.ratePerUnit) || (qty > 0 ? Number(newProc.totalCost) / qty : 0);
+
+      updatedInv = inventoryItems.map(inv => {
+        if (inv.id === matchedItem.id) {
+          const newStock = Math.round((Number(inv.currentStock) + convertedQty) * 100) / 100;
+          return {
+            ...inv,
+            currentStock: newStock,
+            unitCost: unitCost || inv.unitCost,
+            lastUpdated: new Date().toISOString().split('T')[0]
+          };
+        }
+        return inv;
+      });
+
+      const conversionNote = (newProc.unit !== matchedItem.unit)
+        ? ` (${qty} ${newProc.unit} = ${convertedQty} ${matchedItem.unit})`
+        : '';
+      showToast(`Logged purchase: Added ${convertedQty} ${matchedItem.unit}${conversionNote} to "${matchedItem.materialName}" stock!`);
+    } else {
+      // Check if it matches any standard cafe ingredient from aliases
+      let standardName = newProc.materialName.trim();
+      let standardUnit = newProc.unit || 'Piece';
+      let standardCategory = newProc.category || 'Groceries';
+
+      for (const [canonical, aliases] of Object.entries(KNOWN_MATERIAL_ALIASES)) {
+        if (aliases.some(a => standardName.toLowerCase() === a || standardName.toLowerCase().includes(a))) {
+          const preset = INITIAL_INVENTORY_ITEMS.find(p => p.materialName.toLowerCase() === canonical);
+          if (preset) {
+            standardName = preset.materialName;
+            standardCategory = preset.category;
+            standardUnit = preset.unit;
+          }
+          break;
+        }
+      }
+
+      const convertedQty = convertQuantity(qty, newProc.unit, standardUnit);
+      const unitCost = Number(newProc.ratePerUnit) || (qty > 0 ? Number(newProc.totalCost) / qty : 0);
+
+      const newItem = {
+        id: `inv-${Date.now()}`,
+        materialName: standardName,
+        category: standardCategory,
+        currentStock: convertedQty,
+        unit: standardUnit,
+        reorderLevel: 5,
+        unitCost: unitCost,
+        lastUpdated: new Date().toISOString().split('T')[0]
+      };
+      updatedInv = [newItem, ...inventoryItems];
+      showToast(`Logged purchase: Added ${convertedQty} ${standardUnit} to "${standardName}" stock!`);
+    }
+
+    updateInventory(updatedInv);
+  };
+
+  const handleDeleteProcurement = (id) => {
+    const updated = procurementLogs.filter(p => p.id !== id);
+    updateProcurement(updated);
+    showToast('Procurement log entry deleted');
+  };
+
+  // 📦 Inventory Management Handlers
+  const handleSaveInventoryItem = (itemToSave) => {
+    const exists = inventoryItems.some(i => i.id === itemToSave.id);
+    let updated;
+    if (exists) {
+      updated = inventoryItems.map(i => i.id === itemToSave.id ? itemToSave : i);
+      showToast(`Updated material "${itemToSave.materialName}"`);
+    } else {
+      updated = [itemToSave, ...inventoryItems];
+      showToast(`Added raw material "${itemToSave.materialName}" to inventory`);
+    }
+    updateInventory(updated);
+  };
+
+  const handleDeleteInventoryItem = (id) => {
+    const item = inventoryItems.find(i => i.id === id);
+    const updated = inventoryItems.filter(i => i.id !== id);
+    updateInventory(updated);
+    showToast(`Deleted "${item ? item.materialName : 'Item'}" from inventory`);
+  };
+
+  const handleAdjustStock = (id, delta) => {
+    const updated = inventoryItems.map(item => {
+      if (item.id === id) {
+        const newStock = Math.max(0, Math.round((Number(item.currentStock) + delta) * 100) / 100);
+        return {
+          ...item,
+          currentStock: newStock,
+          lastUpdated: new Date().toISOString().split('T')[0]
+        };
+      }
+      return item;
+    });
+    updateInventory(updated);
+    showToast(`Stock balance adjusted (${delta > 0 ? '+' : ''}${delta})`);
+  };
+
+  // ☕ Menu Handlers
+  const handleSaveMenuItem = (itemToSave) => {
+    let newMenu;
+    if (editingItem) {
+      newMenu = menuItems.map(i => i.id === editingItem.id ? { ...i, ...itemToSave } : i);
+      updateMenu(newMenu);
+      showToast(`Updated menu item "${itemToSave.name}" & recipe`);
+    } else {
+      const newItem = { ...itemToSave, id: `item-${Date.now()}` };
+      newMenu = [newItem, ...menuItems];
+      updateMenu(newMenu);
+      showToast(`Added "${itemToSave.name}" with recipe to menu`);
+    }
+
+    // Auto-register any new recipe ingredients into inventory with 0 stock if not already present
+    if (Array.isArray(itemToSave.recipe) && itemToSave.recipe.length > 0) {
+      let invUpdated = false;
+      let currentInv = [...inventoryItems];
+
+      itemToSave.recipe.forEach(r => {
+        const exists = currentInv.some(
+          inv => inv.id === r.ingredientId || (inv.materialName && r.name && inv.materialName.toLowerCase() === r.name.toLowerCase())
+        );
+        if (!exists && r.name && r.name.trim()) {
+          currentInv.push({
+            id: r.ingredientId || `inv-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+            materialName: r.name.trim(),
+            category: 'Groceries',
+            currentStock: 0,
+            unit: r.unit || 'Piece',
+            reorderLevel: 5,
+            unitCost: 0,
+            lastUpdated: new Date().toISOString().split('T')[0]
+          });
+          invUpdated = true;
+        }
+      });
+
+      if (invUpdated) {
+        updateInventory(currentInv);
+      }
+    }
+
+    setIsModalOpen(false);
+  };
+
+  const handleDeleteMenuItem = (id) => {
+    const item = menuItems.find(i => i.id === id);
+    const updated = menuItems.filter(i => i.id !== id);
+    updateMenu(updated);
+    showToast(`Deleted "${item ? item.name : 'Item'}" from menu`);
+    setDeletingItem(null);
+  };
+
+  const handleToggleMenuItemStatus = (id) => {
+    const updated = menuItems.map(i => {
+      if (i.id === id) {
+        const next = !i.isAvailable;
+        showToast(`"${i.name}" marked as ${next ? 'Available' : 'Disabled'}`);
+        return { ...i, isAvailable: next };
+      }
+      return i;
+    });
+    updateMenu(updated);
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col bg-amber-50/20 text-stone-800 font-sans">
+      
+      {/* Toast Notification */}
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center space-x-2.5 bg-stone-950 text-amber-100 px-5 py-3.5 rounded-2xl shadow-2xl border border-stone-800 animate-in fade-in">
+          <CheckCircle2 className="w-5 h-5 text-amber-500" />
+          <span className="text-sm font-semibold">{toast}</span>
+        </div>
+      )}
+
+      {/* Top Navbar */}
+      <Navbar
+        onOpenAddModal={() => { setEditingItem(null); setIsModalOpen(true); }}
+        totalItems={menuItems.length}
+        isCloudConnected={isCloudConnected}
+        onOpenCloudModal={() => setIsCloudModalOpen(true)}
+      />
+
+      {/* Main Container */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        {/* Navigation Tabs Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-8 bg-white p-2 rounded-2xl border border-stone-200 shadow-sm cafe-glass">
+          
+          <div className="flex items-center space-x-1 sm:space-x-2 overflow-x-auto w-full sm:w-auto p-0.5">
+            
+            {/* Sales Tracker Tab */}
+            <button
+              onClick={() => setActiveTab('sales')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
+                activeTab === 'sales'
+                  ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
+                  : 'text-stone-600 hover:bg-stone-100'
+              }`}
+            >
+              <ShoppingBag className="w-4 h-4" />
+              <span>⚡ Daily Item Sales</span>
+            </button>
+
+            {/* 📦 Raw Material Stock Tab */}
+            <button
+              onClick={() => setActiveTab('inventory')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
+                activeTab === 'inventory'
+                  ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
+                  : 'text-stone-600 hover:bg-stone-100'
+              }`}
+            >
+              <Boxes className="w-4 h-4" />
+              <span>📦 Raw Material Stock</span>
+            </button>
+
+            {/* Dashboard Tab */}
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
+                activeTab === 'dashboard'
+                  ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
+                  : 'text-stone-600 hover:bg-stone-100'
+              }`}
+            >
+              <PieChart className="w-4 h-4" />
+              <span>📊 P&L Dashboard</span>
+            </button>
+
+            {/* Procurement Log Tab */}
+            <button
+              onClick={() => setActiveTab('procurement')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
+                activeTab === 'procurement'
+                  ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
+                  : 'text-stone-600 hover:bg-stone-100'
+              }`}
+            >
+              <PackageCheck className="w-4 h-4" />
+              <span>Purchases Log</span>
+            </button>
+
+            {/* Menu Catalog Tab */}
+            <button
+              onClick={() => setActiveTab('menu')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
+                activeTab === 'menu'
+                  ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
+                  : 'text-stone-600 hover:bg-stone-100'
+              }`}
+            >
+              <Coffee className="w-4 h-4" />
+              <span>Menu & Recipes</span>
+            </button>
+
+          </div>
+
+          {activeTab === 'menu' && (
+            <button
+              onClick={() => { setEditingItem(null); setIsModalOpen(true); }}
+              className="hidden sm:flex items-center gap-1.5 px-4 py-2 bg-stone-950 text-amber-100 hover:text-white text-xs font-bold rounded-xl hover:bg-stone-900 border border-amber-500/30 shadow-md cursor-pointer transition-all"
+            >
+              <Plus className="w-3.5 h-3.5 text-amber-400" />
+              <span>Add Item & Recipe</span>
+            </button>
+          )}
+
+        </div>
+
+        {/* Tab Views */}
+        {activeTab === 'sales' && (
+          <SalesTracker
+            menuItems={menuItems}
+            salesLogs={salesLogs}
+            inventoryItems={inventoryItems}
+            onAddSale={handleAddSale}
+            onUpdateSale={handleUpdateSale}
+            onDeleteSale={handleDeleteSale}
+          />
+        )}
+
+        {/* 📦 Raw Material Inventory Tab View */}
+        {activeTab === 'inventory' && (
+          <InventoryTracker
+            inventoryItems={inventoryItems}
+            onSaveItem={handleSaveInventoryItem}
+            onDeleteItem={handleDeleteInventoryItem}
+            onAdjustStock={handleAdjustStock}
+          />
+        )}
+
+        {activeTab === 'dashboard' && (
+          <FinancialDashboard
+            salesLogs={salesLogs}
+            procurementLogs={procurementLogs}
+            menuItems={menuItems}
+            inventoryItems={inventoryItems}
+          />
+        )}
+
+        {activeTab === 'procurement' && (
+          <ProcurementLog
+            procurementLogs={procurementLogs}
+            inventoryItems={inventoryItems}
+            menuItems={menuItems}
+            onAddProcurement={handleAddProcurement}
+            onDeleteProcurement={handleDeleteProcurement}
+          />
+        )}
+
+        {activeTab === 'menu' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-stone-200">
+              <div>
+                <h3 className="text-base font-bold text-stone-900">S&S Cafe Menu & Recipes (Category-Wise)</h3>
+                <p className="text-xs text-stone-500">Manage cafe products and attach raw material recipes to each item.</p>
+              </div>
+              <div className="flex items-center bg-stone-100 p-1 rounded-xl text-xs">
+                <button
+                  onClick={() => setViewMode('cards')}
+                  className={`px-3 py-1 rounded-lg font-bold ${viewMode === 'cards' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500'}`}
+                >
+                  Category Cards
+                </button>
+                <button
+                  onClick={() => setViewMode('table')}
+                  className={`px-3 py-1 rounded-lg font-bold ${viewMode === 'table' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500'}`}
+                >
+                  Table
+                </button>
+              </div>
+            </div>
+
+            {viewMode === 'cards' ? (
+              <ItemCards
+                items={menuItems}
+                inventoryItems={inventoryItems}
+                onEdit={(item) => { setEditingItem(item); setIsModalOpen(true); }}
+                onDelete={(item) => setDeletingItem(item)}
+                onToggleStatus={handleToggleMenuItemStatus}
+                onSaveItem={handleSaveMenuItem}
+              />
+            ) : (
+              <ItemTable
+                items={menuItems}
+                inventoryItems={inventoryItems}
+                onEdit={(item) => { setEditingItem(item); setIsModalOpen(true); }}
+                onDelete={(item) => setDeletingItem(item)}
+                onToggleStatus={handleToggleMenuItemStatus}
+                onSaveItem={handleSaveMenuItem}
+              />
+            )}
+          </div>
+        )}
+
+      </main>
+
+      {/* Item Form Modal with Recipe Builder */}
+      <ItemModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleSaveMenuItem}
+        editingItem={editingItem}
+        existingCategories={Array.from(new Set(menuItems.map(i => i.category)))}
+        inventoryItems={inventoryItems}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={!!deletingItem}
+        onClose={() => setDeletingItem(null)}
+        onConfirm={handleDeleteMenuItem}
+        item={deletingItem}
+      />
+
+      {/* Cloud Configuration Modal */}
+      <CloudConfigModal
+        isOpen={isCloudModalOpen}
+        onClose={() => setIsCloudModalOpen(false)}
+        currentMenu={menuItems}
+        currentInventory={inventoryItems}
+        currentSales={salesLogs}
+        currentProcurement={procurementLogs}
+        onConnected={() => {
+          const connected = isFirebaseConfigured();
+          setIsCloudConnected(connected);
+          showToast(connected ? '🟢 Firebase Cloud Database Connected!' : 'Local Storage Mode');
+        }}
+      />
+
+      {/* Footer */}
+      <footer className="bg-stone-950 text-stone-400 py-6 border-t border-stone-800 text-xs text-center mt-16">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center space-x-2 text-stone-300 font-semibold">
+            <img src="/logo.jpg" alt="Logo" className="w-5 h-5 rounded-full" onError={(e) => e.target.style.display = 'none'} />
+            <span>S&S Cafe — Daily Sales, Category Menu & P&L Control System</span>
+          </div>
+          <p className="text-stone-500">© {new Date().getFullYear()} S&S Cafe.</p>
+        </div>
+      </footer>
+
+    </div>
+  );
+}
+
