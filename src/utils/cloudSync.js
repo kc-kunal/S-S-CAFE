@@ -59,24 +59,56 @@ export const syncCloudProcurement = async (procurement) => {
   }
 };
 
+// Sync Expenses to Cloud
+export const syncCloudExpenses = async (expenses) => {
+  const db = getFirebaseDb();
+  if (!db) return false;
+  try {
+    const docRef = doc(db, CAFE_COLLECTION, 'expenses');
+    await setDoc(docRef, { items: expenses, lastUpdated: new Date().toISOString() }, { merge: true });
+    return true;
+  } catch (err) {
+    console.error('Error syncing expenses to cloud:', err);
+    return false;
+  }
+};
+
+// Sync Wastage Logs to Cloud
+export const syncCloudWastage = async (wastage) => {
+  const db = getFirebaseDb();
+  if (!db) return false;
+  try {
+    const docRef = doc(db, CAFE_COLLECTION, 'wastage');
+    await setDoc(docRef, { items: wastage, lastUpdated: new Date().toISOString() }, { merge: true });
+    return true;
+  } catch (err) {
+    console.error('Error syncing wastage to cloud:', err);
+    return false;
+  }
+};
+
 // Fetch all cloud data once
 export const fetchAllCloudData = async () => {
   const db = getFirebaseDb();
   if (!db) return null;
 
   try {
-    const [menuSnap, invSnap, salesSnap, procSnap] = await Promise.all([
+    const [menuSnap, invSnap, salesSnap, procSnap, expSnap, wasteSnap] = await Promise.all([
       getDoc(doc(db, CAFE_COLLECTION, 'menu')),
       getDoc(doc(db, CAFE_COLLECTION, 'inventory')),
       getDoc(doc(db, CAFE_COLLECTION, 'sales')),
-      getDoc(doc(db, CAFE_COLLECTION, 'procurement'))
+      getDoc(doc(db, CAFE_COLLECTION, 'procurement')),
+      getDoc(doc(db, CAFE_COLLECTION, 'expenses')),
+      getDoc(doc(db, CAFE_COLLECTION, 'wastage'))
     ]);
 
     return {
       menu: menuSnap.exists() ? menuSnap.data().items : null,
       inventory: invSnap.exists() ? invSnap.data().items : null,
       sales: salesSnap.exists() ? salesSnap.data().items : null,
-      procurement: procSnap.exists() ? procSnap.data().items : null
+      procurement: procSnap.exists() ? procSnap.data().items : null,
+      expenses: expSnap.exists() ? expSnap.data().items : null,
+      wastage: wasteSnap.exists() ? wasteSnap.data().items : null
     };
   } catch (err) {
     console.error('Error fetching cloud data:', err);
@@ -131,6 +163,26 @@ export const subscribeToCloudData = (callbacks) => {
       }, (err) => console.error('Procurement cloud listener error:', err));
       unsubscribers.push(unsub);
     }
+
+    // Expenses Listener
+    if (callbacks.onExpensesUpdate) {
+      const unsub = onSnapshot(doc(db, CAFE_COLLECTION, 'expenses'), (docSnap) => {
+        if (docSnap.exists() && Array.isArray(docSnap.data().items)) {
+          callbacks.onExpensesUpdate(docSnap.data().items);
+        }
+      }, (err) => console.error('Expenses cloud listener error:', err));
+      unsubscribers.push(unsub);
+    }
+
+    // Wastage Listener
+    if (callbacks.onWastageUpdate) {
+      const unsub = onSnapshot(doc(db, CAFE_COLLECTION, 'wastage'), (docSnap) => {
+        if (docSnap.exists() && Array.isArray(docSnap.data().items)) {
+          callbacks.onWastageUpdate(docSnap.data().items);
+        }
+      }, (err) => console.error('Wastage cloud listener error:', err));
+      unsubscribers.push(unsub);
+    }
   } catch (e) {
     console.error('Failed to setup cloud subscriptions:', e);
   }
@@ -142,16 +194,20 @@ export const subscribeToCloudData = (callbacks) => {
 };
 
 // 1-Click Upload local data to Firestore
-export const uploadAllLocalToCloud = async (menu, inventory, sales, procurement) => {
+export const uploadAllLocalToCloud = async (menu, inventory, sales, procurement, expenses = [], wastage = []) => {
   const db = getFirebaseDb();
   if (!db) throw new Error('Firebase Firestore connect nahi hai. Kripya pehle config add karein.');
 
-  await Promise.all([
+  const promises = [
     syncCloudMenu(menu),
     syncCloudInventory(inventory),
     syncCloudSales(sales),
     syncCloudProcurement(procurement)
-  ]);
+  ];
+  if (expenses && expenses.length > 0) promises.push(syncCloudExpenses(expenses));
+  if (wastage && wastage.length > 0) promises.push(syncCloudWastage(wastage));
+
+  await Promise.all(promises);
 
   return true;
 };

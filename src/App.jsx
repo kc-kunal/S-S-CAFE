@@ -10,12 +10,15 @@ import ItemModal from './components/ItemModal';
 import DeleteConfirmModal from './components/DeleteConfirmModal';
 import CloudConfigModal from './components/CloudConfigModal';
 import StockAlertSettingsModal from './components/StockAlertSettingsModal';
+import ExpenseTracker from './components/ExpenseTracker';
 import { triggerAutomaticStockAlerts } from './utils/whatsappAlert';
 import {
   getStoredMenu, saveStoredMenu,
   getStoredSales, saveStoredSales,
   getStoredProcurement, saveStoredProcurement,
   getStoredInventory, saveStoredInventory,
+  getStoredExpenses, saveStoredExpenses,
+  getStoredWastage, saveStoredWastage,
   checkItemStock,
   convertQuantity,
   findMatchingInventoryItem,
@@ -28,10 +31,12 @@ import {
   syncCloudInventory,
   syncCloudSales,
   syncCloudProcurement,
+  syncCloudExpenses,
+  syncCloudWastage,
   fetchAllCloudData,
   subscribeToCloudData
 } from './utils/cloudSync';
-import { PieChart, ShoppingBag, PackageCheck, Coffee, CheckCircle2, Plus, Boxes } from 'lucide-react';
+import { PieChart, ShoppingBag, PackageCheck, Coffee, CheckCircle2, Plus, Boxes, Receipt } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('sales'); // 'sales', 'inventory', 'dashboard', 'procurement', 'menu'
@@ -40,6 +45,8 @@ export default function App() {
   const [salesLogs, setSalesLogs] = useState([]);
   const [procurementLogs, setProcurementLogs] = useState([]);
   const [inventoryItems, setInventoryItems] = useState([]);
+  const [expenses, setExpenses] = useState([]);
+  const [wastageLogs, setWastageLogs] = useState([]);
 
   // Cloud Database Sync State
   const [isCloudConnected, setIsCloudConnected] = useState(isFirebaseConfigured());
@@ -131,6 +138,8 @@ export default function App() {
     setSalesLogs(rawSales);
     setProcurementLogs(rawProc);
     setInventoryItems(rawInv);
+    setExpenses(getStoredExpenses());
+    setWastageLogs(getStoredWastage());
   }, []);
 
   // Real-time Firebase Sync listener
@@ -161,26 +170,42 @@ export default function App() {
           setProcurementLogs(cloudData.procurement);
           saveStoredProcurement(cloudData.procurement);
         }
+        if (cloudData.expenses && Array.isArray(cloudData.expenses)) {
+          setExpenses(cloudData.expenses);
+          saveStoredExpenses(cloudData.expenses);
+        }
+        if (cloudData.wastage && Array.isArray(cloudData.wastage)) {
+          setWastageLogs(cloudData.wastage);
+          saveStoredWastage(cloudData.wastage);
+        }
       }
     });
 
     // Realtime subscription across phones/laptops
-    const unsubscribe = subscribeToCloudData((cloudData) => {
-      if (cloudData.menu && Array.isArray(cloudData.menu)) {
-        setMenuItems(cloudData.menu);
-        saveStoredMenu(cloudData.menu);
-      }
-      if (cloudData.inventory && Array.isArray(cloudData.inventory)) {
-        setInventoryItems(cloudData.inventory);
-        saveStoredInventory(cloudData.inventory);
-      }
-      if (cloudData.sales && Array.isArray(cloudData.sales)) {
-        setSalesLogs(cloudData.sales);
-        saveStoredSales(cloudData.sales);
-      }
-      if (cloudData.procurement && Array.isArray(cloudData.procurement)) {
-        setProcurementLogs(cloudData.procurement);
-        saveStoredProcurement(cloudData.procurement);
+    const unsubscribe = subscribeToCloudData({
+      onMenuUpdate: (newMenu) => {
+        setMenuItems(newMenu);
+        saveStoredMenu(newMenu);
+      },
+      onInventoryUpdate: (newInv) => {
+        setInventoryItems(newInv);
+        saveStoredInventory(newInv);
+      },
+      onSalesUpdate: (newSales) => {
+        setSalesLogs(newSales);
+        saveStoredSales(newSales);
+      },
+      onProcurementUpdate: (newProc) => {
+        setProcurementLogs(newProc);
+        saveStoredProcurement(newProc);
+      },
+      onExpensesUpdate: (newExp) => {
+        setExpenses(newExp);
+        saveStoredExpenses(newExp);
+      },
+      onWastageUpdate: (newWaste) => {
+        setWastageLogs(newWaste);
+        saveStoredWastage(newWaste);
       }
     });
 
@@ -211,6 +236,79 @@ export default function App() {
     if (isFirebaseConfigured()) syncCloudInventory(newInv);
     // Background silent automatic WhatsApp alert for low stock items
     triggerAutomaticStockAlerts(newInv);
+  };
+  const updateExpenses = (newExp) => {
+    setExpenses(newExp);
+    saveStoredExpenses(newExp);
+    if (isFirebaseConfigured()) syncCloudExpenses(newExp);
+  };
+  const updateWastage = (newWaste) => {
+    setWastageLogs(newWaste);
+    saveStoredWastage(newWaste);
+    if (isFirebaseConfigured()) syncCloudWastage(newWaste);
+  };
+
+  // 💸 Expenses & Overhead Handlers
+  const handleAddExpense = (newExp) => {
+    const updated = [newExp, ...expenses];
+    updateExpenses(updated);
+    showToast(`Logged bill/expense: "${newExp.title}" (₹${newExp.amount})`);
+  };
+
+  const handleUpdateExpense = (updatedExp) => {
+    const updated = expenses.map(e => e.id === updatedExp.id ? updatedExp : e);
+    updateExpenses(updated);
+    showToast(`Updated expense: "${updatedExp.title}"`);
+  };
+
+  const handleDeleteExpense = (id) => {
+    const updated = expenses.filter(e => e.id !== id);
+    updateExpenses(updated);
+    showToast('Expense entry deleted');
+  };
+
+  // 🗑️ Raw Material Spoilage / Wastage Handlers (Auto Stock Deduction)
+  const handleAddWastage = (entry) => {
+    // 1. Deduct raw material quantity from current stock in inventory
+    const updatedInv = inventoryItems.map(item => {
+      if (item.id === entry.ingredientId) {
+        const newStock = Math.max(0, Math.round((Number(item.currentStock) - Number(entry.quantity)) * 100) / 100);
+        return {
+          ...item,
+          currentStock: newStock,
+          lastUpdated: new Date().toISOString().split('T')[0]
+        };
+      }
+      return item;
+    });
+    updateInventory(updatedInv);
+
+    // 2. Add to wastage records
+    const updatedWastage = [entry, ...wastageLogs];
+    updateWastage(updatedWastage);
+    showToast(`⚠️ Kharab Maal Logged: Deducted ${entry.quantity} ${entry.unit} from "${entry.ingredientName}". Loss: ₹${entry.costValue}`);
+  };
+
+  const handleDeleteWastage = (id) => {
+    const toDelete = wastageLogs.find(w => w.id === id);
+    if (toDelete) {
+      // Revert raw material stock
+      const updatedInv = inventoryItems.map(item => {
+        if (item.id === toDelete.ingredientId) {
+          const newStock = Math.round((Number(item.currentStock) + Number(toDelete.quantity)) * 100) / 100;
+          return {
+            ...item,
+            currentStock: newStock,
+            lastUpdated: new Date().toISOString().split('T')[0]
+          };
+        }
+        return item;
+      });
+      updateInventory(updatedInv);
+    }
+    const updatedWastage = wastageLogs.filter(w => w.id !== id);
+    updateWastage(updatedWastage);
+    showToast('Wastage record deleted & raw material stock restored');
   };
 
   // ⚡ Sales Handlers with Automatic Recipe Raw Material Deduction & Strict Stock Guard
@@ -621,6 +719,19 @@ export default function App() {
               <span>Purchases</span>
             </button>
 
+            {/* Expenses & Bills Tab */}
+            <button
+              onClick={() => setActiveTab('expenses')}
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
+                activeTab === 'expenses'
+                  ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
+                  : 'text-stone-600 hover:bg-stone-100'
+              }`}
+            >
+              <Receipt className="w-4 h-4" />
+              <span>💸 Bills & Expenses</span>
+            </button>
+
             {/* Menu Catalog Tab */}
             <button
               onClick={() => setActiveTab('menu')}
@@ -677,6 +788,8 @@ export default function App() {
             procurementLogs={procurementLogs}
             menuItems={menuItems}
             inventoryItems={inventoryItems}
+            expenses={expenses}
+            wastageLogs={wastageLogs}
           />
         )}
 
@@ -687,6 +800,20 @@ export default function App() {
             menuItems={menuItems}
             onAddProcurement={handleAddProcurement}
             onDeleteProcurement={handleDeleteProcurement}
+          />
+        )}
+
+        {/* 💸 Bills & Wastage Tab View */}
+        {activeTab === 'expenses' && (
+          <ExpenseTracker
+            expenses={expenses}
+            wastageLogs={wastageLogs}
+            inventoryItems={inventoryItems}
+            onAddExpense={handleAddExpense}
+            onUpdateExpense={handleUpdateExpense}
+            onDeleteExpense={handleDeleteExpense}
+            onAddWastage={handleAddWastage}
+            onDeleteWastage={handleDeleteWastage}
           />
         )}
 
@@ -763,6 +890,8 @@ export default function App() {
         currentInventory={inventoryItems}
         currentSales={salesLogs}
         currentProcurement={procurementLogs}
+        currentExpenses={expenses}
+        currentWastage={wastageLogs}
         onConnected={() => {
           const connected = isFirebaseConfigured();
           setIsCloudConnected(connected);
@@ -811,22 +940,32 @@ export default function App() {
 
         <button
           onClick={() => setActiveTab('procurement')}
-          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
+          className={`flex flex-col items-center gap-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
             activeTab === 'procurement' ? 'text-amber-400 font-extrabold scale-105' : 'text-stone-400 hover:text-stone-200'
           }`}
         >
           <PackageCheck className="w-4 h-4" />
-          <span className="text-[10px]">Purchases</span>
+          <span className="text-[9px]">Purchases</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('expenses')}
+          className={`flex flex-col items-center gap-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
+            activeTab === 'expenses' ? 'text-amber-400 font-extrabold scale-105' : 'text-stone-400 hover:text-stone-200'
+          }`}
+        >
+          <Receipt className="w-4 h-4" />
+          <span className="text-[9px]">Bills/Exp</span>
         </button>
 
         <button
           onClick={() => setActiveTab('menu')}
-          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
+          className={`flex flex-col items-center gap-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
             activeTab === 'menu' ? 'text-amber-400 font-extrabold scale-105' : 'text-stone-400 hover:text-stone-200'
           }`}
         >
           <Coffee className="w-4 h-4" />
-          <span className="text-[10px]">Menu</span>
+          <span className="text-[9px]">Menu</span>
         </button>
       </nav>
 

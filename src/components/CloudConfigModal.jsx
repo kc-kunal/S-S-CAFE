@@ -10,6 +10,8 @@ export default function CloudConfigModal({
   currentInventory = [],
   currentSales = [],
   currentProcurement = [],
+  currentExpenses = [],
+  currentWastage = [],
   onConnected
 }) {
   const [configText, setConfigText] = useState('');
@@ -109,10 +111,10 @@ export default function CloudConfigModal({
   const handleUploadLocalData = async () => {
     setIsUploading(true);
     try {
-      await uploadAllLocalToCloud(currentMenu, currentInventory, currentSales, currentProcurement);
+      await uploadAllLocalToCloud(currentMenu, currentInventory, currentSales, currentProcurement, currentExpenses, currentWastage);
       setStatusMsg({
         type: 'success',
-        text: `✓ Success! ${currentMenu.length} items, ${currentInventory.length} raw materials aur sales Firestore cloud par upload ho gaye!`
+        text: `✓ Success! Menu items, inventory, sales, bills/expenses aur wastage records Firestore cloud par upload ho gaye!`
       });
     } catch (err) {
       setStatusMsg({ type: 'error', text: `Upload error: ${err.message}` });

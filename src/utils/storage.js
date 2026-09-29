@@ -2,6 +2,8 @@ const MENU_STORAGE_KEY = 'ss_cafe_menu_items_v7';
 const SALES_STORAGE_KEY = 'ss_cafe_sales_logs_v7';
 const PROCUREMENT_STORAGE_KEY = 'ss_cafe_procurement_logs_v7';
 const INVENTORY_STORAGE_KEY = 'ss_cafe_inventory_v7';
+const EXPENSES_STORAGE_KEY = 'ss_cafe_expenses_v1';
+const WASTAGE_STORAGE_KEY = 'ss_cafe_wastage_v1';
 
 // Get today's YYYY-MM-DD string
 export const getTodayDateString = (offsetDays = 0) => {
@@ -648,6 +650,47 @@ export const getStoredProcurement = () => {
 
 export const saveStoredProcurement = (proc) => {
   localStorage.setItem(PROCUREMENT_STORAGE_KEY, JSON.stringify(proc));
+};
+
+// Initial Cafe Operational Expenses Presets
+export const INITIAL_EXPENSES = [
+  { id: 'exp-1', title: 'Monthly Shop Rent', category: 'Cafe Rent', amount: 15000, date: getTodayDateString(5), paymentMode: 'Online', paidTo: 'Landlord Sharma Ji', notes: 'Monthly rent for cafe shop premises' },
+  { id: 'exp-2', title: 'Electricity / Light Bill', category: 'Electricity', amount: 4200, date: getTodayDateString(3), paymentMode: 'Online', paidTo: 'State Electricity Board', notes: 'Monthly power and AC consumption bill' },
+  { id: 'exp-3', title: 'Cook & Helper Salary', category: 'Staff Salary', amount: 12000, date: getTodayDateString(2), paymentMode: 'Cash', paidTo: 'Ramesh Chef', notes: 'Monthly staff advance and salary' },
+  { id: 'exp-4', title: 'Commercial LPG Cylinder', category: 'Commercial Gas', amount: 1850, date: getTodayDateString(1), paymentMode: 'Cash', paidTo: 'Indane Gas Agency', notes: '19kg commercial cylinder refilled' },
+  { id: 'exp-5', title: 'Cafe High-Speed Wi-Fi', category: 'Wi-Fi & Internet', amount: 799, date: getTodayDateString(8), paymentMode: 'Online', paidTo: 'Airtel Broadband', notes: 'Fiber internet connection for POS and guests' }
+];
+
+// Initial Raw Material Wastage Presets
+export const INITIAL_WASTAGE_LOGS = [
+  { id: 'waste-1', date: getTodayDateString(2), ingredientId: 'inv-1', ingredientName: 'Pizza Base', quantity: 3, unit: 'Piece', reason: 'Expired', costValue: 45, loggedBy: 'Head Chef', remarks: 'Packet date expired, dried out' },
+  { id: 'waste-2', date: getTodayDateString(1), ingredientId: 'inv-7', ingredientName: 'Whole Milk', quantity: 1000, unit: 'ml', reason: 'Curdled / Sour', costValue: 60, loggedBy: 'Barista', remarks: 'Milk turned sour due to heat' }
+];
+
+export const getStoredExpenses = () => {
+  try {
+    const data = localStorage.getItem(EXPENSES_STORAGE_KEY);
+    return data ? JSON.parse(data) : INITIAL_EXPENSES;
+  } catch (e) {
+    return INITIAL_EXPENSES;
+  }
+};
+
+export const saveStoredExpenses = (expenses) => {
+  localStorage.setItem(EXPENSES_STORAGE_KEY, JSON.stringify(expenses));
+};
+
+export const getStoredWastage = () => {
+  try {
+    const data = localStorage.getItem(WASTAGE_STORAGE_KEY);
+    return data ? JSON.parse(data) : INITIAL_WASTAGE_LOGS;
+  } catch (e) {
+    return INITIAL_WASTAGE_LOGS;
+  }
+};
+
+export const saveStoredWastage = (wastage) => {
+  localStorage.setItem(WASTAGE_STORAGE_KEY, JSON.stringify(wastage));
 };
 
 // Known Material Aliases for smart typo handling and natural naming

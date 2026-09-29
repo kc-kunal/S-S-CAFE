@@ -1,7 +1,31 @@
 import React, { useState, useMemo } from 'react';
-import { DollarSign, TrendingUp, TrendingDown, PackageCheck, ShoppingBag, Calendar, PieChart, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { 
+  DollarSign, 
+  TrendingUp, 
+  TrendingDown, 
+  PackageCheck, 
+  ShoppingBag, 
+  Calendar, 
+  PieChart, 
+  ArrowUpRight, 
+  ArrowDownRight,
+  Receipt,
+  AlertOctagon,
+  Zap,
+  Home,
+  Users,
+  Flame,
+  Wallet
+} from 'lucide-react';
 
-export default function FinancialDashboard({ salesLogs, procurementLogs, menuItems, inventoryItems = [] }) {
+export default function FinancialDashboard({ 
+  salesLogs = [], 
+  procurementLogs = [], 
+  menuItems = [], 
+  inventoryItems = [],
+  expenses = [],
+  wastageLogs = []
+}) {
   const [timeframe, setTimeframe] = useState('daily'); // 'daily', 'weekly', 'monthly', 'all'
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
@@ -11,10 +35,14 @@ export default function FinancialDashboard({ salesLogs, procurementLogs, menuIte
     
     let sales = [];
     let procurement = [];
+    let activeExpenses = [];
+    let activeWastage = [];
 
     if (timeframe === 'daily') {
       sales = salesLogs.filter(s => s.date === selectedDate);
       procurement = procurementLogs.filter(p => p.date === selectedDate);
+      activeExpenses = expenses.filter(e => e.date === selectedDate);
+      activeWastage = wastageLogs.filter(w => w.date === selectedDate);
     } else if (timeframe === 'weekly') {
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(now.getDate() - 7);
@@ -22,13 +50,19 @@ export default function FinancialDashboard({ salesLogs, procurementLogs, menuIte
       
       sales = salesLogs.filter(s => s.date >= minDateStr);
       procurement = procurementLogs.filter(p => p.date >= minDateStr);
+      activeExpenses = expenses.filter(e => e.date >= minDateStr);
+      activeWastage = wastageLogs.filter(w => w.date >= minDateStr);
     } else if (timeframe === 'monthly') {
       const currentYearMonth = now.toISOString().slice(0, 7); // YYYY-MM
       sales = salesLogs.filter(s => s.date.startsWith(currentYearMonth));
       procurement = procurementLogs.filter(p => p.date.startsWith(currentYearMonth));
+      activeExpenses = expenses.filter(e => e.date && e.date.startsWith(currentYearMonth));
+      activeWastage = wastageLogs.filter(w => w.date && w.date.startsWith(currentYearMonth));
     } else {
       sales = salesLogs;
       procurement = procurementLogs;
+      activeExpenses = expenses;
+      activeWastage = wastageLogs;
     }
 
     // Calculations
@@ -36,26 +70,42 @@ export default function FinancialDashboard({ salesLogs, procurementLogs, menuIte
     const cashRevenue = sales.reduce((sum, s) => sum + (s.paymentMethod === 'Online' ? 0 : Number(s.totalRevenue)), 0);
     const onlineRevenue = sales.reduce((sum, s) => sum + (s.paymentMethod === 'Online' ? Number(s.totalRevenue) : 0), 0);
     
-    // Actual Raw Material Consumed (COGS) based on Recipe / Item Cost Price
+    // 1. Actual Raw Material Consumed (COGS) based on Recipe / Item Cost Price
     const actualMaterialConsumed = sales.reduce((sum, s) => {
       const matchedItem = menuItems.find(m => m.id === s.itemId || m.name === s.itemName);
       const costPerUnit = matchedItem && matchedItem.costPrice !== undefined ? Number(matchedItem.costPrice) : (Number(s.costPrice) || 0);
       return sum + (costPerUnit * (Number(s.quantitySold) || 1));
     }, 0);
 
-    // Total Raw Material Procurement (Purchases / Cash Outflow)
+    // 2. Gross Food Margin
+    const grossProfit = totalRevenue - actualMaterialConsumed;
+    const grossMargin = totalRevenue > 0 ? ((grossProfit / totalRevenue) * 100).toFixed(1) : 0;
+
+    // 3. Operational Overhead Expenses (Electricity, Rent, Staff Salary, Gas, etc.)
+    const totalOverheadExpenses = activeExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
+    // 4. Raw Material Wastage / Spoilage Loss (Kharab Maal)
+    const totalWastageLoss = activeWastage.reduce((sum, w) => sum + Number(w.costValue || 0), 0);
+
+    // 5. 🏆 TRUE NET IN-HAND PROFIT (Asli Bachat)
+    // Formula: Revenue - Food Cost - Overheads (Rent, Light, Salaries) - Wastage Loss
+    const trueNetProfit = totalRevenue - actualMaterialConsumed - totalOverheadExpenses - totalWastageLoss;
+    const trueNetMargin = totalRevenue > 0 ? ((trueNetProfit / totalRevenue) * 100).toFixed(1) : 0;
+
+    // 6. Procurement & Cash Flow Outflows
     const totalRawMaterialCost = procurement.reduce((sum, p) => sum + Number(p.totalCost), 0);
     const totalUnitsSold = sales.reduce((sum, s) => sum + Number(s.quantitySold), 0);
+    const netCashFlow = totalRevenue - totalRawMaterialCost - totalOverheadExpenses;
 
-    // 1. True Operating Profit = Sales Revenue - Actual Material Consumed (COGS)
-    const actualProfit = totalRevenue - actualMaterialConsumed;
-    const actualMargin = totalRevenue > 0 ? ((actualProfit / totalRevenue) * 100).toFixed(1) : 0;
-
-    // 2. Net Cash Flow = Revenue Inflow - Procurement Purchases Outflow
-    const netCashFlow = totalRevenue - totalRawMaterialCost;
-
-    // 3. Current Stock Valuation (Asset in storage)
+    // 7. Current Stock Valuation (Asset in storage)
     const inventoryValuation = inventoryItems.reduce((sum, item) => sum + (Number(item.currentStock) * (Number(item.unitCost) || 0)), 0);
+
+    // Category-wise expense breakdown
+    const expenseBreakdown = {};
+    activeExpenses.forEach(e => {
+      const cat = e.category || 'Other';
+      expenseBreakdown[cat] = (expenseBreakdown[cat] || 0) + Number(e.amount || 0);
+    });
 
     // Item sales breakdown
     const itemBreakdownMap = {};
@@ -77,19 +127,26 @@ export default function FinancialDashboard({ salesLogs, procurementLogs, menuIte
     return {
       sales,
       procurement,
+      activeExpenses,
+      activeWastage,
       totalRevenue,
       cashRevenue,
       onlineRevenue,
       actualMaterialConsumed,
+      grossProfit,
+      grossMargin,
+      totalOverheadExpenses,
+      totalWastageLoss,
+      trueNetProfit,
+      trueNetMargin,
       totalRawMaterialCost,
       totalUnitsSold,
-      actualProfit,
-      actualMargin,
       netCashFlow,
       inventoryValuation,
+      expenseBreakdown,
       topItems
     };
-  }, [salesLogs, procurementLogs, menuItems, inventoryItems, timeframe, selectedDate]);
+  }, [salesLogs, procurementLogs, menuItems, inventoryItems, expenses, wastageLogs, timeframe, selectedDate]);
 
   return (
     <div className="space-y-6">
@@ -99,10 +156,10 @@ export default function FinancialDashboard({ salesLogs, procurementLogs, menuIte
         <div>
           <h3 className="text-base font-bold text-stone-900 flex items-center gap-2">
             <PieChart className="w-5 h-5 text-amber-600" />
-            Financial P&L & Stock Control Summary
+            Financial P&L, Bills & Profitability Summary
           </h3>
           <p className="text-xs text-stone-500">
-            Real profit calculated from <strong>Actual Recipe Consumption (COGS)</strong> vs <strong>Purchases & Cash Flow</strong>.
+            Real Net Profit = Sales Revenue − Raw Material COGS − Cafe Bills & Rent − Kharab Maal (Wastage).
           </p>
         </div>
 
@@ -123,7 +180,7 @@ export default function FinancialDashboard({ salesLogs, procurementLogs, menuIte
           <div className="flex items-center bg-stone-100 p-1 rounded-xl border border-stone-200 text-xs font-semibold">
             <button
               onClick={() => setTimeframe('daily')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
                 timeframe === 'daily' ? 'bg-amber-600 text-white shadow-sm' : 'text-stone-600 hover:text-stone-900'
               }`}
             >
@@ -131,7 +188,7 @@ export default function FinancialDashboard({ salesLogs, procurementLogs, menuIte
             </button>
             <button
               onClick={() => setTimeframe('weekly')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
                 timeframe === 'weekly' ? 'bg-amber-600 text-white shadow-sm' : 'text-stone-600 hover:text-stone-900'
               }`}
             >
@@ -139,7 +196,7 @@ export default function FinancialDashboard({ salesLogs, procurementLogs, menuIte
             </button>
             <button
               onClick={() => setTimeframe('monthly')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
                 timeframe === 'monthly' ? 'bg-amber-600 text-white shadow-sm' : 'text-stone-600 hover:text-stone-900'
               }`}
             >
@@ -147,7 +204,7 @@ export default function FinancialDashboard({ salesLogs, procurementLogs, menuIte
             </button>
             <button
               onClick={() => setTimeframe('all')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
                 timeframe === 'all' ? 'bg-amber-600 text-white shadow-sm' : 'text-stone-600 hover:text-stone-900'
               }`}
             >
@@ -157,13 +214,13 @@ export default function FinancialDashboard({ salesLogs, procurementLogs, menuIte
         </div>
       </div>
 
-      {/* Primary Financial Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Primary Financial Metric Cards (6 Cards Grid) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         
-        {/* Total Sales Revenue */}
+        {/* 1. Total Sales Revenue */}
         <div className="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm relative overflow-hidden group">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-stone-500">Sales Revenue</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-stone-500">Total Sales Revenue (+)</span>
             <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
               <ShoppingBag className="w-5 h-5" />
             </div>
@@ -178,12 +235,12 @@ export default function FinancialDashboard({ salesLogs, procurementLogs, menuIte
           <div className="absolute top-0 right-0 w-2 h-full bg-emerald-500"></div>
         </div>
 
-        {/* Actual Material Consumed (COGS) */}
+        {/* 2. Actual Material Consumed (COGS) */}
         <div className="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm relative overflow-hidden group">
           <div className="flex items-center justify-between">
             <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-stone-500 block">Material Consumed (COGS)</span>
-              <span className="text-[10px] text-amber-700 font-bold">From Recipe Usage</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-stone-500 block">Food Cost (COGS) (−)</span>
+              <span className="text-[10px] text-amber-700 font-bold">From Recipe Ingredients</span>
             </div>
             <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
               <PackageCheck className="w-5 h-5" />
@@ -193,57 +250,98 @@ export default function FinancialDashboard({ salesLogs, procurementLogs, menuIte
             ₹{filteredData.actualMaterialConsumed.toLocaleString()}
           </h3>
           <p className="text-xs text-stone-500 mt-1">
-            Raw material used for {filteredData.totalUnitsSold} items sold
+            Raw materials used for {filteredData.totalUnitsSold} items sold
           </p>
           <div className="absolute top-0 right-0 w-2 h-full bg-amber-500"></div>
         </div>
 
-        {/* 🏆 True Operating Profit */}
-        <div className={`rounded-2xl p-5 border shadow-sm relative overflow-hidden ${
-          filteredData.actualProfit >= 0
-            ? 'bg-emerald-950 text-white border-emerald-900'
-            : 'bg-rose-950 text-white border-rose-900'
+        {/* 3. Cafe Overheads & Bills (Rent, Light, Salaries) */}
+        <div className="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm relative overflow-hidden group">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-stone-500 block">Bills & Rent (−)</span>
+              <span className="text-[10px] text-purple-700 font-bold">Light, Rent, Salary, Gas</span>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center">
+              <Receipt className="w-5 h-5" />
+            </div>
+          </div>
+          <h3 className="text-3xl font-extrabold text-purple-900 mt-2">
+            ₹{filteredData.totalOverheadExpenses.toLocaleString()}
+          </h3>
+          <p className="text-xs text-stone-500 mt-1">
+            Total {filteredData.activeExpenses.length} expense/bill entries logged
+          </p>
+          <div className="absolute top-0 right-0 w-2 h-full bg-purple-500"></div>
+        </div>
+
+        {/* 4. Spoilage / Wastage Loss (Kharab Maal) */}
+        <div className="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm relative overflow-hidden group">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-stone-500 block">Kharab Maal Loss (−)</span>
+              <span className="text-[10px] text-rose-700 font-bold">Expired, Burnt, Spoiled</span>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center">
+              <AlertOctagon className="w-5 h-5" />
+            </div>
+          </div>
+          <h3 className="text-3xl font-extrabold text-rose-700 mt-2">
+            ₹{filteredData.totalWastageLoss.toLocaleString()}
+          </h3>
+          <p className="text-xs text-stone-500 mt-1">
+            Deducted from stock & recorded as loss
+          </p>
+          <div className="absolute top-0 right-0 w-2 h-full bg-rose-500"></div>
+        </div>
+
+        {/* 5. 🏆 TRUE NET IN-HAND PROFIT (Asli Bachat) */}
+        <div className={`rounded-2xl p-5 border shadow-md relative overflow-hidden ${
+          filteredData.trueNetProfit >= 0
+            ? 'bg-gradient-to-br from-emerald-950 to-stone-950 text-white border-emerald-800'
+            : 'bg-gradient-to-br from-rose-950 to-stone-950 text-white border-rose-800'
         }`}>
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-300">
-              Actual Operating Profit
+              🏆 True Net Profit (Asli Munafa)
             </span>
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-              filteredData.actualProfit >= 0 ? 'bg-emerald-800 text-emerald-200' : 'bg-rose-800 text-rose-200'
+              filteredData.trueNetProfit >= 0 ? 'bg-emerald-800 text-emerald-200' : 'bg-rose-800 text-rose-200'
             }`}>
-              {filteredData.actualProfit >= 0 ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
+              {filteredData.trueNetProfit >= 0 ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
             </div>
           </div>
           <h3 className="text-3xl font-extrabold mt-2">
-            ₹{Math.abs(filteredData.actualProfit).toLocaleString()}
+            {filteredData.trueNetProfit < 0 ? '-' : ''}₹{Math.abs(filteredData.trueNetProfit).toLocaleString()}
           </h3>
-          <p className="text-xs text-emerald-200/80 mt-1">
-            Revenue − Consumed Material ({filteredData.actualMargin}% Margin)
+          <p className="text-xs text-emerald-200/90 mt-1">
+            After Food Cost, Bills, Rent & Wastage ({filteredData.trueNetMargin}% Net Margin)
           </p>
+          <div className={`absolute top-0 right-0 w-2 h-full ${filteredData.trueNetProfit >= 0 ? 'bg-emerald-400' : 'bg-rose-500'}`}></div>
         </div>
 
-        {/* Purchases & Cash Flow Card */}
+        {/* 6. Cash Flow & Storage Valuation */}
         <div className="bg-gradient-to-br from-stone-900 to-stone-950 text-white rounded-2xl p-5 border border-stone-800 shadow-md relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-stone-400">Purchases & Cash Flow</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-stone-400">Net Cash Flow & Assets</span>
             <div className="w-10 h-10 rounded-xl bg-stone-800 text-amber-400 flex items-center justify-center">
-              <TrendingUp className="w-5 h-5" />
+              <Wallet className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-2 space-y-1">
             <div className="flex justify-between items-center text-xs">
-              <span className="text-stone-400">Purchases:</span>
-              <span className="font-bold text-rose-300">₹{filteredData.totalRawMaterialCost.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-stone-400">Net Cash Flow:</span>
+              <span className="text-stone-400">Net Cash Inflow:</span>
               <span className={`font-extrabold ${filteredData.netCashFlow >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                 {filteredData.netCashFlow >= 0 ? '+' : ''}₹{filteredData.netCashFlow.toLocaleString()}
               </span>
             </div>
-            <div className="flex justify-between items-center text-xs pt-1 border-t border-stone-800">
+            <div className="flex justify-between items-center text-xs">
               <span className="text-stone-400">Stock in Storage:</span>
               <span className="font-extrabold text-amber-300">₹{Math.round(filteredData.inventoryValuation).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between items-center text-xs pt-1 border-t border-stone-800">
+              <span className="text-stone-400">Purchases:</span>
+              <span className="font-bold text-stone-300">₹{filteredData.totalRawMaterialCost.toLocaleString()}</span>
             </div>
           </div>
         </div>
@@ -285,7 +383,42 @@ export default function FinancialDashboard({ salesLogs, procurementLogs, menuIte
           )}
         </div>
 
-        {/* Procurement Expense Summary */}
+        {/* Expense Category Breakdown */}
+        <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm">
+          <h4 className="text-sm font-bold text-stone-900 uppercase tracking-wider mb-4 flex items-center gap-2">
+            <Receipt className="w-4 h-4 text-purple-600" />
+            Bills & Expenses Breakdown ({timeframe})
+          </h4>
+
+          {Object.keys(filteredData.expenseBreakdown).length === 0 ? (
+            <p className="text-xs text-stone-400 py-6 text-center">No bills or operational expenses logged for this timeframe.</p>
+          ) : (
+            <div className="space-y-3">
+              {Object.entries(filteredData.expenseBreakdown).map(([cat, amount]) => {
+                const percentage = filteredData.totalOverheadExpenses > 0
+                  ? Math.round((amount / filteredData.totalOverheadExpenses) * 100)
+                  : 0;
+
+                return (
+                  <div key={cat} className="p-3 rounded-xl bg-stone-50 border border-stone-100 space-y-1.5">
+                    <div className="flex items-center justify-between text-xs font-bold">
+                      <span className="text-stone-900">{cat}</span>
+                      <span className="text-purple-900 font-extrabold">₹{amount.toLocaleString()} ({percentage}%)</span>
+                    </div>
+                    <div className="w-full bg-stone-200 rounded-full h-2 overflow-hidden">
+                      <div 
+                        className="bg-purple-600 h-2 rounded-full transition-all"
+                        style={{ width: `${percentage}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Procurement Purchases */}
         <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm">
           <h4 className="text-sm font-bold text-stone-900 uppercase tracking-wider mb-4 flex items-center gap-2">
             <PackageCheck className="w-4 h-4 text-amber-600" />
@@ -293,9 +426,9 @@ export default function FinancialDashboard({ salesLogs, procurementLogs, menuIte
           </h4>
 
           {filteredData.procurement.length === 0 ? (
-            <p className="text-xs text-stone-400 py-6 text-center">No raw material procurements logged for this timeframe.</p>
+            <p className="text-xs text-stone-400 py-6 text-center">No raw material purchases logged for this timeframe.</p>
           ) : (
-            <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
+            <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
               {filteredData.procurement.map((p) => (
                 <div key={p.id} className="flex items-center justify-between p-3 rounded-xl bg-stone-50 border border-stone-100">
                   <div>
@@ -303,12 +436,41 @@ export default function FinancialDashboard({ salesLogs, procurementLogs, menuIte
                     <div className="flex items-center gap-2 text-xs text-stone-500 mt-0.5">
                       <span className="px-2 py-0.5 rounded bg-stone-200 text-stone-700 font-semibold text-[10px]">{p.category}</span>
                       <span>Qty: {p.quantityReceived} {p.unit}</span>
-                      {p.supplier && <span>• {p.supplier}</span>}
                     </div>
                   </div>
                   <div className="text-right">
                     <span className="text-sm font-extrabold text-rose-700">₹{Number(p.totalCost).toLocaleString()}</span>
                     <span className="block text-[10px] text-stone-400">{p.date}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Recent Spoilage / Wastage Log */}
+        <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm">
+          <h4 className="text-sm font-bold text-stone-900 uppercase tracking-wider mb-4 flex items-center gap-2">
+            <AlertOctagon className="w-4 h-4 text-rose-600" />
+            Kharab Maal / Wastage Records ({timeframe})
+          </h4>
+
+          {filteredData.activeWastage.length === 0 ? (
+            <p className="text-xs text-stone-400 py-6 text-center">No wastage logged for this timeframe. Great job!</p>
+          ) : (
+            <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+              {filteredData.activeWastage.map((w) => (
+                <div key={w.id} className="flex items-center justify-between p-3 rounded-xl bg-rose-50/50 border border-rose-100">
+                  <div>
+                    <h5 className="text-sm font-bold text-stone-900">{w.ingredientName}</h5>
+                    <div className="flex items-center gap-2 text-xs text-stone-500 mt-0.5">
+                      <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold text-[10px]">{w.reason}</span>
+                      <span>{w.quantity} {w.unit}</span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-sm font-extrabold text-rose-700">Loss: ₹{Number(w.costValue || 0).toLocaleString()}</span>
+                    <span className="block text-[10px] text-stone-400">{w.date}</span>
                   </div>
                 </div>
               ))}
