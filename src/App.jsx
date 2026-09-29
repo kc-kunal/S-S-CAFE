@@ -9,6 +9,8 @@ import ItemCards from './components/ItemCards';
 import ItemModal from './components/ItemModal';
 import DeleteConfirmModal from './components/DeleteConfirmModal';
 import CloudConfigModal from './components/CloudConfigModal';
+import StockAlertSettingsModal from './components/StockAlertSettingsModal';
+import { triggerAutomaticStockAlerts } from './utils/whatsappAlert';
 import {
   getStoredMenu, saveStoredMenu,
   getStoredSales, saveStoredSales,
@@ -42,6 +44,9 @@ export default function App() {
   // Cloud Database Sync State
   const [isCloudConnected, setIsCloudConnected] = useState(isFirebaseConfigured());
   const [isCloudModalOpen, setIsCloudModalOpen] = useState(false);
+
+  // WhatsApp Automated Stock Alert State
+  const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
 
   // Modal State for Menu
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -204,6 +209,8 @@ export default function App() {
     setInventoryItems(newInv);
     saveStoredInventory(newInv);
     if (isFirebaseConfigured()) syncCloudInventory(newInv);
+    // Background silent automatic WhatsApp alert for low stock items
+    triggerAutomaticStockAlerts(newInv);
   };
 
   // ⚡ Sales Handlers with Automatic Recipe Raw Material Deduction & Strict Stock Guard
@@ -660,6 +667,7 @@ export default function App() {
             onSaveItem={handleSaveInventoryItem}
             onDeleteItem={handleDeleteInventoryItem}
             onAdjustStock={handleAdjustStock}
+            onOpenAlertSettings={() => setIsAlertModalOpen(true)}
           />
         )}
 
@@ -760,6 +768,13 @@ export default function App() {
           setIsCloudConnected(connected);
           showToast(connected ? '🟢 Firebase Cloud Database Connected!' : 'Local Storage Mode');
         }}
+      />
+
+      {/* Automated WhatsApp Stock Alert Settings Modal */}
+      <StockAlertSettingsModal
+        isOpen={isAlertModalOpen}
+        onClose={() => setIsAlertModalOpen(false)}
+        showToast={showToast}
       />
 
       {/* Sticky Mobile Bottom Navigation Bar */}

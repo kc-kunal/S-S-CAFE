@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { Package, AlertTriangle, CheckCircle2, XCircle, Plus, Edit2, Trash2, Search, Filter, TrendingDown, Layers } from 'lucide-react';
+import { Package, AlertTriangle, CheckCircle2, XCircle, Plus, Edit2, Trash2, Search, Filter, TrendingDown, Layers, BellRing, Send, MessageSquare } from 'lucide-react';
+import { generateVendorOrderLink, getAlertConfig } from '../utils/whatsappAlert';
 
 const CATEGORIES = ['Dairy', 'Beans & Teas', 'Produce', 'Bakery', 'Packaging', 'Groceries'];
 const UNITS = ['Kg', 'Liters', 'Packets', 'Bags', 'Boxes', 'Units', 'Packs'];
 
-export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteItem, onAdjustStock }) {
+export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteItem, onAdjustStock, onOpenAlertSettings }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -94,6 +95,13 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
     });
   }, [inventoryItems, searchQuery, categoryFilter, statusFilter]);
 
+  // Items at or below reorder threshold
+  const alertItems = useMemo(() => {
+    return inventoryItems.filter(item => Number(item.currentStock) <= (Number(item.reorderLevel) || 5));
+  }, [inventoryItems]);
+
+  const alertConfig = useMemo(() => getAlertConfig(), [inventoryItems]);
+
   return (
     <div className="space-y-6">
       
@@ -142,6 +150,61 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
 
       </div>
 
+      {/* Urgent Low Stock & Direct Vendor Order Banner */}
+      {alertItems.length > 0 && (
+        <div className="bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-amber-500/10 border border-amber-300/80 rounded-2xl p-4 sm:p-5 shadow-sm space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-800 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-amber-700 animate-pulse" />
+              </div>
+              <div>
+                <h4 className="text-sm sm:text-base font-extrabold text-stone-900 flex items-center gap-2">
+                  <span>⚠️ {alertItems.length} Raw Material(s) Low / Out of Stock!</span>
+                </h4>
+                <p className="text-xs text-stone-600">
+                  {alertConfig.enabled
+                    ? `WhatsApp background alerts are ACTIVE for Owner (${alertConfig.ownerPhone || 'configured'}).`
+                    : `WhatsApp background alerts are OFF. Enable to get instant alerts on owner's phone.`}
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={onOpenAlertSettings}
+              className="px-3.5 py-1.5 bg-white hover:bg-stone-50 border border-stone-300 text-stone-700 rounded-xl text-xs font-bold shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0 self-start sm:self-auto"
+            >
+              <BellRing className="w-3.5 h-3.5 text-amber-600" />
+              <span>Alert Settings</span>
+            </button>
+          </div>
+
+          {/* Quick Vendor WhatsApp Order Chips */}
+          <div className="flex flex-wrap gap-2 pt-1 border-t border-amber-200/60">
+            <span className="text-[11px] font-bold text-stone-500 flex items-center gap-1 self-center">
+              <MessageSquare className="w-3.5 h-3.5 text-emerald-600" /> 1-Tap Vendor Order:
+            </span>
+            {alertItems.map(item => {
+              const reorderQty = alertConfig.reorderQuantity || (item.unit === 'Kg' || item.unit === 'Liters' ? 10 : 25);
+              const waUrl = generateVendorOrderLink(item, reorderQty, alertConfig.vendorPhone);
+              return (
+                <a
+                  key={item.id}
+                  href={waUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs transition-all cursor-pointer active:scale-95"
+                  title={`Order ${reorderQty} ${item.unit} ${item.materialName} via WhatsApp`}
+                >
+                  <Send className="w-3 h-3" />
+                  <span>Order {item.materialName} ({item.currentStock} {item.unit} left)</span>
+                </a>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Control Bar: Search & Add Item */}
       <div className="bg-white rounded-2xl border border-stone-200 p-3.5 sm:p-4 shadow-sm space-y-3 sm:space-y-4">
         <div className="flex flex-col lg:flex-row gap-2.5 sm:gap-3 items-stretch lg:items-center justify-between">
@@ -177,6 +240,18 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
               <option value="LOW">Low Stock Alerts Only</option>
               <option value="OUT">Out of Stock Only</option>
             </select>
+
+            <button
+              onClick={onOpenAlertSettings}
+              className="w-full sm:w-auto px-3.5 py-2 bg-stone-900 hover:bg-stone-800 text-amber-400 text-xs font-bold rounded-xl shadow transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              title="Automated WhatsApp Alert Settings"
+            >
+              <BellRing className="w-4 h-4 text-amber-400" />
+              <span>WhatsApp Alerts</span>
+              {alertConfig.enabled && (
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse ml-0.5"></span>
+              )}
+            </button>
 
             <button
               onClick={handleOpenAdd}
@@ -298,16 +373,27 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
 
                     {/* Actions */}
                     <td className="py-3.5 px-4 text-center space-x-1">
+                      {(isLow || isOut) && (
+                        <a
+                          href={generateVendorOrderLink(item, alertConfig.reorderQuantity || 20, alertConfig.vendorPhone)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg inline-flex items-center cursor-pointer"
+                          title={`Order ${item.materialName} on Vendor WhatsApp`}
+                        >
+                          <Send className="w-4 h-4" />
+                        </a>
+                      )}
                       <button
                         onClick={() => handleOpenEdit(item)}
-                        className="p-1.5 text-stone-600 hover:text-amber-800 hover:bg-amber-50 rounded-lg"
+                        className="p-1.5 text-stone-600 hover:text-amber-800 hover:bg-amber-50 rounded-lg cursor-pointer"
                         title="Edit Item"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => onDeleteItem(item.id)}
-                        className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"
+                        className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer"
                         title="Delete Item"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -376,8 +462,8 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
                     </div>
 
                     {/* Status & Quick Adjust Footer */}
-                    <div className="flex items-center justify-between gap-2 pt-1">
-                      <div>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 border-t border-stone-200/50">
+                      <div className="flex items-center gap-2">
                         {isOut ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-800">
                             🚫 Out of Stock
@@ -390,6 +476,19 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
                             ✓ In Stock
                           </span>
+                        )}
+
+                        {(isLow || isOut) && (
+                          <a
+                            href={generateVendorOrderLink(item, alertConfig.reorderQuantity || 20, alertConfig.vendorPhone)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-600 text-white rounded-lg text-[10px] font-bold shadow-2xs active:scale-95 ml-auto sm:ml-0"
+                            title={`Order ${item.materialName} on Vendor WhatsApp`}
+                          >
+                            <Send className="w-2.5 h-2.5" />
+                            <span>Order</span>
+                          </a>
                         )}
                       </div>
 
