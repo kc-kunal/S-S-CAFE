@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Package, AlertTriangle, CheckCircle2, XCircle, Plus, Edit2, Trash2, Search, Filter, TrendingDown, Layers, Send, MessageSquare } from 'lucide-react';
-import { generateVendorOrderLink, generateOwnerStockAlertLink, getAlertConfig } from '../utils/whatsappAlert';
+import { Package, AlertTriangle, CheckCircle2, XCircle, Plus, Edit2, Trash2, Search, Filter, TrendingDown, Layers, Send } from 'lucide-react';
+import { generateVendorOrderLink, getAlertConfig } from '../utils/whatsappAlert';
 
 const CATEGORIES = ['Dairy', 'Beans & Teas', 'Produce', 'Bakery', 'Packaging', 'Groceries'];
 const UNITS = ['Kg', 'Liters', 'Packets', 'Bags', 'Boxes', 'Units', 'Packs'];
@@ -95,11 +95,6 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
     });
   }, [inventoryItems, searchQuery, categoryFilter, statusFilter]);
 
-  // Items at or below reorder threshold
-  const alertItems = useMemo(() => {
-    return inventoryItems.filter(item => Number(item.currentStock) <= (Number(item.reorderLevel) || 5));
-  }, [inventoryItems]);
-
   const alertConfig = useMemo(() => getAlertConfig(), [inventoryItems]);
 
   return (
@@ -149,50 +144,6 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
         </div>
 
       </div>
-
-      {/* Urgent Low Stock & Direct Vendor Order Banner */}
-      {alertItems.length > 0 && (
-        <div className="bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-amber-500/10 border border-amber-300/80 rounded-2xl p-4 sm:p-5 shadow-sm space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-800 flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-5 h-5 text-amber-700 animate-pulse" />
-              </div>
-              <div>
-                <h4 className="text-sm sm:text-base font-extrabold text-stone-900 flex items-center gap-2">
-                  <span>⚠️ {alertItems.length} Raw Material(s) Low / Out of Stock!</span>
-                </h4>
-                <p className="text-xs text-stone-600">
-                  Telegram automated stock alerts are monitored in the background.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick WhatsApp Alert Chips */}
-          <div className="flex flex-wrap gap-2 pt-1 border-t border-amber-200/60">
-            <span className="text-[11px] font-bold text-stone-500 flex items-center gap-1 self-center">
-              <MessageSquare className="w-3.5 h-3.5 text-emerald-600" /> 1-Tap WhatsApp:
-            </span>
-            {alertItems.map(item => {
-              const ownerAlertUrl = generateOwnerStockAlertLink(item, alertConfig.ownerPhone);
-              return (
-                <a
-                  key={item.id}
-                  href={ownerAlertUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs transition-all cursor-pointer active:scale-95"
-                  title={`Send low stock alert for ${item.materialName} to Owner WhatsApp`}
-                >
-                  <Send className="w-3 h-3" />
-                  <span>📲 Alert Owner: {item.materialName} ({item.currentStock} {item.unit} left)</span>
-                </a>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {/* Control Bar: Search & Add Item */}
       <div className="bg-white rounded-2xl border border-stone-200 p-3.5 sm:p-4 shadow-sm space-y-3 sm:space-y-4">
