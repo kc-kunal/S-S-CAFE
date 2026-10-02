@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { Package, AlertTriangle, CheckCircle2, XCircle, Plus, Edit2, Trash2, Search, Filter, TrendingDown, Layers, BellRing, Send, MessageSquare } from 'lucide-react';
+import { Package, AlertTriangle, CheckCircle2, XCircle, Plus, Edit2, Trash2, Search, Filter, TrendingDown, Layers, Send, MessageSquare } from 'lucide-react';
 import { generateVendorOrderLink, generateOwnerStockAlertLink, getAlertConfig } from '../utils/whatsappAlert';
 
 const CATEGORIES = ['Dairy', 'Beans & Teas', 'Produce', 'Bakery', 'Packaging', 'Groceries'];
 const UNITS = ['Kg', 'Liters', 'Packets', 'Bags', 'Boxes', 'Units', 'Packs'];
 
-export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteItem, onAdjustStock, onOpenAlertSettings }) {
+export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteItem, onAdjustStock }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -163,20 +163,10 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
                   <span>⚠️ {alertItems.length} Raw Material(s) Low / Out of Stock!</span>
                 </h4>
                 <p className="text-xs text-stone-600">
-                  {alertConfig.isEnabled && alertConfig.ownerPhone
-                    ? `WhatsApp background alerts are ACTIVE for Owner (${alertConfig.ownerPhone}).`
-                    : `WhatsApp alerts not configured. Click Alert Settings to add Owner WhatsApp number.`}
+                  Telegram automated stock alerts are monitored in the background.
                 </p>
               </div>
             </div>
-
-            <button
-              onClick={onOpenAlertSettings}
-              className="px-3.5 py-1.5 bg-white hover:bg-stone-50 border border-stone-300 text-stone-700 rounded-xl text-xs font-bold shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0 self-start sm:self-auto"
-            >
-              <BellRing className="w-3.5 h-3.5 text-amber-600" />
-              <span>Alert Settings</span>
-            </button>
           </div>
 
           {/* Quick WhatsApp Alert Chips */}
@@ -239,18 +229,6 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
               <option value="LOW">Low Stock Alerts Only</option>
               <option value="OUT">Out of Stock Only</option>
             </select>
-
-            <button
-              onClick={onOpenAlertSettings}
-              className="w-full sm:w-auto px-3.5 py-2 bg-stone-900 hover:bg-stone-800 text-amber-400 text-xs font-bold rounded-xl shadow transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-              title="Automated Stock Alert Settings (Zero Clicks by Staff)"
-            >
-              <BellRing className="w-4 h-4 text-amber-400" />
-              <span>Auto Alerts</span>
-              {alertConfig.isEnabled && (alertConfig.telegramBotToken || alertConfig.ownerPhone) && (
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse ml-0.5"></span>
-              )}
-            </button>
 
             <button
               onClick={handleOpenAdd}

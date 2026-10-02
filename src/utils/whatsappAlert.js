@@ -16,27 +16,39 @@ const DEFAULT_CONFIG = {
   reorderQuantity: 20
 };
 
-// Retrieve configuration
+// Retrieve configuration with priority to .env variables
 export const getAlertConfig = () => {
+  const envBotToken = import.meta.env.VITE_TELEGRAM_BOT_TOKEN || '';
+  const envChatId = import.meta.env.VITE_TELEGRAM_CHAT_ID || '';
+  const envOwnerPhone = import.meta.env.VITE_OWNER_WHATSAPP_PHONE || '';
+  const envVendorPhone = import.meta.env.VITE_VENDOR_WHATSAPP_PHONE || '';
+
   try {
     const raw = localStorage.getItem(ALERT_CONFIG_KEY);
     if (raw) {
-      return { ...DEFAULT_CONFIG, ...JSON.parse(raw) };
-    }
-    // Backward compatibility for v1
-    const legacy = localStorage.getItem('ss_cafe_whatsapp_alert_config_v1');
-    if (legacy) {
-      const parsed = JSON.parse(legacy);
+      const parsed = JSON.parse(raw);
       return {
         ...DEFAULT_CONFIG,
-        ownerPhone: parsed.ownerPhone || '',
-        vendorPhone: parsed.vendorPhone || ''
+        ...parsed,
+        // Environment variables take precedence whenever configured
+        telegramBotToken: envBotToken || parsed.telegramBotToken || '',
+        telegramChatId: envChatId || parsed.telegramChatId || '',
+        ownerPhone: envOwnerPhone || parsed.ownerPhone || '',
+        vendorPhone: envVendorPhone || parsed.vendorPhone || '',
+        isEnabled: true
       };
     }
   } catch (e) {
     console.error('Error loading alert config:', e);
   }
-  return DEFAULT_CONFIG;
+  return {
+    ...DEFAULT_CONFIG,
+    telegramBotToken: envBotToken,
+    telegramChatId: envChatId,
+    ownerPhone: envOwnerPhone,
+    vendorPhone: envVendorPhone,
+    isEnabled: true
+  };
 };
 
 // Save configuration

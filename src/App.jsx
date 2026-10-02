@@ -9,7 +9,6 @@ import ItemCards from './components/ItemCards';
 import ItemModal from './components/ItemModal';
 import DeleteConfirmModal from './components/DeleteConfirmModal';
 import CloudConfigModal from './components/CloudConfigModal';
-import StockAlertSettingsModal from './components/StockAlertSettingsModal';
 import ExpenseTracker from './components/ExpenseTracker';
 import { triggerAutomaticStockAlerts } from './utils/whatsappAlert';
 import {
@@ -57,9 +56,6 @@ export default function App() {
   // Cloud Database Sync State
   const [isCloudConnected, setIsCloudConnected] = useState(isFirebaseConfigured());
   const [isCloudModalOpen, setIsCloudModalOpen] = useState(false);
-
-  // WhatsApp Automated Stock Alert State
-  const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
 
   // Modal State for Menu
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -790,7 +786,6 @@ export default function App() {
             onSaveItem={handleSaveInventoryItem}
             onDeleteItem={handleDeleteInventoryItem}
             onAdjustStock={handleAdjustStock}
-            onOpenAlertSettings={() => setIsAlertModalOpen(true)}
           />
         )}
 
@@ -918,13 +913,6 @@ export default function App() {
           if (restored.wastage && Array.isArray(restored.wastage)) updateWastage(restored.wastage);
           showToast('✅ Complete Cafe Data Restored from Backup File!');
         }}
-      />
-
-      {/* Automated WhatsApp Stock Alert Settings Modal */}
-      <StockAlertSettingsModal
-        isOpen={isAlertModalOpen}
-        onClose={() => setIsAlertModalOpen(false)}
-        showToast={showToast}
       />
 
       {/* Sticky Mobile Bottom Navigation Bar */}
