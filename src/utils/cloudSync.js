@@ -1,123 +1,229 @@
-import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  deleteDoc,
+  writeBatch,
+  onSnapshot
+} from 'firebase/firestore';
 import { getFirebaseDb, isFirebaseConfigured } from './firebase';
 
-const CAFE_COLLECTION = 'cafe_management';
+// Production Firestore Collections
+export const COLLECTIONS = {
+  MENU: 'cafe_menu',
+  INVENTORY: 'cafe_inventory',
+  SALES: 'cafe_sales',
+  PROCUREMENT: 'cafe_procurement',
+  EXPENSES: 'cafe_expenses',
+  WASTAGE: 'cafe_wastage',
+  LEGACY: 'cafe_management'
+};
 
-// Sync Menu to Cloud
+// Batch commit helper: Firestore allows max 500 ops per batch. We chunk by 400 safely.
+const commitBatches = async (db, operations) => {
+  if (!operations || operations.length === 0) return true;
+  const CHUNK_SIZE = 400;
+
+  for (let i = 0; i < operations.length; i += CHUNK_SIZE) {
+    const chunk = operations.slice(i, i + CHUNK_SIZE);
+    const batch = writeBatch(db);
+
+    chunk.forEach(({ type, ref, data }) => {
+      if (type === 'set') {
+        batch.set(ref, data, { merge: true });
+      } else if (type === 'delete') {
+        batch.delete(ref);
+      }
+    });
+
+    await batch.commit();
+  }
+  return true;
+};
+
+// Generic single document upsert
+const upsertSingleDoc = async (collectionName, item) => {
+  const db = getFirebaseDb();
+  if (!db || !item) return false;
+  try {
+    const id = item.id || `item_${Date.now()}`;
+    const docRef = doc(db, collectionName, String(id));
+    await setDoc(docRef, { ...item, id, _lastSynced: new Date().toISOString() }, { merge: true });
+    return true;
+  } catch (err) {
+    console.error(`Error upserting doc in ${collectionName}:`, err);
+    return false;
+  }
+};
+
+// Generic single document delete
+const deleteSingleDoc = async (collectionName, id) => {
+  const db = getFirebaseDb();
+  if (!db || !id) return false;
+  try {
+    const docRef = doc(db, collectionName, String(id));
+    await deleteDoc(docRef);
+    return true;
+  } catch (err) {
+    console.error(`Error deleting doc in ${collectionName}:`, err);
+    return false;
+  }
+};
+
+// Sync Collection with Batching (handles O(N) items without 1MB single-document limit)
+const syncCollectionItems = async (collectionName, items) => {
+  const db = getFirebaseDb();
+  if (!db || !Array.isArray(items)) return false;
+
+  try {
+    const operations = items.map((item) => {
+      const id = item.id || `item_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+      return {
+        type: 'set',
+        ref: doc(db, collectionName, String(id)),
+        data: { ...item, id, _lastSynced: new Date().toISOString() }
+      };
+    });
+
+    await commitBatches(db, operations);
+    return true;
+  } catch (err) {
+    console.error(`Error syncing collection ${collectionName}:`, err);
+    return false;
+  }
+};
+
+// ==========================================
+// 1. Bulk Sync Methods (Contract compatible)
+// ==========================================
+
 export const syncCloudMenu = async (items) => {
-  const db = getFirebaseDb();
-  if (!db) return false;
-  try {
-    const docRef = doc(db, CAFE_COLLECTION, 'menu');
-    await setDoc(docRef, { items, lastUpdated: new Date().toISOString() }, { merge: true });
-    return true;
-  } catch (err) {
-    console.error('Error syncing menu to cloud:', err);
-    return false;
-  }
+  return syncCollectionItems(COLLECTIONS.MENU, items);
 };
 
-// Sync Inventory to Cloud
-export const syncCloudInventory = async (inventory) => {
-  const db = getFirebaseDb();
-  if (!db) return false;
-  try {
-    const docRef = doc(db, CAFE_COLLECTION, 'inventory');
-    await setDoc(docRef, { items: inventory, lastUpdated: new Date().toISOString() }, { merge: true });
-    return true;
-  } catch (err) {
-    console.error('Error syncing inventory to cloud:', err);
-    return false;
-  }
+export const syncCloudInventory = async (items) => {
+  return syncCollectionItems(COLLECTIONS.INVENTORY, items);
 };
 
-// Sync Sales to Cloud
-export const syncCloudSales = async (sales) => {
-  const db = getFirebaseDb();
-  if (!db) return false;
-  try {
-    const docRef = doc(db, CAFE_COLLECTION, 'sales');
-    await setDoc(docRef, { items: sales, lastUpdated: new Date().toISOString() }, { merge: true });
-    return true;
-  } catch (err) {
-    console.error('Error syncing sales to cloud:', err);
-    return false;
-  }
+export const syncCloudSales = async (items) => {
+  return syncCollectionItems(COLLECTIONS.SALES, items);
 };
 
-// Sync Procurement to Cloud
-export const syncCloudProcurement = async (procurement) => {
-  const db = getFirebaseDb();
-  if (!db) return false;
-  try {
-    const docRef = doc(db, CAFE_COLLECTION, 'procurement');
-    await setDoc(docRef, { items: procurement, lastUpdated: new Date().toISOString() }, { merge: true });
-    return true;
-  } catch (err) {
-    console.error('Error syncing procurement to cloud:', err);
-    return false;
-  }
+export const syncCloudProcurement = async (items) => {
+  return syncCollectionItems(COLLECTIONS.PROCUREMENT, items);
 };
 
-// Sync Expenses to Cloud
-export const syncCloudExpenses = async (expenses) => {
-  const db = getFirebaseDb();
-  if (!db) return false;
-  try {
-    const docRef = doc(db, CAFE_COLLECTION, 'expenses');
-    await setDoc(docRef, { items: expenses, lastUpdated: new Date().toISOString() }, { merge: true });
-    return true;
-  } catch (err) {
-    console.error('Error syncing expenses to cloud:', err);
-    return false;
-  }
+export const syncCloudExpenses = async (items) => {
+  return syncCollectionItems(COLLECTIONS.EXPENSES, items);
 };
 
-// Sync Wastage Logs to Cloud
-export const syncCloudWastage = async (wastage) => {
-  const db = getFirebaseDb();
-  if (!db) return false;
-  try {
-    const docRef = doc(db, CAFE_COLLECTION, 'wastage');
-    await setDoc(docRef, { items: wastage, lastUpdated: new Date().toISOString() }, { merge: true });
-    return true;
-  } catch (err) {
-    console.error('Error syncing wastage to cloud:', err);
-    return false;
-  }
+export const syncCloudWastage = async (items) => {
+  return syncCollectionItems(COLLECTIONS.WASTAGE, items);
 };
 
-// Fetch all cloud data once
+// ==========================================
+// 2. Granular Fast CRUD Sync Methods
+// ==========================================
+
+export const syncSingleSale = (sale) => upsertSingleDoc(COLLECTIONS.SALES, sale);
+export const deleteSingleSale = (saleId) => deleteSingleDoc(COLLECTIONS.SALES, saleId);
+
+export const syncSingleInventory = (item) => upsertSingleDoc(COLLECTIONS.INVENTORY, item);
+export const deleteSingleInventory = (itemId) => deleteSingleDoc(COLLECTIONS.INVENTORY, itemId);
+
+export const syncSingleMenuItem = (item) => upsertSingleDoc(COLLECTIONS.MENU, item);
+export const deleteSingleMenuItem = (itemId) => deleteSingleDoc(COLLECTIONS.MENU, itemId);
+
+export const syncSingleProcurement = (proc) => upsertSingleDoc(COLLECTIONS.PROCUREMENT, proc);
+export const deleteSingleProcurement = (procId) => deleteSingleDoc(COLLECTIONS.PROCUREMENT, procId);
+
+export const syncSingleExpense = (exp) => upsertSingleDoc(COLLECTIONS.EXPENSES, exp);
+export const deleteSingleExpense = (expId) => deleteSingleDoc(COLLECTIONS.EXPENSES, expId);
+
+export const syncSingleWastage = (waste) => upsertSingleDoc(COLLECTIONS.WASTAGE, waste);
+export const deleteSingleWastage = (wasteId) => deleteSingleDoc(COLLECTIONS.WASTAGE, wasteId);
+
+// ==========================================
+// 3. Fetch All Cloud Data (with Auto-Migration)
+// ==========================================
+
 export const fetchAllCloudData = async () => {
   const db = getFirebaseDb();
   if (!db) return null;
 
   try {
+    // 1. Query individual production collections
     const [menuSnap, invSnap, salesSnap, procSnap, expSnap, wasteSnap] = await Promise.all([
-      getDoc(doc(db, CAFE_COLLECTION, 'menu')),
-      getDoc(doc(db, CAFE_COLLECTION, 'inventory')),
-      getDoc(doc(db, CAFE_COLLECTION, 'sales')),
-      getDoc(doc(db, CAFE_COLLECTION, 'procurement')),
-      getDoc(doc(db, CAFE_COLLECTION, 'expenses')),
-      getDoc(doc(db, CAFE_COLLECTION, 'wastage'))
+      getDocs(collection(db, COLLECTIONS.MENU)),
+      getDocs(collection(db, COLLECTIONS.INVENTORY)),
+      getDocs(collection(db, COLLECTIONS.SALES)),
+      getDocs(collection(db, COLLECTIONS.PROCUREMENT)),
+      getDocs(collection(db, COLLECTIONS.EXPENSES)),
+      getDocs(collection(db, COLLECTIONS.WASTAGE))
     ]);
 
-    return {
-      menu: menuSnap.exists() ? menuSnap.data().items : null,
-      inventory: invSnap.exists() ? invSnap.data().items : null,
-      sales: salesSnap.exists() ? salesSnap.data().items : null,
-      procurement: procSnap.exists() ? procSnap.data().items : null,
-      expenses: expSnap.exists() ? expSnap.data().items : null,
-      wastage: wasteSnap.exists() ? wasteSnap.data().items : null
+    const result = {
+      menu: menuSnap.docs.map(d => ({ ...d.data(), id: d.id })),
+      inventory: invSnap.docs.map(d => ({ ...d.data(), id: d.id })),
+      sales: salesSnap.docs.map(d => ({ ...d.data(), id: d.id })),
+      procurement: procSnap.docs.map(d => ({ ...d.data(), id: d.id })),
+      expenses: expSnap.docs.map(d => ({ ...d.data(), id: d.id })),
+      wastage: wasteSnap.docs.map(d => ({ ...d.data(), id: d.id }))
     };
+
+    // 2. Backward compatibility: If modern collections are empty, check legacy single document
+    const hasModernData = Object.values(result).some(arr => arr && arr.length > 0);
+
+    if (!hasModernData) {
+      const [legMenu, legInv, legSales, legProc, legExp, legWaste] = await Promise.all([
+        getDoc(doc(db, COLLECTIONS.LEGACY, 'menu')),
+        getDoc(doc(db, COLLECTIONS.LEGACY, 'inventory')),
+        getDoc(doc(db, COLLECTIONS.LEGACY, 'sales')),
+        getDoc(doc(db, COLLECTIONS.LEGACY, 'procurement')),
+        getDoc(doc(db, COLLECTIONS.LEGACY, 'expenses')),
+        getDoc(doc(db, COLLECTIONS.LEGACY, 'wastage'))
+      ]);
+
+      const legacyData = {
+        menu: legMenu.exists() ? legMenu.data().items : null,
+        inventory: legInv.exists() ? legInv.data().items : null,
+        sales: legSales.exists() ? legSales.data().items : null,
+        procurement: legProc.exists() ? legProc.data().items : null,
+        expenses: legExp.exists() ? legExp.data().items : null,
+        wastage: legWaste.exists() ? legWaste.data().items : null
+      };
+
+      const hasLegacyData = Object.values(legacyData).some(arr => arr && arr.length > 0);
+      if (hasLegacyData) {
+        // Auto-migrate legacy data to modern collections in the background
+        console.log('🔄 Migrating legacy Firebase single-document data to modern collections...');
+        uploadAllLocalToCloud(
+          legacyData.menu || [],
+          legacyData.inventory || [],
+          legacyData.sales || [],
+          legacyData.procurement || [],
+          legacyData.expenses || [],
+          legacyData.wastage || []
+        ).catch(err => console.error('Auto-migration error:', err));
+
+        return legacyData;
+      }
+    }
+
+    return result;
   } catch (err) {
     console.error('Error fetching cloud data:', err);
     return null;
   }
 };
 
-// Real-time multi-device subscription (Live Sync across Mobile & PC)
-export const subscribeToCloudData = (callbacks) => {
+// ==========================================
+// 4. Real-time Multi-Device Subscription
+// ==========================================
+
+export const subscribeToCloudData = (callbacks = {}) => {
   const db = getFirebaseDb();
   if (!db) return () => {};
 
@@ -126,88 +232,143 @@ export const subscribeToCloudData = (callbacks) => {
   try {
     // Menu Listener
     if (callbacks.onMenuUpdate) {
-      const unsub = onSnapshot(doc(db, CAFE_COLLECTION, 'menu'), (docSnap) => {
-        if (docSnap.exists() && Array.isArray(docSnap.data().items)) {
-          callbacks.onMenuUpdate(docSnap.data().items);
+      const unsub = onSnapshot(collection(db, COLLECTIONS.MENU), (snapshot) => {
+        if (!snapshot.empty) {
+          const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
+          callbacks.onMenuUpdate(items);
         }
-      }, (err) => console.error('Menu cloud listener error:', err));
+      }, (err) => console.error('Menu real-time error:', err));
       unsubscribers.push(unsub);
     }
 
     // Inventory Listener
     if (callbacks.onInventoryUpdate) {
-      const unsub = onSnapshot(doc(db, CAFE_COLLECTION, 'inventory'), (docSnap) => {
-        if (docSnap.exists() && Array.isArray(docSnap.data().items)) {
-          callbacks.onInventoryUpdate(docSnap.data().items);
+      const unsub = onSnapshot(collection(db, COLLECTIONS.INVENTORY), (snapshot) => {
+        if (!snapshot.empty) {
+          const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
+          callbacks.onInventoryUpdate(items);
         }
-      }, (err) => console.error('Inventory cloud listener error:', err));
+      }, (err) => console.error('Inventory real-time error:', err));
       unsubscribers.push(unsub);
     }
 
-    // Sales Listener
+    // Sales Listener (sorted descending by timestamp/date)
     if (callbacks.onSalesUpdate) {
-      const unsub = onSnapshot(doc(db, CAFE_COLLECTION, 'sales'), (docSnap) => {
-        if (docSnap.exists() && Array.isArray(docSnap.data().items)) {
-          callbacks.onSalesUpdate(docSnap.data().items);
+      const unsub = onSnapshot(collection(db, COLLECTIONS.SALES), (snapshot) => {
+        if (!snapshot.empty) {
+          const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
+          items.sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.id || '').localeCompare(a.id || ''));
+          callbacks.onSalesUpdate(items);
         }
-      }, (err) => console.error('Sales cloud listener error:', err));
+      }, (err) => console.error('Sales real-time error:', err));
       unsubscribers.push(unsub);
     }
 
     // Procurement Listener
     if (callbacks.onProcurementUpdate) {
-      const unsub = onSnapshot(doc(db, CAFE_COLLECTION, 'procurement'), (docSnap) => {
-        if (docSnap.exists() && Array.isArray(docSnap.data().items)) {
-          callbacks.onProcurementUpdate(docSnap.data().items);
+      const unsub = onSnapshot(collection(db, COLLECTIONS.PROCUREMENT), (snapshot) => {
+        if (!snapshot.empty) {
+          const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
+          items.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+          callbacks.onProcurementUpdate(items);
         }
-      }, (err) => console.error('Procurement cloud listener error:', err));
+      }, (err) => console.error('Procurement real-time error:', err));
       unsubscribers.push(unsub);
     }
 
     // Expenses Listener
     if (callbacks.onExpensesUpdate) {
-      const unsub = onSnapshot(doc(db, CAFE_COLLECTION, 'expenses'), (docSnap) => {
-        if (docSnap.exists() && Array.isArray(docSnap.data().items)) {
-          callbacks.onExpensesUpdate(docSnap.data().items);
+      const unsub = onSnapshot(collection(db, COLLECTIONS.EXPENSES), (snapshot) => {
+        if (!snapshot.empty) {
+          const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
+          items.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+          callbacks.onExpensesUpdate(items);
         }
-      }, (err) => console.error('Expenses cloud listener error:', err));
+      }, (err) => console.error('Expenses real-time error:', err));
       unsubscribers.push(unsub);
     }
 
     // Wastage Listener
     if (callbacks.onWastageUpdate) {
-      const unsub = onSnapshot(doc(db, CAFE_COLLECTION, 'wastage'), (docSnap) => {
-        if (docSnap.exists() && Array.isArray(docSnap.data().items)) {
-          callbacks.onWastageUpdate(docSnap.data().items);
+      const unsub = onSnapshot(collection(db, COLLECTIONS.WASTAGE), (snapshot) => {
+        if (!snapshot.empty) {
+          const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
+          items.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+          callbacks.onWastageUpdate(items);
         }
-      }, (err) => console.error('Wastage cloud listener error:', err));
+      }, (err) => console.error('Wastage real-time error:', err));
       unsubscribers.push(unsub);
     }
   } catch (e) {
-    console.error('Failed to setup cloud subscriptions:', e);
+    console.error('Failed to setup real-time cloud subscriptions:', e);
   }
 
-  // Return unsubscribe function
   return () => {
-    unsubscribers.forEach(unsub => unsub());
+    unsubscribers.forEach(unsub => {
+      try {
+        unsub();
+      } catch {
+        // ignore unmount errors
+      }
+    });
   };
 };
 
-// 1-Click Upload local data to Firestore
-export const uploadAllLocalToCloud = async (menu, inventory, sales, procurement, expenses = [], wastage = []) => {
+// ==========================================
+// 5. 1-Click Upload All Local to Cloud
+// ==========================================
+
+export const uploadAllLocalToCloud = async (
+  menu = [],
+  inventory = [],
+  sales = [],
+  procurement = [],
+  expenses = [],
+  wastage = []
+) => {
   const db = getFirebaseDb();
-  if (!db) throw new Error('Firebase Firestore connect nahi hai. Kripya pehle config add karein.');
+  if (!db) {
+    throw new Error('Firebase Firestore connect nahi hai. Kripya pehle Settings me jakar config save karein.');
+  }
 
-  const promises = [
-    syncCloudMenu(menu),
-    syncCloudInventory(inventory),
-    syncCloudSales(sales),
-    syncCloudProcurement(procurement)
-  ];
-  if (expenses && expenses.length > 0) promises.push(syncCloudExpenses(expenses));
-  if (wastage && wastage.length > 0) promises.push(syncCloudWastage(wastage));
+  const tasks = [];
+  if (menu && menu.length > 0) tasks.push(syncCloudMenu(menu));
+  if (inventory && inventory.length > 0) tasks.push(syncCloudInventory(inventory));
+  if (sales && sales.length > 0) tasks.push(syncCloudSales(sales));
+  if (procurement && procurement.length > 0) tasks.push(syncCloudProcurement(procurement));
+  if (expenses && expenses.length > 0) tasks.push(syncCloudExpenses(expenses));
+  if (wastage && wastage.length > 0) tasks.push(syncCloudWastage(wastage));
 
-  await Promise.all(promises);
+  await Promise.all(tasks);
+  return true;
+};
 
+// ==========================================
+// 6. JSON Backup & Restore Utilities
+// ==========================================
+
+export const exportCafeDataToJson = (data) => {
+  const payload = {
+    exportDate: new Date().toISOString(),
+    version: '2.0',
+    appName: 'S&S Cafe Enterprise POS',
+    data: {
+      menu: data.menu || [],
+      inventory: data.inventory || [],
+      sales: data.sales || [],
+      procurement: data.procurement || [],
+      expenses: data.expenses || [],
+      wastage: data.wastage || []
+    }
+  };
+
+  const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(payload, null, 2))}`;
+  const downloadAnchor = document.createElement('a');
+  const dateStr = new Date().toISOString().split('T')[0];
+  downloadAnchor.setAttribute('href', jsonString);
+  downloadAnchor.setAttribute('download', `SS_Cafe_Backup_${dateStr}.json`);
+  document.body.appendChild(downloadAnchor);
+  downloadAnchor.click();
+  downloadAnchor.remove();
   return true;
 };

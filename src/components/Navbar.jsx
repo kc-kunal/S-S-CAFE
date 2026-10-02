@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, RotateCcw, Sparkles, Cloud } from 'lucide-react';
+import { Plus, Sparkles } from 'lucide-react';
 
 export default function Navbar({ onOpenAddModal, onResetData, totalItems, isCloudConnected, onOpenCloudModal }) {
   return (
@@ -40,23 +40,6 @@ export default function Navbar({ onOpenAddModal, onResetData, totalItems, isClou
 
         {/* Action Buttons */}
         <div className="flex items-center space-x-1.5 sm:space-x-2.5 shrink-0">
-          {/* Cloud Database Connection Button */}
-          <button
-            type="button"
-            onClick={onOpenCloudModal}
-            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
-              isCloudConnected
-                ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40 hover:bg-emerald-900/80'
-                : 'bg-stone-900 text-amber-300 border-amber-500/40 hover:bg-stone-850 hover:text-amber-200'
-            }`}
-            title="Free Cloud Database Settings (Firebase Firestore)"
-          >
-            <Cloud className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">
-              {isCloudConnected ? 'Cloud Synced' : 'Connect Cloud'}
-            </span>
-            <span className={`w-2 h-2 rounded-full ${isCloudConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
-          </button>
 
           {/* Add New Item Button */}
           <button

@@ -33,6 +33,12 @@ import {
   syncCloudProcurement,
   syncCloudExpenses,
   syncCloudWastage,
+  deleteSingleSale,
+  deleteSingleProcurement,
+  deleteSingleExpense,
+  deleteSingleWastage,
+  deleteSingleInventory,
+  deleteSingleMenuItem,
   fetchAllCloudData,
   subscribeToCloudData
 } from './utils/cloudSync';
@@ -40,7 +46,7 @@ import { PieChart, ShoppingBag, PackageCheck, Coffee, CheckCircle2, Plus, Boxes,
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('sales'); // 'sales', 'inventory', 'dashboard', 'procurement', 'menu'
-  
+
   const [menuItems, setMenuItems] = useState([]);
   const [salesLogs, setSalesLogs] = useState([]);
   const [procurementLogs, setProcurementLogs] = useState([]);
@@ -157,10 +163,16 @@ export default function App() {
         if (cloudData.menu && Array.isArray(cloudData.menu) && cloudData.menu.length > 0) {
           setMenuItems(cloudData.menu);
           saveStoredMenu(cloudData.menu);
+        } else {
+          const localMenu = getStoredMenu();
+          if (localMenu && localMenu.length > 0) syncCloudMenu(localMenu);
         }
         if (cloudData.inventory && Array.isArray(cloudData.inventory) && cloudData.inventory.length > 0) {
           setInventoryItems(cloudData.inventory);
           saveStoredInventory(cloudData.inventory);
+        } else {
+          const localInv = getStoredInventory();
+          if (localInv && localInv.length > 0) syncCloudInventory(localInv);
         }
         if (cloudData.sales && Array.isArray(cloudData.sales) && cloudData.sales.length > 0) {
           setSalesLogs(cloudData.sales);
@@ -264,6 +276,7 @@ export default function App() {
   const handleDeleteExpense = (id) => {
     const updated = expenses.filter(e => e.id !== id);
     updateExpenses(updated);
+    if (isFirebaseConfigured()) deleteSingleExpense(id);
     showToast('Expense entry deleted');
   };
 
@@ -308,6 +321,7 @@ export default function App() {
     }
     const updatedWastage = wastageLogs.filter(w => w.id !== id);
     updateWastage(updatedWastage);
+    if (isFirebaseConfigured()) deleteSingleWastage(id);
     showToast('Wastage record deleted & raw material stock restored');
   };
 
@@ -343,7 +357,7 @@ export default function App() {
       const updatedInv = inventoryItems.map(invItem => {
         const recipeMatch = targetMenuItem.recipe.find(r => {
           const matched = findMatchingInventoryItem(r.ingredientId, [invItem]) ||
-                          findMatchingInventoryItem(r.name, [invItem]);
+            findMatchingInventoryItem(r.name, [invItem]);
           return Boolean(matched);
         });
 
@@ -405,7 +419,7 @@ export default function App() {
         const updatedInv = inventoryItems.map(invItem => {
           const recipeMatch = targetMenuItem.recipe.find(r => {
             const matched = findMatchingInventoryItem(r.ingredientId, [invItem]) ||
-                            findMatchingInventoryItem(r.name, [invItem]);
+              findMatchingInventoryItem(r.name, [invItem]);
             return Boolean(matched);
           });
           if (recipeMatch) {
@@ -431,6 +445,7 @@ export default function App() {
     const saleToDelete = salesLogs.find(s => s.id === id);
     const updatedSales = salesLogs.filter(s => s.id !== id);
     updateSales(updatedSales);
+    if (isFirebaseConfigured()) deleteSingleSale(id);
 
     // Restore all recipe ingredients for the deleted sale
     if (saleToDelete) {
@@ -440,7 +455,7 @@ export default function App() {
         const updatedInv = inventoryItems.map(invItem => {
           const recipeMatch = targetMenuItem.recipe.find(r => {
             const matched = findMatchingInventoryItem(r.ingredientId, [invItem]) ||
-                            findMatchingInventoryItem(r.name, [invItem]);
+              findMatchingInventoryItem(r.name, [invItem]);
             return Boolean(matched);
           });
           if (recipeMatch) {
@@ -534,6 +549,7 @@ export default function App() {
   const handleDeleteProcurement = (id) => {
     const updated = procurementLogs.filter(p => p.id !== id);
     updateProcurement(updated);
+    if (isFirebaseConfigured()) deleteSingleProcurement(id);
     showToast('Procurement log entry deleted');
   };
 
@@ -555,6 +571,7 @@ export default function App() {
     const item = inventoryItems.find(i => i.id === id);
     const updated = inventoryItems.filter(i => i.id !== id);
     updateInventory(updated);
+    if (isFirebaseConfigured()) deleteSingleInventory(id);
     showToast(`Deleted "${item ? item.materialName : 'Item'}" from inventory`);
   };
 
@@ -624,6 +641,7 @@ export default function App() {
     const item = menuItems.find(i => i.id === id);
     const updated = menuItems.filter(i => i.id !== id);
     updateMenu(updated);
+    if (isFirebaseConfigured()) deleteSingleMenuItem(id);
     showToast(`Deleted "${item ? item.name : 'Item'}" from menu`);
     setDeletingItem(null);
   };
@@ -642,7 +660,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-amber-50/20 text-stone-800 font-sans">
-      
+
       {/* Toast Notification */}
       {toast && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center space-x-2.5 bg-stone-950 text-amber-100 px-5 py-3.5 rounded-2xl shadow-2xl border border-stone-800 animate-in fade-in">
@@ -661,20 +679,19 @@ export default function App() {
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 pb-20 sm:pb-8">
-        
+
         {/* Navigation Tabs Bar */}
         <div className="flex items-center justify-between gap-3 mb-6 sm:mb-8 bg-white p-1.5 sm:p-2 rounded-2xl border border-stone-200 shadow-sm cafe-glass overflow-hidden">
-          
+
           <div className="flex items-center space-x-1 sm:space-x-2 overflow-x-auto w-full no-scrollbar py-0.5 px-0.5">
-            
+
             {/* Sales Tracker Tab */}
             <button
               onClick={() => setActiveTab('sales')}
-              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
-                activeTab === 'sales'
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${activeTab === 'sales'
                   ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
                   : 'text-stone-600 hover:bg-stone-100'
-              }`}
+                }`}
             >
               <ShoppingBag className="w-4 h-4" />
               <span>⚡ Daily Sales</span>
@@ -683,11 +700,10 @@ export default function App() {
             {/* 📦 Raw Material Stock Tab */}
             <button
               onClick={() => setActiveTab('inventory')}
-              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
-                activeTab === 'inventory'
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${activeTab === 'inventory'
                   ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
                   : 'text-stone-600 hover:bg-stone-100'
-              }`}
+                }`}
             >
               <Boxes className="w-4 h-4" />
               <span>📦 Stock</span>
@@ -696,11 +712,10 @@ export default function App() {
             {/* Dashboard Tab */}
             <button
               onClick={() => setActiveTab('dashboard')}
-              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
-                activeTab === 'dashboard'
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${activeTab === 'dashboard'
                   ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
                   : 'text-stone-600 hover:bg-stone-100'
-              }`}
+                }`}
             >
               <PieChart className="w-4 h-4" />
               <span>📊 P&L</span>
@@ -709,11 +724,10 @@ export default function App() {
             {/* Procurement Log Tab */}
             <button
               onClick={() => setActiveTab('procurement')}
-              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
-                activeTab === 'procurement'
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${activeTab === 'procurement'
                   ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
                   : 'text-stone-600 hover:bg-stone-100'
-              }`}
+                }`}
             >
               <PackageCheck className="w-4 h-4" />
               <span>Purchases</span>
@@ -722,11 +736,10 @@ export default function App() {
             {/* Expenses & Bills Tab */}
             <button
               onClick={() => setActiveTab('expenses')}
-              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
-                activeTab === 'expenses'
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${activeTab === 'expenses'
                   ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
                   : 'text-stone-600 hover:bg-stone-100'
-              }`}
+                }`}
             >
               <Receipt className="w-4 h-4" />
               <span>💸 Bills & Expenses</span>
@@ -735,11 +748,10 @@ export default function App() {
             {/* Menu Catalog Tab */}
             <button
               onClick={() => setActiveTab('menu')}
-              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
-                activeTab === 'menu'
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${activeTab === 'menu'
                   ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
                   : 'text-stone-600 hover:bg-stone-100'
-              }`}
+                }`}
             >
               <Coffee className="w-4 h-4" />
               <span>Menu & Recipes</span>
@@ -897,6 +909,15 @@ export default function App() {
           setIsCloudConnected(connected);
           showToast(connected ? '🟢 Firebase Cloud Database Connected!' : 'Local Storage Mode');
         }}
+        onRestoreData={(restored) => {
+          if (restored.menu && Array.isArray(restored.menu)) updateMenu(restored.menu);
+          if (restored.inventory && Array.isArray(restored.inventory)) updateInventory(restored.inventory);
+          if (restored.sales && Array.isArray(restored.sales)) updateSales(restored.sales);
+          if (restored.procurement && Array.isArray(restored.procurement)) updateProcurement(restored.procurement);
+          if (restored.expenses && Array.isArray(restored.expenses)) updateExpenses(restored.expenses);
+          if (restored.wastage && Array.isArray(restored.wastage)) updateWastage(restored.wastage);
+          showToast('✅ Complete Cafe Data Restored from Backup File!');
+        }}
       />
 
       {/* Automated WhatsApp Stock Alert Settings Modal */}
@@ -910,9 +931,8 @@ export default function App() {
       <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-stone-950/95 backdrop-blur-md border-t border-stone-800/80 py-1.5 px-3 flex items-center justify-around shadow-2xl safe-area-pb">
         <button
           onClick={() => setActiveTab('sales')}
-          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
-            activeTab === 'sales' ? 'text-amber-400 font-extrabold scale-105' : 'text-stone-400 hover:text-stone-200'
-          }`}
+          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all cursor-pointer ${activeTab === 'sales' ? 'text-amber-400 font-extrabold scale-105' : 'text-stone-400 hover:text-stone-200'
+            }`}
         >
           <ShoppingBag className="w-4 h-4" />
           <span className="text-[10px]">Sales</span>
@@ -920,9 +940,8 @@ export default function App() {
 
         <button
           onClick={() => setActiveTab('inventory')}
-          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
-            activeTab === 'inventory' ? 'text-amber-400 font-extrabold scale-105' : 'text-stone-400 hover:text-stone-200'
-          }`}
+          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all cursor-pointer ${activeTab === 'inventory' ? 'text-amber-400 font-extrabold scale-105' : 'text-stone-400 hover:text-stone-200'
+            }`}
         >
           <Boxes className="w-4 h-4" />
           <span className="text-[10px]">Stock</span>
@@ -930,9 +949,8 @@ export default function App() {
 
         <button
           onClick={() => setActiveTab('dashboard')}
-          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
-            activeTab === 'dashboard' ? 'text-amber-400 font-extrabold scale-105' : 'text-stone-400 hover:text-stone-200'
-          }`}
+          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all cursor-pointer ${activeTab === 'dashboard' ? 'text-amber-400 font-extrabold scale-105' : 'text-stone-400 hover:text-stone-200'
+            }`}
         >
           <PieChart className="w-4 h-4" />
           <span className="text-[10px]">P&L</span>
@@ -940,9 +958,8 @@ export default function App() {
 
         <button
           onClick={() => setActiveTab('procurement')}
-          className={`flex flex-col items-center gap-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
-            activeTab === 'procurement' ? 'text-amber-400 font-extrabold scale-105' : 'text-stone-400 hover:text-stone-200'
-          }`}
+          className={`flex flex-col items-center gap-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${activeTab === 'procurement' ? 'text-amber-400 font-extrabold scale-105' : 'text-stone-400 hover:text-stone-200'
+            }`}
         >
           <PackageCheck className="w-4 h-4" />
           <span className="text-[9px]">Purchases</span>
@@ -950,9 +967,8 @@ export default function App() {
 
         <button
           onClick={() => setActiveTab('expenses')}
-          className={`flex flex-col items-center gap-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
-            activeTab === 'expenses' ? 'text-amber-400 font-extrabold scale-105' : 'text-stone-400 hover:text-stone-200'
-          }`}
+          className={`flex flex-col items-center gap-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${activeTab === 'expenses' ? 'text-amber-400 font-extrabold scale-105' : 'text-stone-400 hover:text-stone-200'
+            }`}
         >
           <Receipt className="w-4 h-4" />
           <span className="text-[9px]">Bills/Exp</span>
@@ -960,9 +976,8 @@ export default function App() {
 
         <button
           onClick={() => setActiveTab('menu')}
-          className={`flex flex-col items-center gap-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
-            activeTab === 'menu' ? 'text-amber-400 font-extrabold scale-105' : 'text-stone-400 hover:text-stone-200'
-          }`}
+          className={`flex flex-col items-center gap-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${activeTab === 'menu' ? 'text-amber-400 font-extrabold scale-105' : 'text-stone-400 hover:text-stone-200'
+            }`}
         >
           <Coffee className="w-4 h-4" />
           <span className="text-[9px]">Menu</span>

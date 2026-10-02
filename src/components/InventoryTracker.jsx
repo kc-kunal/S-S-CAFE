@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Package, AlertTriangle, CheckCircle2, XCircle, Plus, Edit2, Trash2, Search, Filter, TrendingDown, Layers, BellRing, Send, MessageSquare } from 'lucide-react';
-import { generateVendorOrderLink, getAlertConfig } from '../utils/whatsappAlert';
+import { generateVendorOrderLink, generateOwnerStockAlertLink, getAlertConfig } from '../utils/whatsappAlert';
 
 const CATEGORIES = ['Dairy', 'Beans & Teas', 'Produce', 'Bakery', 'Packaging', 'Groceries'];
 const UNITS = ['Kg', 'Liters', 'Packets', 'Bags', 'Boxes', 'Units', 'Packs'];
@@ -163,9 +163,9 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
                   <span>⚠️ {alertItems.length} Raw Material(s) Low / Out of Stock!</span>
                 </h4>
                 <p className="text-xs text-stone-600">
-                  {alertConfig.enabled
-                    ? `WhatsApp background alerts are ACTIVE for Owner (${alertConfig.ownerPhone || 'configured'}).`
-                    : `WhatsApp background alerts are OFF. Enable to get instant alerts on owner's phone.`}
+                  {alertConfig.isEnabled && alertConfig.ownerPhone
+                    ? `WhatsApp background alerts are ACTIVE for Owner (${alertConfig.ownerPhone}).`
+                    : `WhatsApp alerts not configured. Click Alert Settings to add Owner WhatsApp number.`}
                 </p>
               </div>
             </div>
@@ -179,25 +179,24 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
             </button>
           </div>
 
-          {/* Quick Vendor WhatsApp Order Chips */}
+          {/* Quick WhatsApp Alert Chips */}
           <div className="flex flex-wrap gap-2 pt-1 border-t border-amber-200/60">
             <span className="text-[11px] font-bold text-stone-500 flex items-center gap-1 self-center">
-              <MessageSquare className="w-3.5 h-3.5 text-emerald-600" /> 1-Tap Vendor Order:
+              <MessageSquare className="w-3.5 h-3.5 text-emerald-600" /> 1-Tap WhatsApp:
             </span>
             {alertItems.map(item => {
-              const reorderQty = alertConfig.reorderQuantity || (item.unit === 'Kg' || item.unit === 'Liters' ? 10 : 25);
-              const waUrl = generateVendorOrderLink(item, reorderQty, alertConfig.vendorPhone);
+              const ownerAlertUrl = generateOwnerStockAlertLink(item, alertConfig.ownerPhone);
               return (
                 <a
                   key={item.id}
-                  href={waUrl}
+                  href={ownerAlertUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs transition-all cursor-pointer active:scale-95"
-                  title={`Order ${reorderQty} ${item.unit} ${item.materialName} via WhatsApp`}
+                  title={`Send low stock alert for ${item.materialName} to Owner WhatsApp`}
                 >
                   <Send className="w-3 h-3" />
-                  <span>Order {item.materialName} ({item.currentStock} {item.unit} left)</span>
+                  <span>📲 Alert Owner: {item.materialName} ({item.currentStock} {item.unit} left)</span>
                 </a>
               );
             })}
@@ -244,11 +243,11 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
             <button
               onClick={onOpenAlertSettings}
               className="w-full sm:w-auto px-3.5 py-2 bg-stone-900 hover:bg-stone-800 text-amber-400 text-xs font-bold rounded-xl shadow transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-              title="Automated WhatsApp Alert Settings"
+              title="Automated Stock Alert Settings (Zero Clicks by Staff)"
             >
               <BellRing className="w-4 h-4 text-amber-400" />
-              <span>WhatsApp Alerts</span>
-              {alertConfig.enabled && (
+              <span>Auto Alerts</span>
+              {alertConfig.isEnabled && (alertConfig.telegramBotToken || alertConfig.ownerPhone) && (
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse ml-0.5"></span>
               )}
             </button>
