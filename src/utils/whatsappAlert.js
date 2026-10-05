@@ -218,3 +218,53 @@ export const generateVendorOrderLink = (item, orderQty = 20, vendorPhone = '') =
   }
   return `https://wa.me/?text=${encoded}`;
 };
+
+/**
+ * Send silent instant Telegram notification when a customer places a QR Table order
+ */
+export const sendTelegramNewOrderAlert = async (order) => {
+  const config = getAlertConfig();
+  if (!config.telegramBotToken || !config.telegramChatId) {
+    return { success: false, reason: 'Telegram not configured' };
+  }
+
+  const itemsList = (order.items || []).map(i => `• <b>${i.quantity}x ${i.name}</b> — ₹${i.price * i.quantity}`).join('\n');
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  const message = 
+    `🔔 <b>NEW DINE-IN ORDER RECEIVED!</b>\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    `🪑 <b>Table:</b> ${order.tableNumber || 'Table'}\n` +
+    `🆔 <b>Order ID:</b> #${order.id ? order.id.slice(-6).toUpperCase() : 'ORD'}\n` +
+    `🕒 <b>Time:</b> ${timeStr}\n` +
+    `💰 <b>Total Bill:</b> ₹${order.totalAmount}\n` +
+    (order.customerNotes ? `📝 <b>Special Note:</b> <i>"${order.customerNotes}"</i>\n` : '') +
+    (order.customerName ? `👤 <b>Customer:</b> ${order.customerName}\n` : '') +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    `<b>Dishes Ordered:</b>\n${itemsList}\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    `⚡ <i>Check POS Counter screen to Accept & Prepare!</i>`;
+
+  return sendTelegramAlert(config.telegramBotToken, config.telegramChatId, message);
+};
+
+/**
+ * Generate WhatsApp message link for customer order confirmation
+ */
+export const generateCustomerWhatsAppOrderLink = (order, cafePhone = '') => {
+  const phone = formatPhoneNumber(cafePhone || getAlertConfig().ownerPhone);
+  const itemsText = (order.items || []).map(i => `• ${i.quantity}x ${i.name} (₹${i.price * i.quantity})`).join('\n');
+  const text = 
+    `👋 *NEW DINE-IN ORDER — S&S CAFE*\n` +
+    `--------------------------------\n` +
+    `🪑 *Table:* ${order.tableNumber || 'Dine-In'}\n` +
+    `💰 *Total Amount:* ₹${order.totalAmount}\n` +
+    (order.customerNotes ? `📝 *Note:* ${order.customerNotes}\n` : '') +
+    `--------------------------------\n` +
+    `*Items:*\n${itemsText}\n` +
+    `--------------------------------\n` +
+    `Kripya hamara order confirm karein!`;
+  const encoded = encodeURIComponent(text);
+  return phone ? `https://wa.me/${phone}?text=${encoded}` : `https://wa.me/?text=${encoded}`;
+};

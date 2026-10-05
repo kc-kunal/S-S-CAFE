@@ -18,6 +18,7 @@ export const COLLECTIONS = {
   PROCUREMENT: 'cafe_procurement',
   EXPENSES: 'cafe_expenses',
   WASTAGE: 'cafe_wastage',
+  DINING_ORDERS: 'cafe_dining_orders',
   LEGACY: 'cafe_management'
 };
 
@@ -145,6 +146,12 @@ export const deleteSingleExpense = (expId) => deleteSingleDoc(COLLECTIONS.EXPENS
 export const syncSingleWastage = (waste) => upsertSingleDoc(COLLECTIONS.WASTAGE, waste);
 export const deleteSingleWastage = (wasteId) => deleteSingleDoc(COLLECTIONS.WASTAGE, wasteId);
 
+export const syncCloudDiningOrders = async (items) => {
+  return syncCollectionItems(COLLECTIONS.DINING_ORDERS, items);
+};
+export const syncSingleDiningOrder = (order) => upsertSingleDoc(COLLECTIONS.DINING_ORDERS, order);
+export const deleteSingleDiningOrder = (orderId) => deleteSingleDoc(COLLECTIONS.DINING_ORDERS, orderId);
+
 // ==========================================
 // 3. Fetch All Cloud Data (with Auto-Migration)
 // ==========================================
@@ -155,13 +162,14 @@ export const fetchAllCloudData = async () => {
 
   try {
     // 1. Query individual production collections
-    const [menuSnap, invSnap, salesSnap, procSnap, expSnap, wasteSnap] = await Promise.all([
+    const [menuSnap, invSnap, salesSnap, procSnap, expSnap, wasteSnap, diningSnap] = await Promise.all([
       getDocs(collection(db, COLLECTIONS.MENU)),
       getDocs(collection(db, COLLECTIONS.INVENTORY)),
       getDocs(collection(db, COLLECTIONS.SALES)),
       getDocs(collection(db, COLLECTIONS.PROCUREMENT)),
       getDocs(collection(db, COLLECTIONS.EXPENSES)),
-      getDocs(collection(db, COLLECTIONS.WASTAGE))
+      getDocs(collection(db, COLLECTIONS.WASTAGE)),
+      getDocs(collection(db, COLLECTIONS.DINING_ORDERS))
     ]);
 
     const result = {
@@ -170,7 +178,8 @@ export const fetchAllCloudData = async () => {
       sales: salesSnap.docs.map(d => ({ ...d.data(), id: d.id })),
       procurement: procSnap.docs.map(d => ({ ...d.data(), id: d.id })),
       expenses: expSnap.docs.map(d => ({ ...d.data(), id: d.id })),
-      wastage: wasteSnap.docs.map(d => ({ ...d.data(), id: d.id }))
+      wastage: wasteSnap.docs.map(d => ({ ...d.data(), id: d.id })),
+      diningOrders: diningSnap.docs.map(d => ({ ...d.data(), id: d.id }))
     };
 
     // 2. Backward compatibility: If modern collections are empty, check legacy single document
@@ -297,6 +306,16 @@ export const subscribeToCloudData = (callbacks = {}) => {
           callbacks.onWastageUpdate(items);
         }
       }, (err) => console.error('Wastage real-time error:', err));
+      unsubscribers.push(unsub);
+    }
+
+    // Dining Table Orders Real-Time Listener (Instant Kitchen / Counter Alerts)
+    if (callbacks.onDiningOrdersUpdate) {
+      const unsub = onSnapshot(collection(db, COLLECTIONS.DINING_ORDERS), (snapshot) => {
+        const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
+        items.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+        callbacks.onDiningOrdersUpdate(items);
+      }, (err) => console.error('Dining orders real-time error:', err));
       unsubscribers.push(unsub);
     }
   } catch (e) {

@@ -4,6 +4,7 @@ const PROCUREMENT_STORAGE_KEY = 'ss_cafe_procurement_logs_v7';
 const INVENTORY_STORAGE_KEY = 'ss_cafe_inventory_v7';
 const EXPENSES_STORAGE_KEY = 'ss_cafe_expenses_v1';
 const WASTAGE_STORAGE_KEY = 'ss_cafe_wastage_v1';
+const DINING_ORDERS_STORAGE_KEY = 'ss_cafe_dining_orders_v1';
 
 // Get today's YYYY-MM-DD string
 export const getTodayDateString = (offsetDays = 0) => {
@@ -691,6 +692,23 @@ export const getStoredWastage = () => {
 
 export const saveStoredWastage = (wastage) => {
   localStorage.setItem(WASTAGE_STORAGE_KEY, JSON.stringify(wastage));
+};
+
+export const getStoredDiningOrders = () => {
+  try {
+    const data = localStorage.getItem(DINING_ORDERS_STORAGE_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch (e) {
+    return [];
+  }
+};
+
+export const saveStoredDiningOrders = (orders) => {
+  try {
+    localStorage.setItem(DINING_ORDERS_STORAGE_KEY, JSON.stringify(orders));
+  } catch (e) {
+    console.error('Error saving dining orders to localStorage:', e);
+  }
 };
 
 // Known Material Aliases for smart typo handling and natural naming

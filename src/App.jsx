@@ -9,9 +9,11 @@ import ItemCards from './components/ItemCards';
 import ItemModal from './components/ItemModal';
 import DeleteConfirmModal from './components/DeleteConfirmModal';
 import CloudConfigModal from './components/CloudConfigModal';
-import ExpenseTracker from './components/ExpenseTracker';
 import ExcelExportModal from './components/ExcelExportModal';
-import { triggerAutomaticStockAlerts } from './utils/whatsappAlert';
+import CustomerMenuOrderView from './components/CustomerMenuOrderView';
+import DiningManager from './components/DiningManager';
+import { triggerAutomaticStockAlerts, sendTelegramNewOrderAlert } from './utils/whatsappAlert';
+import { playOrderChime } from './utils/audioAlert';
 import {
   getStoredMenu, saveStoredMenu,
   getStoredSales, saveStoredSales,
@@ -19,6 +21,7 @@ import {
   getStoredInventory, saveStoredInventory,
   getStoredExpenses, saveStoredExpenses,
   getStoredWastage, saveStoredWastage,
+  getStoredDiningOrders, saveStoredDiningOrders,
   checkItemStock,
   convertQuantity,
   findMatchingInventoryItem,
@@ -33,6 +36,8 @@ import {
   syncCloudProcurement,
   syncCloudExpenses,
   syncCloudWastage,
+  syncSingleDiningOrder,
+  deleteSingleDiningOrder,
   deleteSingleSale,
   deleteSingleProcurement,
   deleteSingleExpense,
@@ -42,7 +47,7 @@ import {
   fetchAllCloudData,
   subscribeToCloudData
 } from './utils/cloudSync';
-import { PieChart, ShoppingBag, PackageCheck, Coffee, CheckCircle2, Plus, Boxes, Receipt } from 'lucide-react';
+import { PieChart, ShoppingBag, PackageCheck, Coffee, CheckCircle2, Plus, Boxes, Receipt, UtensilsCrossed } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('sales'); // 'sales', 'inventory', 'dashboard', 'procurement', 'menu'
@@ -60,6 +65,24 @@ export default function App() {
 
   // Excel Export Modal State
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+
+  // Dine-In Customer QR Mode & Dining Orders State
+  const getInitialTableParam = () => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const table = params.get('table');
+      if (table) return table;
+      if (window.location.hash) {
+        const hashParams = new URLSearchParams(window.location.hash.replace(/^#\/?/, '').replace(/^order\??/, ''));
+        return hashParams.get('table');
+      }
+    } catch (e) {}
+    return null;
+  };
+
+  const [customerTableNumber, setCustomerTableNumber] = useState(getInitialTableParam());
+  const [isCustomerMode, setIsCustomerMode] = useState(Boolean(getInitialTableParam()));
+  const [diningOrders, setDiningOrders] = useState([]);
 
   // Modal State for Menu
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -146,6 +169,7 @@ export default function App() {
     setInventoryItems(rawInv);
     setExpenses(getStoredExpenses());
     setWastageLogs(getStoredWastage());
+    setDiningOrders(getStoredDiningOrders());
   }, []);
 
   // Real-time Firebase Sync listener
@@ -190,6 +214,10 @@ export default function App() {
           setWastageLogs(cloudData.wastage);
           saveStoredWastage(cloudData.wastage);
         }
+        if (cloudData.diningOrders && Array.isArray(cloudData.diningOrders)) {
+          setDiningOrders(cloudData.diningOrders);
+          saveStoredDiningOrders(cloudData.diningOrders);
+        }
       }
     });
 
@@ -218,6 +246,19 @@ export default function App() {
       onWastageUpdate: (newWaste) => {
         setWastageLogs(newWaste);
         saveStoredWastage(newWaste);
+      },
+      onDiningOrdersUpdate: (newOrders) => {
+        setDiningOrders(prevOrders => {
+          const prevIds = new Set(prevOrders.map(o => o.id));
+          const hasNewIncoming = newOrders.some(o => !prevIds.has(o.id) && o.status === 'pending');
+          if (hasNewIncoming) {
+            playOrderChime();
+            const newest = newOrders.find(o => !prevIds.has(o.id));
+            showToast(`🔔 Naya Dine-In Order: Table #${newest ? newest.tableNumber : ''} (₹${newest ? newest.totalAmount : ''})`);
+          }
+          return newOrders;
+        });
+        saveStoredDiningOrders(newOrders);
       }
     });
 
@@ -658,6 +699,89 @@ export default function App() {
     updateMenu(updated);
   };
 
+  // 🛎️ Dine-In Order Handlers
+  const handleCustomerPlaceOrder = async (newOrder) => {
+    const updated = [newOrder, ...diningOrders];
+    setDiningOrders(updated);
+    saveStoredDiningOrders(updated);
+
+    if (isFirebaseConfigured()) {
+      syncSingleDiningOrder(newOrder);
+    }
+
+    // Silent instant Telegram Bot Notification to Cafe Owner
+    sendTelegramNewOrderAlert(newOrder).catch(err => console.error('Telegram alert error:', err));
+
+    // Play chime
+    playOrderChime();
+    showToast(`Order Placed for Table #${newOrder.tableNumber}!`);
+  };
+
+  const handleUpdateDiningOrderStatus = (orderId, newStatus) => {
+    const updated = diningOrders.map(o => o.id === orderId ? { ...o, status: newStatus } : o);
+    setDiningOrders(updated);
+    saveStoredDiningOrders(updated);
+
+    const target = updated.find(o => o.id === orderId);
+    if (target && isFirebaseConfigured()) {
+      syncSingleDiningOrder(target);
+    }
+
+    showToast(`Table #${target ? target.tableNumber : ''} Order: ${newStatus.toUpperCase()}`);
+  };
+
+  const handleSettleDiningOrderToSales = (order, paymentMode = 'Cash') => {
+    // Commit items to sales and deduct inventory
+    order.items.forEach(item => {
+      const salePayload = {
+        id: `sale-dining-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        itemId: item.id,
+        itemName: item.name,
+        category: item.category || 'General',
+        quantitySold: Number(item.quantity) || 1,
+        sellingPrice: item.price,
+        costPrice: item.costPrice || 0,
+        totalRevenue: item.total || (item.price * (item.quantity || 1)),
+        totalCost: (item.costPrice || 0) * (item.quantity || 1),
+        paymentMethod: paymentMode,
+        date: new Date().toISOString().split('T')[0],
+        createdAt: new Date().toISOString()
+      };
+      handleAddSale(salePayload);
+    });
+
+    handleUpdateDiningOrderStatus(order.id, 'billed');
+    showToast(`✅ Table #${order.tableNumber} Order Settled & Punched to Daily Sales!`);
+  };
+
+  const handleDeleteDiningOrder = (orderId) => {
+    const updated = diningOrders.filter(o => o.id !== orderId);
+    setDiningOrders(updated);
+    saveStoredDiningOrders(updated);
+    if (isFirebaseConfigured()) {
+      deleteSingleDiningOrder(orderId);
+    }
+    showToast('Dining order removed');
+  };
+
+  // If customer scanned QR code (?table=X), show Customer Menu View directly!
+  if (isCustomerMode) {
+    return (
+      <CustomerMenuOrderView
+        tableNumber={customerTableNumber || '1'}
+        menuItems={menuItems}
+        inventoryItems={inventoryItems}
+        onSubmitOrder={handleCustomerPlaceOrder}
+        onSwitchToAdmin={() => {
+          setIsCustomerMode(false);
+          try {
+            window.history.pushState({}, '', window.location.pathname);
+          } catch (e) {}
+        }}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-amber-50/20 text-stone-800 font-sans">
 
@@ -696,6 +820,21 @@ export default function App() {
             >
               <ShoppingBag className="w-4 h-4" />
               <span>⚡ Daily Sales</span>
+            </button>
+
+            {/* 🛎️ Dine-In & QR Orders Tab */}
+            <button
+              onClick={() => setActiveTab('dining')}
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 relative ${activeTab === 'dining'
+                  ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
+                  : 'text-stone-600 hover:bg-stone-100'
+                }`}
+            >
+              <UtensilsCrossed className="w-4 h-4" />
+              <span>🛎️ Dine-In & QR</span>
+              {diningOrders.filter(o => o.status === 'pending').length > 0 && (
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></span>
+              )}
             </button>
 
             {/* 📦 Raw Material Stock Tab */}
@@ -782,6 +921,20 @@ export default function App() {
             onUpdateSale={handleUpdateSale}
             onDeleteSale={handleDeleteSale}
             onOpenExportModal={() => setIsExportModalOpen(true)}
+          />
+        )}
+
+        {/* 🛎️ Dine-In & Table QR Manager Tab View */}
+        {activeTab === 'dining' && (
+          <DiningManager
+            diningOrders={diningOrders}
+            onUpdateOrderStatus={handleUpdateDiningOrderStatus}
+            onSettleOrderToSales={handleSettleDiningOrderToSales}
+            onDeleteOrder={handleDeleteDiningOrder}
+            onPreviewCustomerView={(tableNum) => {
+              setCustomerTableNumber(tableNum);
+              setIsCustomerMode(true);
+            }}
           />
         )}
 
@@ -944,6 +1097,18 @@ export default function App() {
         >
           <ShoppingBag className="w-4 h-4" />
           <span className="text-[10px]">Sales</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('dining')}
+          className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition-all cursor-pointer relative ${activeTab === 'dining' ? 'text-amber-400 font-extrabold scale-105' : 'text-stone-400 hover:text-stone-200'
+            }`}
+        >
+          <UtensilsCrossed className="w-4 h-4" />
+          <span className="text-[9px]">Dine-In</span>
+          {diningOrders.filter(o => o.status === 'pending').length > 0 && (
+            <span className="absolute top-1 right-2 w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+          )}
         </button>
 
         <button
