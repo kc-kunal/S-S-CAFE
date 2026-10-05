@@ -10,6 +10,7 @@ import ItemModal from './components/ItemModal';
 import DeleteConfirmModal from './components/DeleteConfirmModal';
 import CloudConfigModal from './components/CloudConfigModal';
 import ExpenseTracker from './components/ExpenseTracker';
+import ExcelExportModal from './components/ExcelExportModal';
 import { triggerAutomaticStockAlerts } from './utils/whatsappAlert';
 import {
   getStoredMenu, saveStoredMenu,
@@ -56,6 +57,9 @@ export default function App() {
   // Cloud Database Sync State
   const [isCloudConnected, setIsCloudConnected] = useState(isFirebaseConfigured());
   const [isCloudModalOpen, setIsCloudModalOpen] = useState(false);
+
+  // Excel Export Modal State
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   // Modal State for Menu
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -671,6 +675,7 @@ export default function App() {
         totalItems={menuItems.length}
         isCloudConnected={isCloudConnected}
         onOpenCloudModal={() => setIsCloudModalOpen(true)}
+        onOpenExportModal={() => setIsExportModalOpen(true)}
       />
 
       {/* Main Container */}
@@ -776,6 +781,7 @@ export default function App() {
             onAddSale={handleAddSale}
             onUpdateSale={handleUpdateSale}
             onDeleteSale={handleDeleteSale}
+            onOpenExportModal={() => setIsExportModalOpen(true)}
           />
         )}
 
@@ -797,6 +803,7 @@ export default function App() {
             inventoryItems={inventoryItems}
             expenses={expenses}
             wastageLogs={wastageLogs}
+            onOpenExportModal={() => setIsExportModalOpen(true)}
           />
         )}
 
@@ -913,6 +920,19 @@ export default function App() {
           if (restored.wastage && Array.isArray(restored.wastage)) updateWastage(restored.wastage);
           showToast('✅ Complete Cafe Data Restored from Backup File!');
         }}
+      />
+
+      {/* Excel Export Modal (Weekly / Monthly / Custom Data) */}
+      <ExcelExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        salesLogs={salesLogs}
+        procurementLogs={procurementLogs}
+        expenses={expenses}
+        wastageLogs={wastageLogs}
+        inventoryItems={inventoryItems}
+        menuItems={menuItems}
+        onExportSuccess={(msg) => showToast(msg)}
       />
 
       {/* Sticky Mobile Bottom Navigation Bar */}

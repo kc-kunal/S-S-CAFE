@@ -15,7 +15,8 @@ import {
   Home,
   Users,
   Flame,
-  Wallet
+  Wallet,
+  FileSpreadsheet
 } from 'lucide-react';
 
 export default function FinancialDashboard({ 
@@ -24,7 +25,8 @@ export default function FinancialDashboard({
   menuItems = [], 
   inventoryItems = [],
   expenses = [],
-  wastageLogs = []
+  wastageLogs = [],
+  onOpenExportModal
 }) {
   const [timeframe, setTimeframe] = useState('daily'); // 'daily', 'weekly', 'monthly', 'all'
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -211,6 +213,19 @@ export default function FinancialDashboard({
               All Time
             </button>
           </div>
+
+          {/* Export to Excel Trigger */}
+          {onOpenExportModal && (
+            <button
+              type="button"
+              onClick={onOpenExportModal}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm border border-emerald-500/40 transition-all cursor-pointer shrink-0"
+              title="Download Monthly / Weekly Excel Report"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-200" />
+              <span>Export Excel</span>
+            </button>
+          )}
         </div>
       </div>
 

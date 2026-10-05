@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, ShoppingBag, Trash2, Search, Zap, CheckCircle2, TrendingUp, IndianRupee, Layers, Tag, Banknote, Smartphone } from 'lucide-react';
+import { Plus, ShoppingBag, Trash2, Search, Zap, CheckCircle2, TrendingUp, IndianRupee, Layers, Tag, Banknote, Smartphone, FileSpreadsheet } from 'lucide-react';
 import { checkItemStock } from '../utils/storage';
 
-export default function SalesTracker({ menuItems, salesLogs, inventoryItems = [], onAddSale, onUpdateSale, onDeleteSale }) {
+export default function SalesTracker({ menuItems, salesLogs, inventoryItems = [], onAddSale, onUpdateSale, onDeleteSale, onOpenExportModal }) {
   const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
   const [paymentMode, setPaymentMode] = useState('Cash'); // 'Cash' or 'Online'
   const [filterDate, setFilterDate] = useState('');
@@ -154,14 +154,28 @@ export default function SalesTracker({ menuItems, salesLogs, inventoryItems = []
             </div>
           </div>
 
-          <div className="flex items-center gap-2 bg-stone-800/80 px-3.5 py-1.5 rounded-2xl border border-stone-700/80">
-            <span className="text-xs font-bold text-amber-300/80 uppercase">Date:</span>
-            <input
-              type="date"
-              value={saleDate}
-              onChange={(e) => setSaleDate(e.target.value)}
-              className="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer"
-            />
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 bg-stone-800/80 px-3.5 py-1.5 rounded-2xl border border-stone-700/80">
+              <span className="text-xs font-bold text-amber-300/80 uppercase">Date:</span>
+              <input
+                type="date"
+                value={saleDate}
+                onChange={(e) => setSaleDate(e.target.value)}
+                className="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer"
+              />
+            </div>
+
+            {onOpenExportModal && (
+              <button
+                type="button"
+                onClick={onOpenExportModal}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white rounded-2xl text-xs font-bold transition-all shadow-md cursor-pointer border border-emerald-500/40"
+                title="Export Monthly / Weekly Sales to Excel"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-200" />
+                <span className="hidden xs:inline">Export Excel</span>
+              </button>
+            )}
           </div>
         </div>
 
