@@ -38,6 +38,7 @@ export default function OnlineOrderPunchModal({
   const [cart, setCart] = useState({});
   const [discountType, setDiscountType] = useState('none'); // 'none', 'flat20', 'flat50', 'flat100', 'pct20', 'custom'
   const [customDiscount, setCustomDiscount] = useState('');
+  const [showDiscountSection, setShowDiscountSection] = useState(false);
   const [packagingCharge, setPackagingCharge] = useState(0); // 0, 10, 15, 20
   const [riderNotes, setRiderNotes] = useState('');
   const [formError, setFormError] = useState('');
@@ -237,6 +238,7 @@ export default function OnlineOrderPunchModal({
     setCart({});
     setDiscountType('none');
     setCustomDiscount('');
+    setShowDiscountSection(false);
     setPackagingCharge(0);
     setRiderNotes('');
 
@@ -534,49 +536,75 @@ export default function OnlineOrderPunchModal({
             {/* Quick Offers & Packaging Pills */}
             <div className="bg-white p-3 rounded-2xl border border-stone-200 shadow-2xs space-y-2.5 mb-3 shrink-0">
               
-              {/* Discount / Coupon Pills */}
+              {/* Discount / Coupon Pills (Collapsible so never accidentally applied) */}
               <div>
-                <div className="flex items-center justify-between text-[11px] font-bold text-stone-600 mb-1">
-                  <span className="flex items-center gap-1">
+                {!showDiscountSection && discountType === 'none' ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowDiscountSection(true)}
+                    className="w-full py-1.5 px-2.5 border border-dashed border-stone-200 hover:border-rose-300 text-stone-500 hover:text-rose-600 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
                     <Tag className="w-3 h-3 text-rose-500" />
-                    <span>Promo Offer / Discount:</span>
-                  </span>
-                  {discountValue > 0 && (
-                    <span className="text-rose-600 font-extrabold">-₹{discountValue}</span>
-                  )}
-                </div>
-                <div className="flex flex-wrap items-center gap-1">
-                  {[
-                    { id: 'none', label: 'None (₹0)' },
-                    { id: 'flat20', label: '-₹20' },
-                    { id: 'flat50', label: '-₹50' },
-                    { id: 'flat100', label: '-₹100' },
-                    { id: 'pct20', label: '20% Off' },
-                    { id: 'custom', label: 'Custom' }
-                  ].map(d => (
-                    <button
-                      key={d.id}
-                      type="button"
-                      onClick={() => setDiscountType(discountType === d.id ? 'none' : d.id)}
-                      className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
-                        discountType === d.id
-                          ? 'bg-rose-600 text-white shadow-xs ring-2 ring-rose-400/50'
-                          : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
-                      }`}
-                      title={discountType === d.id ? 'Click to remove discount' : 'Apply promo discount'}
-                    >
-                      {d.label}
-                    </button>
-                  ))}
-                </div>
-                {discountType === 'custom' && (
-                  <input
-                    type="number"
-                    placeholder="Enter custom discount amount ₹"
-                    value={customDiscount}
-                    onChange={(e) => setCustomDiscount(e.target.value)}
-                    className="w-full mt-1.5 px-2 py-1 bg-rose-50 border border-rose-200 rounded-lg text-xs font-bold text-rose-800 focus:outline-none"
-                  />
+                    <span>+ Promo Discount / Offer Lagayein (Optional)</span>
+                  </button>
+                ) : (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-stone-600">
+                      <span className="flex items-center gap-1">
+                        <Tag className="w-3 h-3 text-rose-500" />
+                        <span>Promo Offer / Discount:</span>
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {discountValue > 0 && (
+                          <span className="text-rose-600 font-extrabold">-₹{discountValue}</span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDiscountType('none');
+                            setCustomDiscount('');
+                            setShowDiscountSection(false);
+                          }}
+                          className="text-[10px] text-stone-400 hover:text-stone-700 underline cursor-pointer"
+                        >
+                          Hatao
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1">
+                      {[
+                        { id: 'none', label: 'None (₹0)' },
+                        { id: 'flat20', label: '-₹20' },
+                        { id: 'flat50', label: '-₹50' },
+                        { id: 'flat100', label: '-₹100' },
+                        { id: 'pct20', label: '20% Off' },
+                        { id: 'custom', label: 'Custom' }
+                      ].map(d => (
+                        <button
+                          key={d.id}
+                          type="button"
+                          onClick={() => setDiscountType(discountType === d.id ? 'none' : d.id)}
+                          className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                            discountType === d.id
+                              ? 'bg-rose-600 text-white shadow-xs ring-2 ring-rose-400/50'
+                              : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                          }`}
+                          title={discountType === d.id ? 'Click to remove discount' : 'Apply promo discount'}
+                        >
+                          {d.label}
+                        </button>
+                      ))}
+                    </div>
+                    {discountType === 'custom' && (
+                      <input
+                        type="number"
+                        placeholder="Enter custom discount amount ₹"
+                        value={customDiscount}
+                        onChange={(e) => setCustomDiscount(e.target.value)}
+                        className="w-full mt-1.5 px-2 py-1 bg-rose-50 border border-rose-200 rounded-lg text-xs font-bold text-rose-800 focus:outline-none"
+                      />
+                    )}
+                  </div>
                 )}
               </div>
 

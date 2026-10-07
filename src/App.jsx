@@ -1211,6 +1211,7 @@ export default function App() {
         onDeleteSettlement={handleDeleteSettlement}
         onClearAllSettlements={handleClearAllSettlements}
         onDeleteSale={handleDeleteSale}
+        onUpdateSale={handleUpdateSale}
         onAddExpense={handleAddExpense}
       />
 

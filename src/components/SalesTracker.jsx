@@ -406,19 +406,19 @@ export default function SalesTracker({
               <span>Select Item to Log Sale (Category-Wise)</span>
             </h3>
             <p className="text-xs text-stone-500">
-              Select channel below (Cash, UPI, Swiggy, Zomato). Stock automatically deducts.
+              Counter sales channel (Cash ya UPI). Swiggy / Zomato ke liye upar <strong>"🛵 Punch Online Order"</strong> use karein.
             </p>
           </div>
 
-          {/* 4-WAY ORDER CHANNEL / PAYMENT MODE SELECTOR */}
+          {/* 2-WAY COUNTER PAYMENT MODE SELECTOR (CASH & UPI ONLY) */}
           <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 bg-stone-100 p-1 sm:p-1.5 rounded-2xl border border-stone-200">
-            <span className="text-[11px] sm:text-xs font-extrabold text-stone-500 uppercase px-1.5">Channel:</span>
+            <span className="text-[11px] sm:text-xs font-extrabold text-stone-500 uppercase px-1.5">Counter Mode:</span>
             
             {/* Cash */}
             <button
               type="button"
               onClick={() => setPaymentMode('Cash')}
-              className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 paymentMode === 'Cash'
                   ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30 ring-2 ring-emerald-500'
                   : 'text-stone-600 hover:bg-stone-200'
@@ -432,7 +432,7 @@ export default function SalesTracker({
             <button
               type="button"
               onClick={() => setPaymentMode('Online')}
-              className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 paymentMode === 'Online'
                   ? 'bg-sky-600 text-white shadow-md shadow-sky-600/30 ring-2 ring-sky-500'
                   : 'text-stone-600 hover:bg-stone-200'
@@ -440,34 +440,6 @@ export default function SalesTracker({
             >
               <Smartphone className="w-3.5 h-3.5" />
               <span>📱 UPI</span>
-            </button>
-
-            {/* Swiggy */}
-            <button
-              type="button"
-              onClick={() => setPaymentMode('Swiggy')}
-              className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                paymentMode === 'Swiggy'
-                  ? 'bg-[#f48c06] text-white shadow-md shadow-orange-500/30 ring-2 ring-orange-500'
-                  : 'text-stone-600 hover:bg-stone-200'
-              }`}
-            >
-              <span className="w-2 h-2 rounded-full bg-white"></span>
-              <span>🟠 Swiggy</span>
-            </button>
-
-            {/* Zomato */}
-            <button
-              type="button"
-              onClick={() => setPaymentMode('Zomato')}
-              className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                paymentMode === 'Zomato'
-                  ? 'bg-[#e5383b] text-white shadow-md shadow-rose-500/30 ring-2 ring-rose-500'
-                  : 'text-stone-600 hover:bg-stone-200'
-              }`}
-            >
-              <span className="w-2 h-2 rounded-full bg-white"></span>
-              <span>🔴 Zomato</span>
             </button>
           </div>
 
@@ -905,6 +877,7 @@ export default function SalesTracker({
         onDeleteSettlement={onDeleteSettlement}
         onClearAllSettlements={onClearAllSettlements}
         onDeleteSale={onDeleteSale}
+        onUpdateSale={onUpdateSale}
         onAddExpense={onAddExpense}
       />
 
