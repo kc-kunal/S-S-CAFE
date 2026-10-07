@@ -16,8 +16,12 @@ import {
   Users,
   Flame,
   Wallet,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Bike,
+  Clock,
+  Sparkles
 } from 'lucide-react';
+import { calculateAggregatorLedger } from '../utils/storage';
 
 export default function FinancialDashboard({ 
   salesLogs = [], 
@@ -26,7 +30,9 @@ export default function FinancialDashboard({
   inventoryItems = [],
   expenses = [],
   wastageLogs = [],
-  onOpenExportModal
+  settlements = [],
+  onOpenExportModal,
+  onOpenSettlementsModal
 }) {
   const [timeframe, setTimeframe] = useState('daily'); // 'daily', 'weekly', 'monthly', 'all'
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -69,8 +75,23 @@ export default function FinancialDashboard({
 
     // Calculations
     const totalRevenue = sales.reduce((sum, s) => sum + Number(s.totalRevenue), 0);
-    const cashRevenue = sales.reduce((sum, s) => sum + (s.paymentMethod === 'Online' ? 0 : Number(s.totalRevenue)), 0);
-    const onlineRevenue = sales.reduce((sum, s) => sum + (s.paymentMethod === 'Online' ? Number(s.totalRevenue) : 0), 0);
+    const cashRevenue = sales.reduce((sum, s) => {
+      const mode = (s.paymentMethod || '').toLowerCase();
+      return sum + (mode === 'cash' ? Number(s.totalRevenue) : 0);
+    }, 0);
+    const upiRevenue = sales.reduce((sum, s) => {
+      const mode = (s.paymentMethod || '').toLowerCase();
+      return sum + (mode === 'online' || mode === 'upi' ? Number(s.totalRevenue) : 0);
+    }, 0);
+    const swiggyRevenue = sales.reduce((sum, s) => {
+      const mode = (s.paymentMethod || '').toLowerCase();
+      return sum + (mode === 'swiggy' ? Number(s.totalRevenue) : 0);
+    }, 0);
+    const zomatoRevenue = sales.reduce((sum, s) => {
+      const mode = (s.paymentMethod || '').toLowerCase();
+      return sum + (mode === 'zomato' ? Number(s.totalRevenue) : 0);
+    }, 0);
+    const onlineRevenue = upiRevenue + swiggyRevenue + zomatoRevenue;
     
     // 1. Actual Raw Material Consumed (COGS) based on Recipe / Item Cost Price
     const actualMaterialConsumed = sales.reduce((sum, s) => {
@@ -133,6 +154,9 @@ export default function FinancialDashboard({
       activeWastage,
       totalRevenue,
       cashRevenue,
+      upiRevenue,
+      swiggyRevenue,
+      zomatoRevenue,
       onlineRevenue,
       actualMaterialConsumed,
       grossProfit,
@@ -243,9 +267,11 @@ export default function FinancialDashboard({
           <h3 className="text-3xl font-extrabold text-stone-900 mt-2">
             ₹{filteredData.totalRevenue.toLocaleString()}
           </h3>
-          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-stone-100 text-[11px] font-bold">
-            <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">💵 Cash: ₹{filteredData.cashRevenue.toLocaleString()}</span>
-            <span className="text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md">📱 Online: ₹{filteredData.onlineRevenue.toLocaleString()}</span>
+          <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-stone-100 text-[10px] font-bold">
+            <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">💵 Cash: ₹{filteredData.cashRevenue.toLocaleString()}</span>
+            <span className="text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded border border-sky-200">📱 UPI: ₹{filteredData.upiRevenue.toLocaleString()}</span>
+            <span className="text-orange-700 bg-orange-50 px-1.5 py-0.5 rounded border border-orange-200">🟠 Swiggy: ₹{filteredData.swiggyRevenue.toLocaleString()}</span>
+            <span className="text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">🔴 Zomato: ₹{filteredData.zomatoRevenue.toLocaleString()}</span>
           </div>
           <div className="absolute top-0 right-0 w-2 h-full bg-emerald-500"></div>
         </div>
@@ -362,6 +388,113 @@ export default function FinancialDashboard({
         </div>
 
       </div>
+
+      {/* 🛵 AGGREGATOR (SWIGGY & ZOMATO) PAYOUT STATUS SECTION */}
+      {(() => {
+        const aggLedger = calculateAggregatorLedger(salesLogs, settlements);
+        return (
+          <div className="bg-gradient-to-r from-stone-900 via-stone-850 to-stone-950 text-white rounded-3xl p-5 sm:p-6 shadow-xl border border-stone-800 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-800 pb-3.5">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center font-extrabold shadow-lg shadow-amber-500/10">
+                  <Bike className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-base font-bold text-amber-100 flex items-center gap-2">
+                    <span>Swiggy & Zomato Online Ledger & Weekly Payouts</span>
+                    <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-extrabold">
+                      Receivable
+                    </span>
+                  </h4>
+                  <p className="text-xs text-stone-400">
+                    Track gross orders, commissions deducted & pending bank payouts
+                  </p>
+                </div>
+              </div>
+
+              {onOpenSettlementsModal && (
+                <button
+                  type="button"
+                  onClick={onOpenSettlementsModal}
+                  className="px-3.5 py-1.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer self-start sm:self-auto"
+                >
+                  Manage Payouts & Settlements
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+              {/* Swiggy Box */}
+              <div className="bg-stone-800/70 p-3.5 rounded-2xl border border-orange-500/30 flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-orange-400 uppercase flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#f48c06]"></span>
+                    🟠 Swiggy
+                  </span>
+                  <span className="text-[10px] bg-stone-700 text-stone-300 font-bold px-1.5 py-0.5 rounded">
+                    {aggLedger.Swiggy.totalOrdersCount} orders
+                  </span>
+                </div>
+                <div className="my-2">
+                  <span className="text-[10px] text-stone-400 uppercase font-semibold">Pending Unsettled:</span>
+                  <div className="text-xl font-extrabold text-white mt-0.5">
+                    ₹{aggLedger.Swiggy.pendingUnsettled.toLocaleString()}
+                  </div>
+                </div>
+                <div className="text-[10px] text-stone-400 flex justify-between border-t border-stone-700/60 pt-1.5">
+                  <span>Gross: ₹{aggLedger.Swiggy.totalGross.toLocaleString()}</span>
+                  <span>Bank Recd: ₹{aggLedger.Swiggy.totalBankReceived.toLocaleString()}</span>
+                </div>
+              </div>
+
+              {/* Zomato Box */}
+              <div className="bg-stone-800/70 p-3.5 rounded-2xl border border-rose-500/30 flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-rose-400 uppercase flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#e5383b]"></span>
+                    🔴 Zomato
+                  </span>
+                  <span className="text-[10px] bg-stone-700 text-stone-300 font-bold px-1.5 py-0.5 rounded">
+                    {aggLedger.Zomato.totalOrdersCount} orders
+                  </span>
+                </div>
+                <div className="my-2">
+                  <span className="text-[10px] text-stone-400 uppercase font-semibold">Pending Unsettled:</span>
+                  <div className="text-xl font-extrabold text-white mt-0.5">
+                    ₹{aggLedger.Zomato.pendingUnsettled.toLocaleString()}
+                  </div>
+                </div>
+                <div className="text-[10px] text-stone-400 flex justify-between border-t border-stone-700/60 pt-1.5">
+                  <span>Gross: ₹{aggLedger.Zomato.totalGross.toLocaleString()}</span>
+                  <span>Bank Recd: ₹{aggLedger.Zomato.totalBankReceived.toLocaleString()}</span>
+                </div>
+              </div>
+
+              {/* Total Pending with Aggregators */}
+              <div className="bg-amber-950/40 p-3.5 rounded-2xl border border-amber-500/40 flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-amber-300 uppercase">
+                    🏦 Total Unsettled Online
+                  </span>
+                  <Clock className="w-4 h-4 text-amber-400" />
+                </div>
+                <div className="my-2">
+                  <span className="text-[10px] text-amber-200/80 uppercase font-semibold">Awaiting Bank Transfer:</span>
+                  <div className="text-2xl font-black text-amber-300 mt-0.5">
+                    ₹{aggLedger.overall.pendingUnsettled.toLocaleString()}
+                  </div>
+                </div>
+                <div className="text-[10px] text-amber-200/70 flex justify-between border-t border-amber-900/60 pt-1.5">
+                  <span>Total Deductions: ₹{aggLedger.overall.totalCommission.toLocaleString()}</span>
+                  <span>In Bank: ₹{aggLedger.overall.totalBankReceived.toLocaleString()}</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        );
+      })()}
+
 
       {/* Detailed Tables & Breakdown Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

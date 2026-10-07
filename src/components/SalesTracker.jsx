@@ -1,14 +1,52 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, ShoppingBag, Trash2, Search, Zap, CheckCircle2, TrendingUp, IndianRupee, Layers, Tag, Banknote, Smartphone, FileSpreadsheet } from 'lucide-react';
-import { checkItemStock } from '../utils/storage';
+import { 
+  Plus, 
+  ShoppingBag, 
+  Trash2, 
+  Search, 
+  Zap, 
+  CheckCircle2, 
+  TrendingUp, 
+  IndianRupee, 
+  Layers, 
+  Tag, 
+  Banknote, 
+  Smartphone, 
+  FileSpreadsheet,
+  Bike,
+  Percent,
+  Clock,
+  Sparkles,
+  Filter
+} from 'lucide-react';
+import { checkItemStock, calculateAggregatorLedger } from '../utils/storage';
+import OnlineOrderPunchModal from './OnlineOrderPunchModal';
+import AggregatorSettlementModal from './AggregatorSettlementModal';
 
-export default function SalesTracker({ menuItems, salesLogs, inventoryItems = [], onAddSale, onUpdateSale, onDeleteSale, onOpenExportModal }) {
+export default function SalesTracker({ 
+  menuItems = [], 
+  salesLogs = [], 
+  inventoryItems = [], 
+  settlements = [],
+  onAddSale, 
+  onUpdateSale, 
+  onDeleteSale, 
+  onOpenExportModal,
+  onAddSettlement,
+  onDeleteSettlement,
+  onAddExpense
+}) {
   const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
-  const [paymentMode, setPaymentMode] = useState('Cash'); // 'Cash' or 'Online'
+  const [paymentMode, setPaymentMode] = useState('Cash'); // 'Cash', 'Online', 'Swiggy', 'Zomato'
   const [filterDate, setFilterDate] = useState('');
+  const [filterPaymentMode, setFilterPaymentMode] = useState('All');
   const [searchItem, setSearchItem] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [warningMessage, setWarningMessage] = useState(null);
+
+  // Modals state
+  const [isOnlinePunchOpen, setIsOnlinePunchOpen] = useState(false);
+  const [isSettlementModalOpen, setIsSettlementModalOpen] = useState(false);
 
   const showWarning = (msg) => {
     setWarningMessage(msg);
@@ -47,7 +85,7 @@ export default function SalesTracker({ menuItems, salesLogs, inventoryItems = []
       costPrice: item.costPrice,
       totalRevenue: item.sellingPrice * qty,
       totalCost: item.costPrice * qty,
-      paymentMethod: paymentMode, // 'Cash' or 'Online'
+      paymentMethod: paymentMode, // 'Cash', 'Online', 'Swiggy', 'Zomato'
       date: saleDate,
       createdAt: new Date().toISOString()
     };
@@ -84,14 +122,38 @@ export default function SalesTracker({ menuItems, salesLogs, inventoryItems = []
     }
   };
 
+  // Aggregator Ledger (Pending payouts, total sales)
+  const aggLedger = useMemo(() => {
+    return calculateAggregatorLedger(salesLogs, settlements);
+  }, [salesLogs, settlements]);
+
   // Calculate Sales Summary for selected date (defaults to saleDate)
   const summaryDate = filterDate || saleDate;
   
   const dailySummary = useMemo(() => {
     const logs = salesLogs.filter(s => s.date === summaryDate);
     const totalRevenue = logs.reduce((sum, s) => sum + (Number(s.totalRevenue) || 0), 0);
-    const cashRevenue = logs.reduce((sum, s) => sum + (s.paymentMethod === 'Online' ? 0 : (Number(s.totalRevenue) || 0)), 0);
-    const onlineRevenue = logs.reduce((sum, s) => sum + (s.paymentMethod === 'Online' ? (Number(s.totalRevenue) || 0) : 0), 0);
+    
+    // Breakdown by payment channel
+    const cashRevenue = logs.reduce((sum, s) => {
+      const mode = (s.paymentMethod || '').toLowerCase();
+      return sum + (mode === 'cash' ? (Number(s.totalRevenue) || 0) : 0);
+    }, 0);
+
+    const upiRevenue = logs.reduce((sum, s) => {
+      const mode = (s.paymentMethod || '').toLowerCase();
+      return sum + (mode === 'online' || mode === 'upi' ? (Number(s.totalRevenue) || 0) : 0);
+    }, 0);
+
+    const swiggyRevenue = logs.reduce((sum, s) => {
+      const mode = (s.paymentMethod || '').toLowerCase();
+      return sum + (mode === 'swiggy' ? (Number(s.totalRevenue) || 0) : 0);
+    }, 0);
+
+    const zomatoRevenue = logs.reduce((sum, s) => {
+      const mode = (s.paymentMethod || '').toLowerCase();
+      return sum + (mode === 'zomato' ? (Number(s.totalRevenue) || 0) : 0);
+    }, 0);
     
     const totalCost = logs.reduce((sum, s) => sum + (Number(s.totalCost) || 0), 0);
     const totalQty = logs.reduce((sum, s) => sum + (Number(s.quantitySold) || 0), 0);
@@ -109,7 +171,19 @@ export default function SalesTracker({ menuItems, salesLogs, inventoryItems = []
       if (qty > maxQty) { maxQty = qty; topItem = `${name} (${qty})`; }
     });
 
-    return { totalRevenue, cashRevenue, onlineRevenue, totalCost, totalQty, netProfit, margin, topItem, count: logs.length };
+    return { 
+      totalRevenue, 
+      cashRevenue, 
+      upiRevenue, 
+      swiggyRevenue, 
+      zomatoRevenue, 
+      totalCost, 
+      totalQty, 
+      netProfit, 
+      margin, 
+      topItem, 
+      count: logs.length 
+    };
   }, [salesLogs, summaryDate]);
 
   // Extract unique categories from menu items
@@ -135,26 +209,46 @@ export default function SalesTracker({ menuItems, salesLogs, inventoryItems = []
   const filteredLogs = salesLogs.filter(s => {
     const matchesDate = !filterDate || s.date === filterDate;
     const matchesSearch = !searchItem || s.itemName.toLowerCase().includes(searchItem.toLowerCase());
-    return matchesDate && matchesSearch;
+    
+    let matchesMode = true;
+    if (filterPaymentMode !== 'All') {
+      const mode = (s.paymentMethod || '').toLowerCase();
+      if (filterPaymentMode === 'Cash') matchesMode = mode === 'cash';
+      else if (filterPaymentMode === 'Online') matchesMode = mode === 'online' || mode === 'upi';
+      else if (filterPaymentMode === 'Swiggy') matchesMode = mode === 'swiggy';
+      else if (filterPaymentMode === 'Zomato') matchesMode = mode === 'zomato';
+    }
+
+    return matchesDate && matchesSearch && matchesMode;
   });
 
   return (
     <div className="space-y-6">
       
       {/* 📊 DAILY SALES SUMMARY SECTION */}
-      <div className="bg-gradient-to-r from-stone-900 via-stone-850 to-stone-950 text-white rounded-3xl p-6 shadow-xl border border-stone-800 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-800 pb-4">
+      <div className="bg-gradient-to-r from-stone-900 via-stone-850 to-stone-950 text-white rounded-3xl p-5 sm:p-6 shadow-xl border border-stone-800 space-y-4">
+        
+        {/* Top Header & Actions */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-stone-800 pb-4">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-2xl bg-amber-600 text-amber-100 flex items-center justify-center font-extrabold shadow-lg shadow-amber-600/30">
               <TrendingUp className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold font-serif-title text-amber-100">Daily Sales Summary</h2>
-              <p className="text-xs text-stone-400">Overview of revenue, cash vs online breakdown for <span className="text-amber-400 font-bold">{summaryDate}</span></p>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold font-serif-title text-amber-100">Daily Sales & Cash Summary</h2>
+                <span className="text-[10px] bg-amber-500/20 text-amber-300 font-extrabold px-2 py-0.5 rounded-full border border-amber-500/30">
+                  {summaryDate}
+                </span>
+              </div>
+              <p className="text-xs text-stone-400">
+                Separate counter cash, direct UPI & pending weekly payouts (Swiggy / Zomato)
+              </p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {/* Date Picker */}
             <div className="flex items-center gap-2 bg-stone-800/80 px-3.5 py-1.5 rounded-2xl border border-stone-700/80">
               <span className="text-xs font-bold text-amber-300/80 uppercase">Date:</span>
               <input
@@ -165,6 +259,34 @@ export default function SalesTracker({ menuItems, salesLogs, inventoryItems = []
               />
             </div>
 
+            {/* Online Order Punch Modal Button */}
+            <button
+              type="button"
+              onClick={() => setIsOnlinePunchOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white rounded-2xl text-xs font-bold transition-all shadow-md cursor-pointer border border-orange-400/30"
+              title="Punch Swiggy or Zomato order with custom price & promo offers"
+            >
+              <Bike className="w-3.5 h-3.5 text-white" />
+              <span>Punch Online Order</span>
+            </button>
+
+            {/* Aggregator Settlement / Ledger Button */}
+            <button
+              type="button"
+              onClick={() => setIsSettlementModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-800 hover:bg-stone-700 active:bg-stone-900 text-amber-300 rounded-2xl text-xs font-bold transition-all border border-amber-500/30 cursor-pointer shadow-md"
+              title="Manage Swiggy & Zomato Weekly Payouts & Commission Settlements"
+            >
+              <Clock className="w-3.5 h-3.5 text-amber-400" />
+              <span>Online Payouts</span>
+              {aggLedger.overall.pendingUnsettled > 0 && (
+                <span className="bg-amber-500 text-stone-950 px-1.5 py-0.2 rounded-full text-[10px] font-black">
+                  ₹{aggLedger.overall.pendingUnsettled.toLocaleString()} Pending
+                </span>
+              )}
+            </button>
+
+            {/* Excel Export Button */}
             {onOpenExportModal && (
               <button
                 type="button"
@@ -173,62 +295,79 @@ export default function SalesTracker({ menuItems, salesLogs, inventoryItems = []
                 title="Export Monthly / Weekly Sales to Excel"
               >
                 <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-200" />
-                <span className="hidden xs:inline">Export Excel</span>
+                <span className="hidden xs:inline">Excel</span>
               </button>
             )}
           </div>
         </div>
 
-        {/* Summary Stat Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3.5 pt-2">
+        {/* 6 Summary Stat Cards (Cash in Hand, UPI, Swiggy, Zomato, Total & Profit) */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3 pt-1">
           
           {/* Total Revenue */}
-          <div className="bg-stone-800/60 p-3.5 sm:p-4 rounded-2xl border border-stone-700/50 flex flex-col justify-between">
+          <div className="bg-stone-800/60 p-3 sm:p-3.5 rounded-2xl border border-stone-700/50 flex flex-col justify-between">
             <span className="text-[10px] sm:text-[11px] font-bold text-stone-400 uppercase tracking-wider">Total Sales</span>
             <div className="text-xl sm:text-2xl font-extrabold text-amber-400 mt-1">
               ₹{dailySummary.totalRevenue.toLocaleString()}
             </div>
-            <span className="text-[10px] sm:text-[11px] text-stone-400 mt-0.5">{dailySummary.count} sales logged</span>
+            <span className="text-[10px] text-stone-400 mt-0.5">{dailySummary.count} sales logged</span>
           </div>
 
-          {/* Cash Sales */}
-          <div className="bg-stone-800/60 p-3.5 sm:p-4 rounded-2xl border border-emerald-900/40 flex flex-col justify-between">
+          {/* Cash Sales (Galle Ka Cash) */}
+          <div className="bg-stone-800/60 p-3 sm:p-3.5 rounded-2xl border border-emerald-900/40 flex flex-col justify-between">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] sm:text-[11px] font-bold text-emerald-400 uppercase tracking-wider">💵 Cash</span>
+              <span className="text-[10px] sm:text-[11px] font-bold text-emerald-400 uppercase tracking-wider">💵 Cash in Hand</span>
             </div>
             <div className="text-xl sm:text-2xl font-extrabold text-emerald-300 mt-1">
               ₹{dailySummary.cashRevenue.toLocaleString()}
             </div>
-            <span className="text-[10px] sm:text-[11px] text-emerald-400/70 mt-0.5">Cash received</span>
+            <span className="text-[10px] text-emerald-400/80 mt-0.5 font-semibold">Galle ka Cash (Today)</span>
           </div>
 
-          {/* Online Sales */}
-          <div className="bg-stone-800/60 p-3.5 sm:p-4 rounded-2xl border border-sky-900/40 flex flex-col justify-between">
+          {/* Counter UPI (Direct Bank) */}
+          <div className="bg-stone-800/60 p-3 sm:p-3.5 rounded-2xl border border-sky-900/40 flex flex-col justify-between">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] sm:text-[11px] font-bold text-sky-400 uppercase tracking-wider">📱 Online / UPI</span>
+              <span className="text-[10px] sm:text-[11px] font-bold text-sky-400 uppercase tracking-wider">📱 Counter UPI</span>
             </div>
             <div className="text-xl sm:text-2xl font-extrabold text-sky-300 mt-1">
-              ₹{dailySummary.onlineRevenue.toLocaleString()}
+              ₹{dailySummary.upiRevenue.toLocaleString()}
             </div>
-            <span className="text-[10px] sm:text-[11px] text-sky-400/70 mt-0.5">UPI & Card pay</span>
+            <span className="text-[10px] text-sky-400/80 mt-0.5 font-semibold">Direct Bank QR</span>
           </div>
 
-          {/* Quantity Sold */}
-          <div className="bg-stone-800/60 p-3.5 sm:p-4 rounded-2xl border border-stone-700/50 flex flex-col justify-between">
-            <span className="text-[10px] sm:text-[11px] font-bold text-stone-400 uppercase tracking-wider">Items Sold</span>
-            <div className="text-xl sm:text-2xl font-extrabold text-stone-100 mt-1">
-              {dailySummary.totalQty} <span className="text-xs font-semibold text-stone-400">pcs</span>
+          {/* Swiggy Orders */}
+          <div className="bg-stone-800/60 p-3 sm:p-3.5 rounded-2xl border border-orange-900/40 flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] sm:text-[11px] font-bold text-orange-400 uppercase tracking-wider">🟠 Swiggy</span>
             </div>
-            <span className="text-[10px] sm:text-[11px] text-stone-400 mt-0.5">Total quantity</span>
+            <div className="text-xl sm:text-2xl font-extrabold text-orange-300 mt-1">
+              ₹{dailySummary.swiggyRevenue.toLocaleString()}
+            </div>
+            <span className="text-[10px] text-orange-400/80 mt-0.5 font-semibold">
+              Pending: ₹{aggLedger.Swiggy.pendingUnsettled.toLocaleString()}
+            </span>
           </div>
 
-          {/* Daily Net Profit (Spans full width on 2-col mobile) */}
-          <div className="col-span-2 sm:col-span-1 bg-stone-800/60 p-3.5 sm:p-4 rounded-2xl border border-stone-700/50 flex flex-col justify-between">
-            <span className="text-[10px] sm:text-[11px] font-bold text-stone-400 uppercase tracking-wider">Daily Net Profit</span>
+          {/* Zomato Orders */}
+          <div className="bg-stone-800/60 p-3 sm:p-3.5 rounded-2xl border border-rose-900/40 flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] sm:text-[11px] font-bold text-rose-400 uppercase tracking-wider">🔴 Zomato</span>
+            </div>
+            <div className="text-xl sm:text-2xl font-extrabold text-rose-300 mt-1">
+              ₹{dailySummary.zomatoRevenue.toLocaleString()}
+            </div>
+            <span className="text-[10px] text-rose-400/80 mt-0.5 font-semibold">
+              Pending: ₹{aggLedger.Zomato.pendingUnsettled.toLocaleString()}
+            </span>
+          </div>
+
+          {/* Daily Net Profit */}
+          <div className="bg-stone-800/60 p-3 sm:p-3.5 rounded-2xl border border-stone-700/50 flex flex-col justify-between">
+            <span className="text-[10px] sm:text-[11px] font-bold text-stone-400 uppercase tracking-wider">Net Margin</span>
             <div className={`text-xl sm:text-2xl font-extrabold mt-1 ${dailySummary.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
               ₹{dailySummary.netProfit.toLocaleString()}
             </div>
-            <span className="text-[10px] sm:text-[11px] text-amber-300/80 mt-0.5">{dailySummary.margin}% margin</span>
+            <span className="text-[10px] text-amber-300/80 mt-0.5 font-semibold">{dailySummary.margin}% food margin</span>
           </div>
 
         </div>
@@ -237,24 +376,27 @@ export default function SalesTracker({ menuItems, salesLogs, inventoryItems = []
       {/* 🏷️ CATEGORY-WISE SELECTION & SALES LOGGER */}
       <div className="bg-white rounded-3xl border border-stone-200 p-4 sm:p-6 shadow-sm space-y-5">
         
-        {/* Header, Payment Mode Toggle & Search */}
+        {/* Header, Payment Mode Toggle (4 Channels) & Search */}
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 border-b border-stone-100 pb-4">
           <div>
             <h3 className="text-sm sm:text-base font-bold text-stone-900 flex items-center gap-2">
               <Zap className="w-4 sm:w-5 h-4 sm:h-5 text-amber-600 fill-amber-600" />
               <span>Select Item to Log Sale (Category-Wise)</span>
             </h3>
-            <p className="text-xs text-stone-500">Tap item button to log sale. Stock automatically deducts.</p>
+            <p className="text-xs text-stone-500">
+              Select channel below (Cash, UPI, Swiggy, Zomato). Stock automatically deducts.
+            </p>
           </div>
 
-          {/* PAYMENT MODE SELECTOR (CASH VS ONLINE) */}
-          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 bg-stone-100 p-1 sm:p-1.5 rounded-2xl border border-stone-200">
-            <span className="text-[11px] sm:text-xs font-extrabold text-stone-500 uppercase px-1.5">Mode:</span>
+          {/* 4-WAY ORDER CHANNEL / PAYMENT MODE SELECTOR */}
+          <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 bg-stone-100 p-1 sm:p-1.5 rounded-2xl border border-stone-200">
+            <span className="text-[11px] sm:text-xs font-extrabold text-stone-500 uppercase px-1.5">Channel:</span>
             
+            {/* Cash */}
             <button
               type="button"
               onClick={() => setPaymentMode('Cash')}
-              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 paymentMode === 'Cash'
                   ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30 ring-2 ring-emerald-500'
                   : 'text-stone-600 hover:bg-stone-200'
@@ -264,21 +406,50 @@ export default function SalesTracker({ menuItems, salesLogs, inventoryItems = []
               <span>💵 Cash</span>
             </button>
 
+            {/* UPI */}
             <button
               type="button"
               onClick={() => setPaymentMode('Online')}
-              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 paymentMode === 'Online'
                   ? 'bg-sky-600 text-white shadow-md shadow-sky-600/30 ring-2 ring-sky-500'
                   : 'text-stone-600 hover:bg-stone-200'
               }`}
             >
               <Smartphone className="w-3.5 h-3.5" />
-              <span>📱 Online / UPI</span>
+              <span>📱 UPI</span>
+            </button>
+
+            {/* Swiggy */}
+            <button
+              type="button"
+              onClick={() => setPaymentMode('Swiggy')}
+              className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                paymentMode === 'Swiggy'
+                  ? 'bg-[#f48c06] text-white shadow-md shadow-orange-500/30 ring-2 ring-orange-500'
+                  : 'text-stone-600 hover:bg-stone-200'
+              }`}
+            >
+              <span className="w-2 h-2 rounded-full bg-white"></span>
+              <span>🟠 Swiggy</span>
+            </button>
+
+            {/* Zomato */}
+            <button
+              type="button"
+              onClick={() => setPaymentMode('Zomato')}
+              className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                paymentMode === 'Zomato'
+                  ? 'bg-[#e5383b] text-white shadow-md shadow-rose-500/30 ring-2 ring-rose-500'
+                  : 'text-stone-600 hover:bg-stone-200'
+              }`}
+            >
+              <span className="w-2 h-2 rounded-full bg-white"></span>
+              <span>🔴 Zomato</span>
             </button>
           </div>
 
-          <div className="w-full lg:w-56 relative">
+          <div className="w-full lg:w-52 relative">
             <Search className="w-4 h-4 text-stone-400 absolute left-3 top-2.5" />
             <input
               type="text"
@@ -345,12 +516,18 @@ export default function SalesTracker({ menuItems, salesLogs, inventoryItems = []
                   </h4>
                 </div>
 
-                {/* Items Grid for this Category - Ultra Compact Mini Cards */}
+                {/* Items Grid for this Category */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3">
                   {items.map((item) => {
                     const itemLogs = salesLogs.filter(s => (s.itemId === item.id || s.itemName === item.name) && s.date === saleDate);
                     const todayQtySold = itemLogs.reduce((acc, curr) => acc + Number(curr.quantitySold), 0);
                     const stockStatus = getRecipeStockStatus(item);
+
+                    // Dynamic button background based on channel
+                    let addBtnColor = 'bg-emerald-600 hover:bg-emerald-500';
+                    if (paymentMode === 'Online') addBtnColor = 'bg-sky-600 hover:bg-sky-500';
+                    else if (paymentMode === 'Swiggy') addBtnColor = 'bg-[#f48c06] hover:bg-[#e85d04]';
+                    else if (paymentMode === 'Zomato') addBtnColor = 'bg-[#e5383b] hover:bg-[#d90429]';
 
                     return (
                       <div
@@ -411,7 +588,7 @@ export default function SalesTracker({ menuItems, salesLogs, inventoryItems = []
                           )}
                         </div>
 
-                        {/* Quick Key Buttons: Remove (-1) & Add (+1, +2, +5) with comfortable touch targets */}
+                        {/* Quick Key Buttons: Remove (-1) & Add (+1, +2, +5) */}
                         <div className="mt-3 pt-2.5 border-t border-stone-100 flex items-center gap-1.5">
                           <button
                             type="button"
@@ -434,11 +611,9 @@ export default function SalesTracker({ menuItems, salesLogs, inventoryItems = []
                             className={`flex-1 py-2 text-xs font-extrabold rounded-xl shadow-sm transition-all flex items-center justify-center gap-1 min-h-[36px] ${
                               stockStatus.isOutOfStock
                                 ? 'bg-stone-200 text-stone-400 cursor-not-allowed border border-stone-300'
-                                : paymentMode === 'Online'
-                                ? 'bg-sky-600 hover:bg-sky-500 text-white cursor-pointer active:scale-95'
-                                : 'bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer active:scale-95'
+                                : `${addBtnColor} text-white cursor-pointer active:scale-95`
                             }`}
-                            title={stockStatus.isOutOfStock ? `Out of Stock: Raw material khatam hai` : `Add 1 (${paymentMode})`}
+                            title={stockStatus.isOutOfStock ? `Out of Stock` : `Add 1 (${paymentMode})`}
                           >
                             <Plus className="w-4 h-4 stroke-[3]" />
                             <span>+1</span>
@@ -484,12 +659,30 @@ export default function SalesTracker({ menuItems, salesLogs, inventoryItems = []
         )}
       </div>
 
-      {/* 📜 SALES LOGS HISTORY TABLE WITH PAYMENT BADGES */}
+      {/* 📜 SALES LOGS HISTORY TABLE WITH EXTENDED PAYMENT BADGES */}
       <div className="bg-white rounded-3xl border border-stone-200 p-4 sm:p-6 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          <h3 className="text-sm sm:text-base font-bold text-stone-900">Logged Sales History</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm sm:text-base font-bold text-stone-900">Logged Sales History</h3>
+            <span className="text-xs bg-stone-100 text-stone-600 px-2 py-0.5 rounded-full font-bold">
+              {filteredLogs.length} entries
+            </span>
+          </div>
           
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
+            {/* Payment Mode Filter Dropdown */}
+            <select
+              value={filterPaymentMode}
+              onChange={(e) => setFilterPaymentMode(e.target.value)}
+              className="px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold text-stone-700 focus:outline-none"
+            >
+              <option value="All">All Channels</option>
+              <option value="Cash">💵 Cash</option>
+              <option value="Online">📱 Counter UPI</option>
+              <option value="Swiggy">🟠 Swiggy</option>
+              <option value="Zomato">🔴 Zomato</option>
+            </select>
+
             <input
               type="text"
               placeholder="Search sale log..."
@@ -497,14 +690,21 @@ export default function SalesTracker({ menuItems, salesLogs, inventoryItems = []
               onChange={(e) => setSearchItem(e.target.value)}
               className="flex-1 sm:flex-initial px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs"
             />
+            
             <input
               type="date"
               value={filterDate}
               onChange={(e) => setFilterDate(e.target.value)}
               className="px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-semibold"
             />
-            {filterDate && (
-              <button onClick={() => setFilterDate('')} className="text-xs text-rose-600 font-bold cursor-pointer">Clear</button>
+            
+            {(filterDate || filterPaymentMode !== 'All') && (
+              <button 
+                onClick={() => { setFilterDate(''); setFilterPaymentMode('All'); }} 
+                className="text-xs text-rose-600 font-bold cursor-pointer"
+              >
+                Clear
+              </button>
             )}
           </div>
         </div>
@@ -521,7 +721,7 @@ export default function SalesTracker({ menuItems, salesLogs, inventoryItems = []
                     <th className="py-3.5 px-4">Date</th>
                     <th className="py-3.5 px-4">Item Name</th>
                     <th className="py-3.5 px-4">Category</th>
-                    <th className="py-3.5 px-4 text-center">Payment Mode</th>
+                    <th className="py-3.5 px-4 text-center">Order Channel</th>
                     <th className="py-3.5 px-4 text-center">Qty Sold</th>
                     <th className="py-3.5 px-4 text-right">Selling Price</th>
                     <th className="py-3.5 px-4 text-right">Total Revenue</th>
@@ -529,90 +729,159 @@ export default function SalesTracker({ menuItems, salesLogs, inventoryItems = []
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-200 text-stone-700">
-                  {filteredLogs.map((sale) => (
-                    <tr key={sale.id} className="hover:bg-amber-50/40 transition-colors">
-                      <td className="py-3 px-4 text-xs font-semibold text-stone-500">{sale.date}</td>
-                      <td className="py-3 px-4 font-bold text-stone-900">{sale.itemName}</td>
-                      <td className="py-3 px-4">
-                        <span className="px-2.5 py-0.5 rounded-md bg-stone-100 font-semibold text-xs text-stone-700">
-                          {sale.category || 'General'}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold inline-flex items-center gap-1 ${
-                          sale.paymentMethod === 'Online'
-                            ? 'bg-sky-100 text-sky-800 border border-sky-200'
-                            : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                        }`}>
-                          {sale.paymentMethod === 'Online' ? '📱 Online / UPI' : '💵 Cash'}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-center font-bold text-stone-900">
-                        <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 text-xs font-bold">
-                          {sale.quantitySold}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right text-stone-600 font-medium">₹{sale.sellingPrice}</td>
-                      <td className="py-3 px-4 text-right font-extrabold text-emerald-700">₹{sale.totalRevenue}</td>
-                      <td className="py-3 px-4 text-center">
-                        <button
-                          onClick={() => onDeleteSale(sale.id)}
-                          className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                          title="Delete sale log entry"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {filteredLogs.map((sale) => {
+                    const mode = (sale.paymentMethod || '').toLowerCase();
+                    
+                    let badgeClass = 'bg-emerald-100 text-emerald-800 border-emerald-200';
+                    let badgeLabel = '💵 Cash';
+
+                    if (mode === 'online' || mode === 'upi') {
+                      badgeClass = 'bg-sky-100 text-sky-800 border-sky-200';
+                      badgeLabel = '📱 Counter UPI';
+                    } else if (mode === 'swiggy') {
+                      badgeClass = 'bg-orange-100 text-orange-900 border-orange-300 font-black';
+                      badgeLabel = '🟠 Swiggy';
+                    } else if (mode === 'zomato') {
+                      badgeClass = 'bg-rose-100 text-rose-900 border-rose-300 font-black';
+                      badgeLabel = '🔴 Zomato';
+                    }
+
+                    return (
+                      <tr key={sale.id} className="hover:bg-amber-50/40 transition-colors">
+                        <td className="py-3 px-4 text-xs font-semibold text-stone-500">{sale.date}</td>
+                        <td className="py-3 px-4">
+                          <div className="font-bold text-stone-900">{sale.itemName}</div>
+                          {(sale.platformOrderId || sale.discountAmount) && (
+                            <div className="text-[10px] text-stone-500 flex items-center gap-1.5 mt-0.5">
+                              {sale.platformOrderId && (
+                                <span className="font-semibold text-stone-600 bg-stone-100 px-1 rounded">
+                                  {sale.platformOrderId}
+                                </span>
+                              )}
+                              {sale.discountAmount && (
+                                <span className="font-extrabold text-rose-600 bg-rose-50 px-1 rounded">
+                                  ₹{sale.discountAmount} Off
+                                </span>
+                              )}
+                              {sale.notes && <span>• {sale.notes}</span>}
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="px-2.5 py-0.5 rounded-md bg-stone-100 font-semibold text-xs text-stone-700">
+                            {sale.category || 'General'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold inline-flex items-center gap-1 border ${badgeClass}`}>
+                            {badgeLabel}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-center font-bold text-stone-900">
+                          <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 text-xs font-bold">
+                            {sale.quantitySold}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right text-stone-600 font-medium">₹{sale.sellingPrice}</td>
+                        <td className="py-3 px-4 text-right font-extrabold text-emerald-700">₹{sale.totalRevenue}</td>
+                        <td className="py-3 px-4 text-center">
+                          <button
+                            onClick={() => onDeleteSale(sale.id)}
+                            className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                            title="Delete sale log entry"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
 
             {/* Mobile Cards View */}
             <div className="md:hidden space-y-2.5">
-              {filteredLogs.map((sale) => (
-                <div key={sale.id} className="p-3 bg-stone-50/70 border border-stone-200 rounded-2xl flex items-center justify-between gap-3 shadow-2xs">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <h4 className="font-bold text-stone-900 text-xs sm:text-sm truncate">{sale.itemName}</h4>
-                      <span className="text-[9px] font-semibold text-stone-500 bg-white px-1.5 py-0.5 rounded border border-stone-200">
-                        {sale.category || 'General'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 text-[11px] text-stone-500 mt-1">
-                      <span>{sale.date}</span>
-                      <span>•</span>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        sale.paymentMethod === 'Online' ? 'bg-sky-100 text-sky-800' : 'bg-emerald-100 text-emerald-800'
-                      }`}>
-                        {sale.paymentMethod === 'Online' ? '📱 UPI' : '💵 Cash'}
-                      </span>
-                    </div>
-                  </div>
+              {filteredLogs.map((sale) => {
+                const mode = (sale.paymentMethod || '').toLowerCase();
+                let badgeClass = 'bg-emerald-100 text-emerald-800';
+                let badgeLabel = '💵 Cash';
 
-                  <div className="flex items-center gap-2.5 shrink-0">
-                    <div className="text-right">
-                      <div className="font-black text-emerald-700 text-sm sm:text-base">₹{sale.totalRevenue}</div>
-                      <span className="text-[10px] text-stone-500">{sale.quantitySold} × ₹{sale.sellingPrice}</span>
+                if (mode === 'online' || mode === 'upi') {
+                  badgeClass = 'bg-sky-100 text-sky-800';
+                  badgeLabel = '📱 UPI';
+                } else if (mode === 'swiggy') {
+                  badgeClass = 'bg-orange-100 text-orange-900';
+                  badgeLabel = '🟠 Swiggy';
+                } else if (mode === 'zomato') {
+                  badgeClass = 'bg-rose-100 text-rose-900';
+                  badgeLabel = '🔴 Zomato';
+                }
+
+                return (
+                  <div key={sale.id} className="p-3 bg-stone-50/70 border border-stone-200 rounded-2xl flex items-center justify-between gap-3 shadow-2xs">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <h4 className="font-bold text-stone-900 text-xs sm:text-sm truncate">{sale.itemName}</h4>
+                        <span className="text-[9px] font-semibold text-stone-500 bg-white px-1.5 py-0.5 rounded border border-stone-200">
+                          {sale.category || 'General'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-[11px] text-stone-500 mt-1">
+                        <span>{sale.date}</span>
+                        <span>•</span>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${badgeClass}`}>
+                          {badgeLabel}
+                        </span>
+                        {sale.platformOrderId && (
+                          <span className="text-[10px] text-stone-600 font-bold bg-stone-200/60 px-1 rounded">
+                            {sale.platformOrderId}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <button
-                      onClick={() => onDeleteSale(sale.id)}
-                      className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
-                      title="Delete sale log"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+
+                    <div className="flex items-center gap-2.5 shrink-0">
+                      <div className="text-right">
+                        <div className="font-black text-emerald-700 text-sm sm:text-base">₹{sale.totalRevenue}</div>
+                        <span className="text-[10px] text-stone-500">{sale.quantitySold} × ₹{sale.sellingPrice}</span>
+                      </div>
+                      <button
+                        onClick={() => onDeleteSale(sale.id)}
+                        className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                        title="Delete sale log"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </>
         )}
       </div>
 
+      {/* MODAL 1: PUNCH ONLINE ORDER (OFFERS & CUSTOM PRICES) */}
+      <OnlineOrderPunchModal
+        isOpen={isOnlinePunchOpen}
+        onClose={() => setIsOnlinePunchOpen(false)}
+        menuItems={menuItems}
+        inventoryItems={inventoryItems}
+        onAddSale={onAddSale}
+      />
+
+      {/* MODAL 2: SWIGGY & ZOMATO WEEKLY PAYOUT SETTLEMENTS */}
+      <AggregatorSettlementModal
+        isOpen={isSettlementModalOpen}
+        onClose={() => setIsSettlementModalOpen(false)}
+        salesLogs={salesLogs}
+        settlements={settlements}
+        onAddSettlement={onAddSettlement}
+        onDeleteSettlement={onDeleteSettlement}
+        onAddExpense={onAddExpense}
+      />
+
     </div>
   );
 }
-
-

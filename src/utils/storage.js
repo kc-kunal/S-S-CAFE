@@ -5,6 +5,8 @@ const INVENTORY_STORAGE_KEY = 'ss_cafe_inventory_v7';
 const EXPENSES_STORAGE_KEY = 'ss_cafe_expenses_v1';
 const WASTAGE_STORAGE_KEY = 'ss_cafe_wastage_v1';
 const DINING_ORDERS_STORAGE_KEY = 'ss_cafe_dining_orders_v1';
+const AGGREGATOR_SETTLEMENTS_STORAGE_KEY = 'ss_cafe_aggregator_settlements_v1';
+
 
 // Get today's YYYY-MM-DD string
 export const getTodayDateString = (offsetDays = 0) => {
@@ -586,8 +588,26 @@ export const INITIAL_MENU_ITEMS = [
 
 export const INITIAL_SALES_LOGS = [
   { id: 'sale-1', itemId: 'burger-1', itemName: 'Aloo Tikki Burger', category: 'Burgers', quantitySold: 3, sellingPrice: 39, costPrice: 18, totalRevenue: 117, totalCost: 54, paymentMethod: 'Cash', date: getTodayDateString(0) },
-  { id: 'sale-2', itemId: 'shake-1', itemName: 'Classic Cold Coffee', category: 'Cold Coffee & Shakes', quantitySold: 2, sellingPrice: 59, costPrice: 25, totalRevenue: 118, totalCost: 50, paymentMethod: 'Online', date: getTodayDateString(0) }
+  { id: 'sale-2', itemId: 'shake-1', itemName: 'Classic Cold Coffee', category: 'Cold Coffee & Shakes', quantitySold: 2, sellingPrice: 59, costPrice: 25, totalRevenue: 118, totalCost: 50, paymentMethod: 'Online', date: getTodayDateString(0) },
+  { id: 'sale-3', itemId: 'pizza-1', itemName: 'Margarita Pizza', category: 'Pizza', quantitySold: 2, sellingPrice: 89, costPrice: 30, totalRevenue: 178, totalCost: 60, paymentMethod: 'Swiggy', platformOrderId: '#SWG-4912', discountAmount: 20, date: getTodayDateString(0) },
+  { id: 'sale-4', itemId: 'burger-2', itemName: 'Crispy Veg Supreme Burger', category: 'Burgers', quantitySold: 2, sellingPrice: 69, costPrice: 22, totalRevenue: 138, totalCost: 44, paymentMethod: 'Zomato', platformOrderId: '#ZOM-7821', discountAmount: 15, date: getTodayDateString(0) }
 ];
+
+export const INITIAL_AGGREGATOR_SETTLEMENTS = [
+  {
+    id: 'settle-swiggy-1',
+    platform: 'Swiggy',
+    settlementDate: getTodayDateString(3),
+    grossAmount: 1500,
+    commissionDeducted: 330,
+    bankAmountReceived: 1170,
+    referenceNo: 'SWG-UTR-892341',
+    notes: 'Last week Tuesday payout',
+    expenseLogged: true,
+    createdAt: new Date().toISOString()
+  }
+];
+
 
 export const INITIAL_PROCUREMENT_LOGS = [
   { id: 'proc-1', materialName: 'Pizza Base', category: 'Bakery', quantityReceived: 20, unit: 'Piece', ratePerUnit: 15, totalCost: 300, supplier: 'Local Baker', date: getTodayDateString(0) },
@@ -710,6 +730,76 @@ export const saveStoredDiningOrders = (orders) => {
     console.error('Error saving dining orders to localStorage:', e);
   }
 };
+
+export const getStoredSettlements = () => {
+  try {
+    const data = localStorage.getItem(AGGREGATOR_SETTLEMENTS_STORAGE_KEY);
+    return data ? JSON.parse(data) : INITIAL_AGGREGATOR_SETTLEMENTS;
+  } catch (e) {
+    return INITIAL_AGGREGATOR_SETTLEMENTS;
+  }
+};
+
+export const saveStoredSettlements = (settlements) => {
+  try {
+    localStorage.setItem(AGGREGATOR_SETTLEMENTS_STORAGE_KEY, JSON.stringify(settlements));
+  } catch (e) {
+    console.error('Error saving settlements to localStorage:', e);
+  }
+};
+
+// Calculate real-time aggregator balances (Gross sales, settled amount, pending payout, commission deducted)
+export const calculateAggregatorLedger = (salesLogs = [], settlements = []) => {
+  const platforms = ['Swiggy', 'Zomato'];
+  const summary = {};
+
+  platforms.forEach(plat => {
+    // Total gross sales logged for this platform
+    const platSales = salesLogs.filter(s => (s.paymentMethod || '').toLowerCase() === plat.toLowerCase());
+    const totalGross = platSales.reduce((sum, s) => sum + (Number(s.totalRevenue) || 0), 0);
+    const totalOrdersCount = platSales.length;
+    const totalUnitsSold = platSales.reduce((sum, s) => sum + (Number(s.quantitySold) || 0), 0);
+    const totalDiscountGiven = platSales.reduce((sum, s) => sum + (Number(s.discountAmount) || 0), 0);
+
+    // Settlements for this platform
+    const platSettlements = settlements.filter(set => (set.platform || '').toLowerCase() === plat.toLowerCase());
+    const totalSettledGross = platSettlements.reduce((sum, set) => sum + (Number(set.grossAmount) || 0), 0);
+    const totalBankReceived = platSettlements.reduce((sum, set) => sum + (Number(set.bankAmountReceived) || 0), 0);
+    const totalCommissionDeducted = platSettlements.reduce((sum, set) => sum + (Number(set.commissionDeducted) || 0), 0);
+
+    // Pending Unsettled Amount (Gross not yet settled)
+    const pendingUnsettled = Math.max(0, totalGross - totalSettledGross);
+
+    summary[plat] = {
+      platform: plat,
+      totalGross,
+      totalOrdersCount,
+      totalUnitsSold,
+      totalDiscountGiven,
+      totalSettledGross,
+      totalBankReceived,
+      totalCommissionDeducted,
+      pendingUnsettled,
+      settlementsCount: platSettlements.length
+    };
+  });
+
+  const overallPending = summary.Swiggy.pendingUnsettled + summary.Zomato.pendingUnsettled;
+  const overallGross = summary.Swiggy.totalGross + summary.Zomato.totalGross;
+  const overallBankReceived = summary.Swiggy.totalBankReceived + summary.Zomato.totalBankReceived;
+  const overallCommission = summary.Swiggy.totalCommissionDeducted + summary.Zomato.totalCommissionDeducted;
+
+  return {
+    ...summary,
+    overall: {
+      pendingUnsettled: overallPending,
+      totalGross: overallGross,
+      totalBankReceived: overallBankReceived,
+      totalCommission: overallCommission
+    }
+  };
+};
+
 
 // Known Material Aliases for smart typo handling and natural naming
 export const KNOWN_MATERIAL_ALIASES = {

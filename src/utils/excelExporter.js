@@ -116,7 +116,8 @@ export function exportCafeDataToExcel({
   expenses = [],
   wastageLogs = [],
   inventoryItems = [],
-  menuItems = []
+  menuItems = [],
+  settlements = []
 }) {
   const wb = XLSX.utils.book_new();
   const label = getTimeframeLabel(timeframe, customStartDate, customEndDate);
@@ -135,9 +136,25 @@ export function exportCafeDataToExcel({
   // -------------------------------------------------------------
   if (reportType === 'all' || reportType === 'pnl') {
     const totalRevenue = filteredSales.reduce((sum, s) => sum + (Number(s.totalRevenue) || 0), 0);
-    const cashRevenue = filteredSales.reduce((sum, s) => sum + (s.paymentMethod === 'Online' ? 0 : Number(s.totalRevenue || 0)), 0);
-    const onlineRevenue = filteredSales.reduce((sum, s) => sum + (s.paymentMethod === 'Online' ? Number(s.totalRevenue || 0) : 0), 0);
+    const cashRevenue = filteredSales.reduce((sum, s) => {
+      const mode = (s.paymentMethod || '').toLowerCase();
+      return sum + (mode === 'cash' ? Number(s.totalRevenue || 0) : 0);
+    }, 0);
+    const upiRevenue = filteredSales.reduce((sum, s) => {
+      const mode = (s.paymentMethod || '').toLowerCase();
+      return sum + (mode === 'online' || mode === 'upi' ? Number(s.totalRevenue || 0) : 0);
+    }, 0);
+    const swiggyRevenue = filteredSales.reduce((sum, s) => {
+      const mode = (s.paymentMethod || '').toLowerCase();
+      return sum + (mode === 'swiggy' ? Number(s.totalRevenue || 0) : 0);
+    }, 0);
+    const zomatoRevenue = filteredSales.reduce((sum, s) => {
+      const mode = (s.paymentMethod || '').toLowerCase();
+      return sum + (mode === 'zomato' ? Number(s.totalRevenue || 0) : 0);
+    }, 0);
+    const onlineRevenue = upiRevenue + swiggyRevenue + zomatoRevenue;
     const totalUnitsSold = filteredSales.reduce((sum, s) => sum + (Number(s.quantitySold) || 0), 0);
+
 
     // COGS based on recipe/cost price
     const cogsTotal = filteredSales.reduce((sum, s) => {
@@ -174,11 +191,14 @@ export function exportCafeDataToExcel({
       ['', '', ''],
       ['FINANCIAL METRIC & BREAKDOWN', 'AMOUNT (₹)', '% OF REVENUE'],
       ['-------------------------------------------------------', '-------------', '-----------'],
-      ['1. REVENUE & COUNTER SALES (AAMDANI)', '', ''],
+      ['1. REVENUE & ORDER CHANNELS (AAMDANI)', '', ''],
       ['   Total Gross Sales Revenue (+)', fmt(totalRevenue), '100.0%'],
       ['     - Cash Counter Collection', fmt(cashRevenue), fmtPct(cashRevenue, totalRevenue)],
-      ['     - Online / UPI Collection', fmt(onlineRevenue), fmtPct(onlineRevenue, totalRevenue)],
+      ['     - Counter Direct UPI / QR', fmt(upiRevenue), fmtPct(upiRevenue, totalRevenue)],
+      ['     - Swiggy Online Orders', fmt(swiggyRevenue), fmtPct(swiggyRevenue, totalRevenue)],
+      ['     - Zomato Online Orders', fmt(zomatoRevenue), fmtPct(zomatoRevenue, totalRevenue)],
       ['   Total Food Portions / Items Sold', totalUnitsSold, '—'],
+
       ['', '', ''],
       ['2. COST OF GOODS SOLD (COGS / RAW MATERIAL KHARCHA)', '', ''],
       ['   Raw Material Consumed (via Recipes) (-)', fmt(cogsTotal), fmtPct(cogsTotal, totalRevenue)],
@@ -558,6 +578,69 @@ export function exportCafeDataToExcel({
     setAutoColumnWidths(wsInv, allInvRows, 12);
     XLSX.utils.book_append_sheet(wb, wsInv, 'Current Stock Status');
   }
+
+  // -------------------------------------------------------------
+  // 6. SWIGGY & ZOMATO AGGREGATOR SETTLEMENTS SHEET
+  // -------------------------------------------------------------
+  if (Array.isArray(settlements) && settlements.length > 0) {
+    const settleHeaderMeta = [
+      ['☕ S&S CAFE - SWIGGY & ZOMATO WEEKLY PAYOUT SETTLEMENTS LEDGER', '', '', '', '', '', ''],
+      ['Generated On:', generatedTimestamp, '', '', '', '', ''],
+      ['', '', '', '', '', '', '']
+    ];
+
+    const settleColumns = [
+      'S.No',
+      'Settlement Date',
+      'Platform',
+      'Gross Order Value (₹)',
+      'Commission & Cuts (₹)',
+      'Bank Credited (₹)',
+      'Reference / UTR',
+      'Notes'
+    ];
+
+    let totalGrossSettled = 0;
+    let totalCommDeducted = 0;
+    let totalBankCredited = 0;
+
+    const settleDataRows = settlements.map((set, idx) => {
+      const gross = Number(set.grossAmount) || 0;
+      const comm = Number(set.commissionDeducted) || 0;
+      const bank = Number(set.bankAmountReceived) || 0;
+      totalGrossSettled += gross;
+      totalCommDeducted += comm;
+      totalBankCredited += bank;
+
+      return [
+        idx + 1,
+        set.settlementDate || '',
+        set.platform || 'Swiggy',
+        fmt(gross),
+        fmt(comm),
+        fmt(bank),
+        set.referenceNo || 'N/A',
+        set.notes || ''
+      ];
+    });
+
+    const settleSummaryRow = [
+      'TOTAL SETTLED',
+      '',
+      '',
+      fmt(totalGrossSettled),
+      fmt(totalCommDeducted),
+      fmt(totalBankCredited),
+      '',
+      ''
+    ];
+
+    const allSettleRows = [...settleHeaderMeta, settleColumns, ...settleDataRows, settleSummaryRow];
+    const wsSettle = XLSX.utils.aoa_to_sheet(allSettleRows);
+    setAutoColumnWidths(wsSettle, allSettleRows, 14);
+    XLSX.utils.book_append_sheet(wb, wsSettle, 'Online Payouts');
+  }
+
 
   // Generate File Name based on options
   const sanitizedLabel = label.replace(/[^a-zA-Z0-9_-]/g, '_');

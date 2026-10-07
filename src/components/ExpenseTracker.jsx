@@ -22,10 +22,12 @@ import {
   TrendingDown,
   Clock,
   CheckCircle2,
-  FileText
+  FileText,
+  Bike
 } from 'lucide-react';
 
 export const EXPENSE_CATEGORIES = [
+  { id: 'Platform Commission', label: 'Platform Commission (Swiggy / Zomato)', icon: Bike, color: 'text-orange-700 bg-orange-50 border-orange-200' },
   { id: 'Electricity', label: 'Electricity / Light Bill', icon: Zap, color: 'text-amber-600 bg-amber-50 border-amber-200' },
   { id: 'Cafe Rent', label: 'Cafe Shop Rent', icon: Home, color: 'text-blue-600 bg-blue-50 border-blue-200' },
   { id: 'Staff Salary', label: 'Staff Salary & Wages', icon: Users, color: 'text-purple-600 bg-purple-50 border-purple-200' },

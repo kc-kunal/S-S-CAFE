@@ -23,6 +23,7 @@ export default function ExcelExportModal({
   wastageLogs = [],
   inventoryItems = [],
   menuItems = [],
+  settlements = [],
   onExportSuccess
 }) {
   const [timeframe, setTimeframe] = useState('monthly'); // 'weekly', 'monthly', 'last_month', 'custom', 'all'
@@ -70,7 +71,8 @@ export default function ExcelExportModal({
         expenses,
         wastageLogs,
         inventoryItems,
-        menuItems
+        menuItems,
+        settlements
       });
 
       if (onExportSuccess) {

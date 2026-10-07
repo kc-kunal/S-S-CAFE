@@ -22,6 +22,8 @@ import {
   getStoredExpenses, saveStoredExpenses,
   getStoredWastage, saveStoredWastage,
   getStoredDiningOrders, saveStoredDiningOrders,
+  getStoredSettlements, saveStoredSettlements,
+  calculateAggregatorLedger,
   checkItemStock,
   convertQuantity,
   findMatchingInventoryItem,
@@ -47,7 +49,8 @@ import {
   fetchAllCloudData,
   subscribeToCloudData
 } from './utils/cloudSync';
-import { PieChart, ShoppingBag, PackageCheck, Coffee, CheckCircle2, Plus, Boxes, Receipt, UtensilsCrossed } from 'lucide-react';
+import AggregatorSettlementModal from './components/AggregatorSettlementModal';
+import { PieChart, ShoppingBag, PackageCheck, Coffee, CheckCircle2, Plus, Boxes, Receipt, UtensilsCrossed, Bike } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('sales'); // 'sales', 'inventory', 'dashboard', 'procurement', 'menu'
@@ -58,6 +61,9 @@ export default function App() {
   const [inventoryItems, setInventoryItems] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [wastageLogs, setWastageLogs] = useState([]);
+  const [settlements, setSettlements] = useState([]);
+  const [isAggregatorModalOpen, setIsAggregatorModalOpen] = useState(false);
+
 
   // Cloud Database Sync State
   const [isCloudConnected, setIsCloudConnected] = useState(isFirebaseConfigured());
@@ -170,6 +176,7 @@ export default function App() {
     setExpenses(getStoredExpenses());
     setWastageLogs(getStoredWastage());
     setDiningOrders(getStoredDiningOrders());
+    setSettlements(getStoredSettlements());
   }, []);
 
   // Real-time Firebase Sync listener
@@ -319,6 +326,21 @@ export default function App() {
     updateExpenses(updated);
     if (isFirebaseConfigured()) deleteSingleExpense(id);
     showToast('Expense entry deleted');
+  };
+
+  // 🛵 Aggregator Settlement Handlers (Swiggy / Zomato Weekly Payouts)
+  const handleAddSettlement = (newSettlement) => {
+    const updated = [newSettlement, ...settlements];
+    setSettlements(updated);
+    saveStoredSettlements(updated);
+    showToast(`✅ ${newSettlement.platform} Weekly Settlement of ₹${newSettlement.grossAmount} recorded!`);
+  };
+
+  const handleDeleteSettlement = (id) => {
+    const updated = settlements.filter(s => s.id !== id);
+    setSettlements(updated);
+    saveStoredSettlements(updated);
+    showToast('Settlement record deleted');
   };
 
   // 🗑️ Raw Material Spoilage / Wastage Handlers (Auto Stock Deduction)
@@ -837,6 +859,24 @@ export default function App() {
               )}
             </button>
 
+            {/* 🛵 Swiggy & Zomato Online Orders & Payouts Button */}
+            <button
+              onClick={() => setIsAggregatorModalOpen(true)}
+              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 shadow-xs"
+              title="Swiggy & Zomato Weekly Payouts and Ledger"
+            >
+              <Bike className="w-4 h-4 text-orange-600" />
+              <span>🛵 Swiggy/Zomato</span>
+              {(() => {
+                const agg = calculateAggregatorLedger(salesLogs, settlements);
+                return agg.overall.pendingUnsettled > 0 ? (
+                  <span className="text-[10px] bg-orange-600 text-white font-extrabold px-1.5 py-0.2 rounded-full">
+                    ₹{agg.overall.pendingUnsettled.toLocaleString()}
+                  </span>
+                ) : null;
+              })()}
+            </button>
+
             {/* 📦 Raw Material Stock Tab */}
             <button
               onClick={() => setActiveTab('inventory')}
@@ -917,10 +957,14 @@ export default function App() {
             menuItems={menuItems}
             salesLogs={salesLogs}
             inventoryItems={inventoryItems}
+            settlements={settlements}
             onAddSale={handleAddSale}
             onUpdateSale={handleUpdateSale}
             onDeleteSale={handleDeleteSale}
             onOpenExportModal={() => setIsExportModalOpen(true)}
+            onAddSettlement={handleAddSettlement}
+            onDeleteSettlement={handleDeleteSettlement}
+            onAddExpense={handleAddExpense}
           />
         )}
 
@@ -956,7 +1000,9 @@ export default function App() {
             inventoryItems={inventoryItems}
             expenses={expenses}
             wastageLogs={wastageLogs}
+            settlements={settlements}
             onOpenExportModal={() => setIsExportModalOpen(true)}
+            onOpenSettlementsModal={() => setIsAggregatorModalOpen(true)}
           />
         )}
 
@@ -1085,8 +1131,21 @@ export default function App() {
         wastageLogs={wastageLogs}
         inventoryItems={inventoryItems}
         menuItems={menuItems}
+        settlements={settlements}
         onExportSuccess={(msg) => showToast(msg)}
       />
+
+      {/* Swiggy & Zomato Weekly Payout Settlement Modal */}
+      <AggregatorSettlementModal
+        isOpen={isAggregatorModalOpen}
+        onClose={() => setIsAggregatorModalOpen(false)}
+        salesLogs={salesLogs}
+        settlements={settlements}
+        onAddSettlement={handleAddSettlement}
+        onDeleteSettlement={handleDeleteSettlement}
+        onAddExpense={handleAddExpense}
+      />
+
 
       {/* Sticky Mobile Bottom Navigation Bar */}
       <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-stone-950/95 backdrop-blur-md border-t border-stone-800/80 py-1.5 px-3 flex items-center justify-around shadow-2xl safe-area-pb">
