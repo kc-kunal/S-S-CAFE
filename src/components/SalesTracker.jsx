@@ -76,6 +76,101 @@ export default function SalesTracker({
   // Live session punch history
   const [sessionPunchedOrders, setSessionPunchedOrders] = useState([]);
 
+  // 🎨 Dynamic theme colors for the 4 payment channels (Cash=Green, UPI=Sky Blue, Swiggy=Orange, Zomato=Red)
+  const currentTheme = useMemo(() => {
+    if (punchTab === 'counter') {
+      if (counterPaymentMode === 'Cash') {
+        return {
+          id: 'cash',
+          name: 'Cash',
+          tabActive: 'bg-gradient-to-r from-emerald-950/80 to-stone-900 border-emerald-500 shadow-lg shadow-emerald-950/50 ring-2 ring-emerald-500/40',
+          tabIcon: 'bg-emerald-600 text-white',
+          tabBadge: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+          cartQtyPill: 'bg-emerald-500 text-stone-950',
+          pillActive: 'bg-emerald-600 text-white shadow-sm',
+          dot: 'bg-emerald-500',
+          cardActive: 'bg-emerald-50/70 border-emerald-400 ring-2 ring-emerald-400/40 shadow-xs',
+          inCartBadge: 'bg-emerald-600 text-white',
+          addBtn: 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs',
+          padIcon: 'bg-emerald-600 text-white',
+          padBadge: 'bg-emerald-100 text-emerald-800',
+          padQtyBtn: 'bg-emerald-100 hover:bg-emerald-200 text-emerald-800',
+          totalText: 'text-emerald-700',
+          punchBtn: 'bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-600/30 ring-2 ring-emerald-500/50',
+          emptyIconText: 'text-emerald-600',
+          focusRing: 'focus:ring-emerald-500/30'
+        };
+      } else {
+        // Counter UPI (Sky Blue / Cyan)
+        return {
+          id: 'upi',
+          name: 'Counter UPI',
+          tabActive: 'bg-gradient-to-r from-sky-950/80 to-stone-900 border-sky-500 shadow-lg shadow-sky-950/50 ring-2 ring-sky-500/40',
+          tabIcon: 'bg-sky-600 text-white',
+          tabBadge: 'bg-sky-500/20 text-sky-300 border-sky-500/40',
+          cartQtyPill: 'bg-sky-500 text-stone-950',
+          pillActive: 'bg-sky-600 text-white shadow-sm',
+          dot: 'bg-sky-500',
+          cardActive: 'bg-sky-50/70 border-sky-400 ring-2 ring-sky-400/40 shadow-xs',
+          inCartBadge: 'bg-sky-600 text-white',
+          addBtn: 'bg-sky-600 hover:bg-sky-500 text-white shadow-xs',
+          padIcon: 'bg-sky-600 text-white',
+          padBadge: 'bg-sky-100 text-sky-800',
+          padQtyBtn: 'bg-sky-100 hover:bg-sky-200 text-sky-800',
+          totalText: 'text-sky-700',
+          punchBtn: 'bg-gradient-to-r from-sky-600 via-blue-600 to-sky-700 hover:from-sky-500 hover:to-blue-500 text-white shadow-sky-600/30 ring-2 ring-sky-500/50',
+          emptyIconText: 'text-sky-600',
+          focusRing: 'focus:ring-sky-500/30'
+        };
+      }
+    } else {
+      if (onlinePlatform === 'Swiggy') {
+        return {
+          id: 'swiggy',
+          name: 'Swiggy',
+          tabActive: 'bg-gradient-to-r from-orange-950/80 to-stone-900 border-orange-500 shadow-lg shadow-orange-950/50 ring-2 ring-orange-500/40',
+          tabIcon: 'bg-[#f48c06] text-white',
+          tabBadge: 'bg-orange-500/20 text-orange-300 border-orange-500/40',
+          cartQtyPill: 'bg-orange-500 text-stone-950',
+          pillActive: 'bg-[#f48c06] text-white shadow-sm',
+          dot: 'bg-[#f48c06]',
+          cardActive: 'bg-orange-50/70 border-orange-400 ring-2 ring-orange-400/40 shadow-xs',
+          inCartBadge: 'bg-[#f48c06] text-white',
+          addBtn: 'bg-[#f48c06] hover:bg-[#e85d04] text-white shadow-xs',
+          padIcon: 'bg-[#f48c06] text-white',
+          padBadge: 'bg-orange-100 text-orange-900',
+          padQtyBtn: 'bg-orange-100 hover:bg-orange-200 text-orange-800',
+          totalText: 'text-orange-700',
+          punchBtn: 'bg-gradient-to-r from-[#f48c06] via-orange-600 to-amber-600 hover:from-[#e85d04] hover:to-orange-500 text-white shadow-orange-600/30 ring-2 ring-orange-500/50',
+          emptyIconText: 'text-orange-600',
+          focusRing: 'focus:ring-orange-500/30'
+        };
+      } else {
+        // Zomato (Red / Crimson)
+        return {
+          id: 'zomato',
+          name: 'Zomato',
+          tabActive: 'bg-gradient-to-r from-rose-950/80 to-stone-900 border-rose-500 shadow-lg shadow-rose-950/50 ring-2 ring-rose-500/40',
+          tabIcon: 'bg-[#e5383b] text-white',
+          tabBadge: 'bg-rose-500/20 text-rose-300 border-rose-500/40',
+          cartQtyPill: 'bg-rose-500 text-stone-950',
+          pillActive: 'bg-[#e5383b] text-white shadow-sm',
+          dot: 'bg-[#e5383b]',
+          cardActive: 'bg-rose-50/70 border-rose-400 ring-2 ring-rose-400/40 shadow-xs',
+          inCartBadge: 'bg-[#e5383b] text-white',
+          addBtn: 'bg-[#e5383b] hover:bg-[#d90429] text-white shadow-xs',
+          padIcon: 'bg-[#e5383b] text-white',
+          padBadge: 'bg-rose-100 text-rose-900',
+          padQtyBtn: 'bg-rose-100 hover:bg-rose-200 text-rose-800',
+          totalText: 'text-rose-700',
+          punchBtn: 'bg-gradient-to-r from-[#e5383b] via-rose-600 to-red-700 hover:from-[#d90429] hover:to-rose-500 text-white shadow-rose-600/30 ring-2 ring-rose-500/50',
+          emptyIconText: 'text-rose-600',
+          focusRing: 'focus:ring-rose-500/30'
+        };
+      }
+    }
+  }, [punchTab, counterPaymentMode, onlinePlatform]);
+
   // Modals state
   const [isOnlinePunchOpen, setIsOnlinePunchOpen] = useState(false);
   const [isSettlementModalOpen, setIsSettlementModalOpen] = useState(false);
@@ -707,32 +802,36 @@ export default function SalesTracker({
               onClick={() => setPunchTab('counter')}
               className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between gap-3 ${
                 punchTab === 'counter'
-                  ? 'bg-gradient-to-r from-emerald-950/80 to-stone-900 border-emerald-500 shadow-lg shadow-emerald-950/50 ring-2 ring-emerald-500/40 text-white'
+                  ? `${currentTheme.tabActive} text-white`
                   : 'bg-stone-850/60 border-stone-800 text-stone-400 hover:text-stone-200 hover:bg-stone-800/60'
               }`}
             >
               <div className="flex items-center gap-3">
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm ${
-                  punchTab === 'counter' ? 'bg-emerald-600 text-white' : 'bg-stone-800 text-stone-400'
+                  punchTab === 'counter' ? currentTheme.tabIcon : 'bg-stone-800 text-stone-400'
                 }`}>
-                  <Banknote className="w-5 h-5" />
+                  {counterPaymentMode === 'Cash' ? <Banknote className="w-5 h-5" /> : <Smartphone className="w-5 h-5" />}
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-extrabold text-white">💵 Cash & UPI (Counter Walk-in)</span>
+                    <span className="text-sm font-extrabold text-white">
+                      {counterPaymentMode === 'Cash' ? '💵 Cash' : '📱 Counter UPI'} (Counter Walk-in)
+                    </span>
                     {counterTotalUnits > 0 && (
-                      <span className="bg-emerald-500 text-stone-950 px-2 py-0.2 rounded-full text-[10px] font-black animate-pulse">
+                      <span className={`${punchTab === 'counter' ? currentTheme.cartQtyPill : 'bg-stone-700 text-white'} px-2 py-0.2 rounded-full text-[10px] font-black animate-pulse`}>
                         {counterTotalUnits} in Cart
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] text-stone-400">Galle ka Cash, Counter UPI QR (Token #{counterToken})</p>
+                  <p className="text-[11px] text-stone-400">
+                    {counterPaymentMode === 'Cash' ? 'Galle ka Cash' : 'Direct Bank QR'} (Token #{counterToken})
+                  </p>
                 </div>
               </div>
               <div className="text-right shrink-0">
                 <span className={`text-xs font-bold px-2.5 py-1 rounded-xl border ${
                   punchTab === 'counter'
-                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                    ? currentTheme.tabBadge
                     : 'bg-stone-800 text-stone-500 border-stone-700'
                 }`}>
                   {punchTab === 'counter' ? 'Active' : 'Select'}
@@ -746,32 +845,36 @@ export default function SalesTracker({
               onClick={() => setPunchTab('online')}
               className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between gap-3 ${
                 punchTab === 'online'
-                  ? 'bg-gradient-to-r from-orange-950/80 to-stone-900 border-orange-500 shadow-lg shadow-orange-950/50 ring-2 ring-orange-500/40 text-white'
+                  ? `${currentTheme.tabActive} text-white`
                   : 'bg-stone-850/60 border-stone-800 text-stone-400 hover:text-stone-200 hover:bg-stone-800/60'
               }`}
             >
               <div className="flex items-center gap-3">
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm ${
-                  punchTab === 'online' ? 'bg-orange-600 text-white' : 'bg-stone-800 text-stone-400'
+                  punchTab === 'online' ? currentTheme.tabIcon : 'bg-stone-800 text-stone-400'
                 }`}>
                   <Bike className="w-5 h-5" />
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-extrabold text-white">🛵 Swiggy & Zomato (Delivery)</span>
+                    <span className="text-sm font-extrabold text-white">
+                      {onlinePlatform === 'Swiggy' ? '🟠 Swiggy' : '🔴 Zomato'} (Delivery)
+                    </span>
                     {onlineTotalUnits > 0 && (
-                      <span className="bg-orange-500 text-stone-950 px-2 py-0.2 rounded-full text-[10px] font-black animate-pulse">
+                      <span className={`${punchTab === 'online' ? currentTheme.cartQtyPill : 'bg-stone-700 text-white'} px-2 py-0.2 rounded-full text-[10px] font-black animate-pulse`}>
                         {onlineTotalUnits} in Cart
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] text-stone-400">Aggregator delivery, custom pricing & offers</p>
+                  <p className="text-[11px] text-stone-400">
+                    {onlinePlatform} delivery, custom pricing & offers
+                  </p>
                 </div>
               </div>
               <div className="text-right shrink-0">
                 <span className={`text-xs font-bold px-2.5 py-1 rounded-xl border ${
                   punchTab === 'online'
-                    ? 'bg-orange-500/20 text-orange-300 border-orange-500/40'
+                    ? currentTheme.tabBadge
                     : 'bg-stone-800 text-stone-500 border-stone-700'
                 }`}>
                   {punchTab === 'online' ? 'Active' : 'Select'}
@@ -952,9 +1055,7 @@ export default function SalesTracker({
                     onClick={() => setSelectedCategory(cat)}
                     className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                       selectedCategory === cat
-                        ? punchTab === 'counter'
-                          ? 'bg-emerald-700 text-white shadow-sm'
-                          : 'bg-orange-700 text-white shadow-sm'
+                        ? currentTheme.pillActive
                         : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
                     }`}
                   >
@@ -1004,7 +1105,7 @@ export default function SalesTracker({
                   {Object.entries(groupedMenuItems).map(([category, items]) => (
                     <div key={category} className="space-y-2.5">
                       <div className="flex items-center space-x-2 border-b border-stone-100 pb-1.5">
-                        <span className={`w-2 h-2 rounded-full ${punchTab === 'counter' ? 'bg-emerald-500' : 'bg-orange-500'}`}></span>
+                        <span className={`w-2 h-2 rounded-full ${currentTheme.dot}`}></span>
                         <h4 className="text-xs font-black text-stone-800 uppercase tracking-wider">
                           {category} <span className="text-[11px] text-stone-400 font-normal">({items.length})</span>
                         </h4>
@@ -1023,9 +1124,7 @@ export default function SalesTracker({
                                 stockStatus.isOutOfStock
                                   ? 'bg-rose-50/20 border-rose-200 opacity-60'
                                   : inCartQty > 0
-                                  ? punchTab === 'counter'
-                                    ? 'bg-emerald-50/50 border-emerald-400 ring-2 ring-emerald-400/40 shadow-xs'
-                                    : 'bg-orange-50/50 border-orange-400 ring-2 ring-orange-400/40 shadow-xs'
+                                  ? currentTheme.cardActive
                                   : 'bg-white hover:bg-stone-50 border-stone-200 hover:border-amber-400 shadow-2xs'
                               }`}
                             >
@@ -1053,9 +1152,7 @@ export default function SalesTracker({
                                   )}
 
                                   {inCartQty > 0 && (
-                                    <span className={`font-black px-2 py-0.5 rounded-full text-white ${
-                                      punchTab === 'counter' ? 'bg-emerald-600' : 'bg-orange-600'
-                                    }`}>
+                                    <span className={`font-black px-2 py-0.5 rounded-full text-white ${currentTheme.inCartBadge}`}>
                                       {inCartQty} in Cart
                                     </span>
                                   )}
@@ -1088,9 +1185,7 @@ export default function SalesTracker({
                                   className={`flex-1 py-1.5 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-95 ${
                                     stockStatus.isOutOfStock
                                       ? 'bg-stone-200 text-stone-400 cursor-not-allowed'
-                                      : punchTab === 'counter'
-                                      ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs'
-                                      : 'bg-orange-600 hover:bg-orange-500 text-white shadow-xs'
+                                      : `${currentTheme.addBtn} active:scale-95`
                                   }`}
                                 >
                                   <Plus className="w-3.5 h-3.5 stroke-[3]" />
@@ -1147,18 +1242,18 @@ export default function SalesTracker({
                   {/* Cart Header */}
                   <div className="flex items-center justify-between border-b border-stone-200 pb-3">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold">
+                      <div className={`w-8 h-8 rounded-xl ${currentTheme.padIcon} flex items-center justify-center font-bold shadow-xs`}>
                         <Receipt className="w-4 h-4" />
                       </div>
                       <div>
                         <div className="flex items-center gap-1.5">
                           <h4 className="text-sm font-extrabold text-stone-900">Current Order Pad</h4>
-                          <span className="text-xs font-black text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">
+                          <span className={`text-xs font-black ${currentTheme.padBadge} px-1.5 py-0.5 rounded border`}>
                             #{counterToken}
                           </span>
                         </div>
                         <p className="text-[11px] text-stone-500">
-                          Channel: <span className="font-bold text-stone-800">{counterPaymentMode === 'Cash' ? '💵 Cash' : '📱 Counter UPI'}</span>
+                          Channel: <span className={`font-bold ${currentTheme.totalText}`}>{counterPaymentMode === 'Cash' ? '💵 Cash' : '📱 Counter UPI'}</span>
                         </p>
                       </div>
                     </div>
@@ -1180,7 +1275,7 @@ export default function SalesTracker({
                   <div className="py-3">
                     {counterTotalUnits === 0 ? (
                       <div className="py-12 text-center text-stone-400 bg-white rounded-2xl border border-dashed border-stone-300 p-4">
-                        <ShoppingBag className="w-8 h-8 mx-auto mb-2 opacity-30 text-emerald-600" />
+                        <ShoppingBag className={`w-8 h-8 mx-auto mb-2 opacity-30 ${currentTheme.emptyIconText}`} />
                         <p className="text-xs font-bold text-stone-600">Cart Khali Hai</p>
                         <p className="text-[11px] text-stone-400 mt-0.5">
                           Menu me se items tap karein. Ek customer ke 3 alag items ek order me add honge!
@@ -1196,7 +1291,7 @@ export default function SalesTracker({
                             <div className="min-w-0 flex-1">
                               <h6 className="text-xs font-bold text-stone-900 truncate">{entry.item.name}</h6>
                               <div className="text-[11px] text-stone-500 font-semibold">
-                                ₹{entry.price} × {entry.qty} = <span className="font-bold text-emerald-700">₹{entry.price * entry.qty}</span>
+                                ₹{entry.price} × {entry.qty} = <span className={`font-bold ${currentTheme.totalText}`}>₹{entry.price * entry.qty}</span>
                               </div>
                             </div>
 
@@ -1215,7 +1310,7 @@ export default function SalesTracker({
                               <button
                                 type="button"
                                 onClick={() => handleUpdateCounterCartQty(entry.item.id, 1)}
-                                className="w-6 h-6 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 flex items-center justify-center font-bold text-xs cursor-pointer"
+                                className={`w-6 h-6 rounded-lg ${currentTheme.padQtyBtn} flex items-center justify-center font-bold text-xs cursor-pointer`}
                               >
                                 +
                               </button>
@@ -1278,7 +1373,7 @@ export default function SalesTracker({
                       <span className="text-xs font-black text-stone-800 uppercase tracking-wider">
                         Total Bill:
                       </span>
-                      <span className="text-xl font-black text-emerald-700">
+                      <span className={`text-xl font-black ${currentTheme.totalText}`}>
                         ₹{counterFinalBill}
                       </span>
                     </div>
@@ -1292,7 +1387,7 @@ export default function SalesTracker({
                     className={`w-full py-3.5 px-4 rounded-2xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer ${
                       counterTotalUnits === 0
                         ? 'bg-stone-200 text-stone-400 border border-stone-300 cursor-not-allowed shadow-none'
-                        : 'bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-600/30 ring-2 ring-emerald-500/50 active:scale-98'
+                        : `${currentTheme.punchBtn} active:scale-98`
                     }`}
                   >
                     <Zap className="w-4 h-4 fill-white" />
@@ -1309,15 +1404,13 @@ export default function SalesTracker({
                   {/* Cart Header */}
                   <div className="flex items-center justify-between border-b border-stone-200 pb-3">
                     <div className="flex items-center gap-2">
-                      <div className={`w-8 h-8 rounded-xl text-white flex items-center justify-center font-bold ${
-                        onlinePlatform === 'Swiggy' ? 'bg-[#f48c06]' : 'bg-[#e5383b]'
-                      }`}>
+                      <div className={`w-8 h-8 rounded-xl text-white flex items-center justify-center font-bold ${currentTheme.padIcon} shadow-xs`}>
                         <Bike className="w-4 h-4" />
                       </div>
                       <div>
                         <div className="flex items-center gap-1.5">
                           <h4 className="text-sm font-extrabold text-stone-900">{onlinePlatform} Order Pad</h4>
-                          <span className="text-xs font-black text-orange-700 bg-orange-100 px-1.5 py-0.5 rounded">
+                          <span className={`text-xs font-black ${currentTheme.padBadge} px-1.5 py-0.5 rounded border`}>
                             #{onlineToken}
                           </span>
                         </div>
@@ -1344,7 +1437,7 @@ export default function SalesTracker({
                   <div className="py-3">
                     {onlineTotalUnits === 0 ? (
                       <div className="py-12 text-center text-stone-400 bg-white rounded-2xl border border-dashed border-stone-300 p-4">
-                        <ShoppingBag className="w-8 h-8 mx-auto mb-2 opacity-30 text-orange-600" />
+                        <ShoppingBag className={`w-8 h-8 mx-auto mb-2 opacity-30 ${currentTheme.emptyIconText}`} />
                         <p className="text-xs font-bold text-stone-600">Online Cart Khali Hai</p>
                         <p className="text-[11px] text-stone-400 mt-0.5">
                           Menu se dishes tap karein. Swiggy / Zomato ke multiple items ek order me punch karein!
@@ -1367,7 +1460,7 @@ export default function SalesTracker({
                                   onChange={(e) => handleUpdateOnlineCartPrice(entry.item.id, e.target.value)}
                                   className="w-14 px-1 py-0.2 bg-stone-50 border border-stone-200 rounded font-bold text-stone-800 focus:outline-none"
                                 />
-                                <span>× {entry.qty} = <strong className="text-orange-700">₹{entry.price * entry.qty}</strong></span>
+                                <span>× {entry.qty} = <strong className={currentTheme.totalText}>₹{entry.price * entry.qty}</strong></span>
                               </div>
                             </div>
 
@@ -1386,7 +1479,7 @@ export default function SalesTracker({
                               <button
                                 type="button"
                                 onClick={() => handleUpdateOnlineCartQty(entry.item.id, 1)}
-                                className="w-6 h-6 rounded-lg bg-orange-100 hover:bg-orange-200 text-orange-800 flex items-center justify-center font-bold text-xs cursor-pointer"
+                                className={`w-6 h-6 rounded-lg ${currentTheme.padQtyBtn} flex items-center justify-center font-bold text-xs cursor-pointer`}
                               >
                                 +
                               </button>
@@ -1503,7 +1596,7 @@ export default function SalesTracker({
                       <span className="text-xs font-black text-stone-800 uppercase tracking-wider">
                         Payable Total:
                       </span>
-                      <span className="text-xl font-black text-orange-700">
+                      <span className={`text-xl font-black ${currentTheme.totalText}`}>
                         ₹{onlineFinalBill}
                       </span>
                     </div>
@@ -1517,9 +1610,7 @@ export default function SalesTracker({
                     className={`w-full py-3.5 px-4 rounded-2xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer ${
                       onlineTotalUnits === 0
                         ? 'bg-stone-200 text-stone-400 border border-stone-300 cursor-not-allowed shadow-none'
-                        : onlinePlatform === 'Swiggy'
-                        ? 'bg-gradient-to-r from-orange-600 via-amber-600 to-orange-700 hover:from-orange-500 hover:to-amber-500 text-white shadow-orange-600/30 ring-2 ring-orange-500/50 active:scale-98'
-                        : 'bg-gradient-to-r from-rose-600 via-red-600 to-rose-700 hover:from-rose-500 hover:to-red-500 text-white shadow-rose-600/30 ring-2 ring-rose-500/50 active:scale-98'
+                        : `${currentTheme.punchBtn} active:scale-98`
                     }`}
                   >
                     <Zap className="w-4 h-4 fill-white" />
@@ -1541,18 +1632,25 @@ export default function SalesTracker({
               <span className="text-xs font-bold text-amber-200">Just Punched In This Session:</span>
             </div>
             <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto scrollbar-none pb-1 sm:pb-0">
-              {sessionPunchedOrders.slice(0, 4).map((ord) => (
-                <div 
-                  key={ord.id} 
-                  className="bg-stone-800 px-2.5 py-1 rounded-xl text-[11px] font-semibold border border-stone-700 flex items-center gap-2 shrink-0 shadow-2xs"
-                >
-                  <span className="font-extrabold text-amber-400">{ord.token}</span>
-                  <span className="text-stone-400">({ord.channel})</span>
-                  <span className="text-emerald-400 font-bold">₹{ord.bill}</span>
-                  <span className="text-stone-300 text-[10px]">✓ {ord.itemsCount} items</span>
-                  <span className="text-stone-500 text-[10px]">{ord.time}</span>
-                </div>
-              ))}
+              {sessionPunchedOrders.slice(0, 4).map((ord) => {
+                let badgeColor = 'text-emerald-400 border-emerald-500/30';
+                if (ord.channel === 'Counter UPI') badgeColor = 'text-sky-400 border-sky-500/30';
+                else if (ord.channel === 'Swiggy') badgeColor = 'text-orange-400 border-orange-500/30';
+                else if (ord.channel === 'Zomato') badgeColor = 'text-rose-400 border-rose-500/30';
+
+                return (
+                  <div 
+                    key={ord.id} 
+                    className={`bg-stone-800 px-2.5 py-1 rounded-xl text-[11px] font-semibold border ${badgeColor} flex items-center gap-2 shrink-0 shadow-2xs`}
+                  >
+                    <span className="font-extrabold text-amber-400">{ord.token}</span>
+                    <span className="text-stone-400">({ord.channel})</span>
+                    <span className="text-white font-bold">₹{ord.bill}</span>
+                    <span className="text-stone-300 text-[10px]">✓ {ord.itemsCount} items</span>
+                    <span className="text-stone-500 text-[10px]">{ord.time}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
