@@ -547,7 +547,7 @@ export default function OnlineOrderPunchModal({
                 </div>
                 <div className="flex flex-wrap items-center gap-1">
                   {[
-                    { id: 'none', label: 'None' },
+                    { id: 'none', label: 'None (₹0)' },
                     { id: 'flat20', label: '-₹20' },
                     { id: 'flat50', label: '-₹50' },
                     { id: 'flat100', label: '-₹100' },
@@ -557,12 +557,13 @@ export default function OnlineOrderPunchModal({
                     <button
                       key={d.id}
                       type="button"
-                      onClick={() => setDiscountType(d.id)}
+                      onClick={() => setDiscountType(discountType === d.id ? 'none' : d.id)}
                       className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
                         discountType === d.id
-                          ? 'bg-rose-600 text-white shadow-xs'
+                          ? 'bg-rose-600 text-white shadow-xs ring-2 ring-rose-400/50'
                           : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
                       }`}
+                      title={discountType === d.id ? 'Click to remove discount' : 'Apply promo discount'}
                     >
                       {d.label}
                     </button>

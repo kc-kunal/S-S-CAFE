@@ -751,6 +751,7 @@ export const calculateAggregatorLedger = (salesLogs = [], settlements = []) => {
   platforms.forEach(plat => {
     // Total gross sales logged for this platform
     const platSales = salesLogs.filter(s => (s.paymentMethod || '').toLowerCase() === plat.toLowerCase());
+    const totalMenuValue = platSales.reduce((sum, s) => sum + ((Number(s.sellingPrice) || 0) * (Number(s.quantitySold) || 1)), 0);
     const totalGross = platSales.reduce((sum, s) => sum + (Number(s.totalRevenue) || 0), 0);
     const totalOrdersCount = platSales.length;
     const totalUnitsSold = platSales.reduce((sum, s) => sum + (Number(s.quantitySold) || 0), 0);
@@ -767,6 +768,7 @@ export const calculateAggregatorLedger = (salesLogs = [], settlements = []) => {
 
     summary[plat] = {
       platform: plat,
+      totalMenuValue,
       totalGross,
       totalOrdersCount,
       totalUnitsSold,

@@ -904,6 +904,7 @@ export default function SalesTracker({
         onAddSettlement={onAddSettlement}
         onDeleteSettlement={onDeleteSettlement}
         onClearAllSettlements={onClearAllSettlements}
+        onDeleteSale={onDeleteSale}
         onAddExpense={onAddExpense}
       />
 

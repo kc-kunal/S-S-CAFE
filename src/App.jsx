@@ -1210,6 +1210,7 @@ export default function App() {
         onAddSettlement={handleAddSettlement}
         onDeleteSettlement={handleDeleteSettlement}
         onClearAllSettlements={handleClearAllSettlements}
+        onDeleteSale={handleDeleteSale}
         onAddExpense={handleAddExpense}
       />
 

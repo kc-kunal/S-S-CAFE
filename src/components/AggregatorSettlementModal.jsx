@@ -31,6 +31,7 @@ export default function AggregatorSettlementModal({
   onAddSettlement,
   onDeleteSettlement,
   onClearAllSettlements,
+  onDeleteSale,
   onAddExpense
 }) {
   const [selectedPlatform, setSelectedPlatform] = useState('Swiggy');
@@ -286,7 +287,11 @@ export default function AggregatorSettlementModal({
                 ₹{platLedger.totalGross.toLocaleString()}
               </div>
               <div className="text-[11px] text-stone-500 font-medium">
-                {platSales.length} orders ({platLedger.totalUnitsSold} items)
+                {platLedger.totalDiscountGiven > 0 ? (
+                  <span>Menu: ₹{platLedger.totalMenuValue || (platLedger.totalGross + platLedger.totalDiscountGiven)} <strong className="text-rose-600 font-bold">(-₹{platLedger.totalDiscountGiven} Off)</strong></span>
+                ) : (
+                  <span>{platSales.length} orders ({platLedger.totalUnitsSold} items)</span>
+                )}
               </div>
             </div>
           </div>
@@ -434,6 +439,21 @@ export default function AggregatorSettlementModal({
                 </div>
               </div>
 
+              {/* Discount / Promo Notice Banner if any discount was applied */}
+              {platLedger.totalDiscountGiven > 0 && (
+                <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-2xl text-xs text-amber-900 flex items-start gap-2.5">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <span className="font-extrabold text-amber-950 block">
+                      💡 Notice: Punched orders me ₹{platLedger.totalDiscountGiven} ka Promo / Offer Discount laga hua hai!
+                    </span>
+                    <span className="text-[11px] text-amber-900/90 leading-relaxed block mt-0.5">
+                      Items ka Menu Rate <strong>₹{platLedger.totalMenuValue || (platLedger.totalGross + platLedger.totalDiscountGiven)}</strong> tha, lekin punch karte waqt <strong>-₹{platLedger.totalDiscountGiven}</strong> offer discount lagne ke karan customer net bill <strong>₹{platLedger.totalGross}</strong> bana. Isliye bank payout me <strong>₹{platLedger.pendingUnsettled}</strong> dikh raha hai. Agar bina discount ke punch karna tha, to aap niche list me se order 🗑️ delete karke dobara punch kar sakte hain.
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* Items List */}
               {platSales.length === 0 ? (
                 <div className="py-12 text-center bg-stone-50 rounded-2xl border border-dashed border-stone-200 p-6">
@@ -497,17 +517,34 @@ export default function AggregatorSettlementModal({
                         </div>
                       </div>
 
-                      {/* Right: Net Total & Status */}
-                      <div className="text-right shrink-0">
-                        <div className="text-xs sm:text-sm font-black text-stone-900">
-                          ₹{(sale.totalRevenue || 0).toLocaleString()}
+                      {/* Right: Net Total & Status & Delete */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="text-right">
+                          <div className="text-xs sm:text-sm font-black text-stone-900">
+                            ₹{(sale.totalRevenue || 0).toLocaleString()}
+                          </div>
+                          <div className="mt-0.5">
+                            <span className="text-[9px] bg-amber-100 text-amber-800 font-extrabold px-1.5 py-0.5 rounded-full inline-flex items-center gap-1">
+                              <Clock className="w-2.5 h-2.5" />
+                              <span>Pending Payout</span>
+                            </span>
+                          </div>
                         </div>
-                        <div className="mt-0.5">
-                          <span className="text-[9px] bg-amber-100 text-amber-800 font-extrabold px-1.5 py-0.5 rounded-full inline-flex items-center gap-1">
-                            <Clock className="w-2.5 h-2.5" />
-                            <span>Pending Payout</span>
-                          </span>
-                        </div>
+
+                        {onDeleteSale && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (window.confirm(`Kya aap "${sale.itemName}" (${sale.platformOrderId || 'Order'}) ko delete karna chahte hain? Raw material stock wapas restore ho jayega.`)) {
+                                onDeleteSale(sale.id);
+                              }
+                            }}
+                            className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                            title="Order delete karein"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
 
                     </div>
