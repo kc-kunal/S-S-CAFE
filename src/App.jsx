@@ -12,6 +12,7 @@ import CloudConfigModal from './components/CloudConfigModal';
 import ExcelExportModal from './components/ExcelExportModal';
 import CustomerMenuOrderView from './components/CustomerMenuOrderView';
 import DiningManager from './components/DiningManager';
+import ExpenseTracker from './components/ExpenseTracker';
 import { triggerAutomaticStockAlerts, sendTelegramNewOrderAlert } from './utils/whatsappAlert';
 import { playOrderChime } from './utils/audioAlert';
 import {
