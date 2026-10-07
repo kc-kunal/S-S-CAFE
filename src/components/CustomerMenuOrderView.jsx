@@ -23,7 +23,8 @@ export default function CustomerMenuOrderView({
   menuItems = [],
   inventoryItems = [],
   onSubmitOrder,
-  onSwitchToAdmin
+  onSwitchToAdmin,
+  cafeName = 'S&S Cafe'
 }) {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -236,7 +237,7 @@ export default function CustomerMenuOrderView({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-base font-bold font-serif-title text-amber-100">S&S Cafe</h1>
+                <h1 className="text-base font-bold font-serif-title text-amber-100">{cafeName || 'S&S Cafe'}</h1>
                 <span className="text-[10px] bg-amber-500 text-stone-950 font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">
                   Dine-In
                 </span>

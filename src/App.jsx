@@ -13,9 +13,18 @@ import ExcelExportModal from './components/ExcelExportModal';
 import CustomerMenuOrderView from './components/CustomerMenuOrderView';
 import DiningManager from './components/DiningManager';
 import ExpenseTracker from './components/ExpenseTracker';
+import AuthModal from './components/AuthModal';
+import CafeProfileModal from './components/CafeProfileModal';
+import {
+  subscribeToAuthChanges,
+  getLocalActiveCafe,
+  logoutCafeOwner
+} from './utils/auth';
 import { triggerAutomaticStockAlerts, sendTelegramNewOrderAlert } from './utils/whatsappAlert';
 import { playOrderChime } from './utils/audioAlert';
 import {
+  setCurrentCafeId,
+  getCurrentCafeId,
   getStoredMenu, saveStoredMenu,
   getStoredSales, saveStoredSales,
   getStoredProcurement, saveStoredProcurement,
@@ -66,6 +75,19 @@ export default function App() {
   const [isAggregatorModalOpen, setIsAggregatorModalOpen] = useState(false);
 
 
+  // Multi-Tenant Cafe & User Auth State
+  const [currentUser, setCurrentUser] = useState(null);
+  const [currentCafe, setCurrentCafe] = useState(getLocalActiveCafe() || {
+    cafeId: 'default',
+    cafeName: 'S&S Cafe',
+    ownerName: 'Admin',
+    city: 'Indore',
+    role: 'owner'
+  });
+  const [userCafes, setUserCafes] = useState([]);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isCafeProfileModalOpen, setIsCafeProfileModalOpen] = useState(false);
+
   // Cloud Database Sync State
   const [isCloudConnected, setIsCloudConnected] = useState(isFirebaseConfigured());
   const [isCloudModalOpen, setIsCloudModalOpen] = useState(false);
@@ -82,6 +104,19 @@ export default function App() {
       if (window.location.hash) {
         const hashParams = new URLSearchParams(window.location.hash.replace(/^#\/?/, '').replace(/^order\??/, ''));
         return hashParams.get('table');
+      }
+    } catch (e) {}
+    return null;
+  };
+
+  const getInitialCafeParam = () => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const c = params.get('cafe');
+      if (c) return c;
+      if (window.location.hash) {
+        const hashParams = new URLSearchParams(window.location.hash.replace(/^#\/?/, '').replace(/^order\??/, ''));
+        return hashParams.get('cafe');
       }
     } catch (e) {}
     return null;
@@ -104,14 +139,16 @@ export default function App() {
     setTimeout(() => setToast(null), 3500);
   };
 
-  // Load Initial Data with Auto-Consolidation of misspellings
-  useEffect(() => {
-    const rawMenu = getStoredMenu();
-    const rawSales = getStoredSales();
-    const rawProc = getStoredProcurement();
-    let rawInv = getStoredInventory();
+  // Helper to load and consolidate data for a specific cafe tenant
+  const loadCafeData = (cafeId) => {
+    const activeId = cafeId || 'default';
+    setCurrentCafeId(activeId);
+    const rawMenu = getStoredMenu(activeId);
+    const rawSales = getStoredSales(activeId);
+    const rawProc = getStoredProcurement(activeId);
+    let rawInv = getStoredInventory(activeId);
 
-    // Auto-fix/normalize any existing misspelled items in inventory (e.g. "mozzerella" -> "Mozzarella Cheese", "souce" -> "Pizza Sauce")
+    // Auto-fix/normalize any existing misspelled items in inventory
     let invChanged = false;
     const consolidatedInv = [];
 
@@ -134,7 +171,6 @@ export default function App() {
         const targetUnit = standardDef ? standardDef.unit : item.unit;
         const targetCategory = standardDef ? standardDef.category : item.category;
 
-        // If purchased in small numbers (<= 20) with unit Kg or Piece and target is Gram, convert 1 -> 1000g
         let stockToAdd = Number(item.currentStock) || 0;
         if ((item.unit === 'Kg' || item.unit === 'Piece' || stockToAdd <= 20) && targetUnit === 'Gram') {
           stockToAdd = stockToAdd * 1000;
@@ -166,7 +202,7 @@ export default function App() {
     });
 
     if (invChanged) {
-      saveStoredInventory(consolidatedInv);
+      saveStoredInventory(consolidatedInv, activeId);
       rawInv = consolidatedInv;
     }
 
@@ -174,13 +210,39 @@ export default function App() {
     setSalesLogs(rawSales);
     setProcurementLogs(rawProc);
     setInventoryItems(rawInv);
-    setExpenses(getStoredExpenses());
-    setWastageLogs(getStoredWastage());
-    setDiningOrders(getStoredDiningOrders());
-    setSettlements(getStoredSettlements());
+    setExpenses(getStoredExpenses(activeId));
+    setWastageLogs(getStoredWastage(activeId));
+    setDiningOrders(getStoredDiningOrders(activeId));
+    setSettlements(getStoredSettlements(activeId));
+  };
+
+  // 1. Subscribe to Firebase Auth State Changes & Multi-Tenant Profile
+  useEffect(() => {
+    const unsubAuth = subscribeToAuthChanges(({ user, cafe, cafes }) => {
+      setCurrentUser(user);
+      if (cafe) {
+        setCurrentCafe(cafe);
+        setUserCafes(cafes);
+        loadCafeData(cafe.cafeId);
+      } else {
+        const urlCafe = getInitialCafeParam();
+        const activeId = urlCafe || 'default';
+        const fallbackCafe = getLocalActiveCafe() || {
+          cafeId: activeId,
+          cafeName: 'S&S Cafe',
+          ownerName: 'Admin',
+          city: 'Indore',
+          role: 'owner'
+        };
+        setCurrentCafe(fallbackCafe);
+        loadCafeData(activeId);
+      }
+    });
+
+    return () => unsubAuth();
   }, []);
 
-  // Real-time Firebase Sync listener
+  // 2. Real-time Firebase Sync listener for active Cafe tenant
   useEffect(() => {
     if (!isFirebaseConfigured()) {
       setIsCloudConnected(false);
@@ -188,72 +250,73 @@ export default function App() {
     }
 
     setIsCloudConnected(true);
+    const activeId = currentCafe?.cafeId || 'default';
 
-    // Initial fetch from cloud if cloud has data
-    fetchAllCloudData().then((cloudData) => {
+    // Initial fetch from cloud for active cafe
+    fetchAllCloudData(activeId).then((cloudData) => {
       if (cloudData) {
         if (cloudData.menu && Array.isArray(cloudData.menu) && cloudData.menu.length > 0) {
           setMenuItems(cloudData.menu);
-          saveStoredMenu(cloudData.menu);
+          saveStoredMenu(cloudData.menu, activeId);
         } else {
-          const localMenu = getStoredMenu();
-          if (localMenu && localMenu.length > 0) syncCloudMenu(localMenu);
+          const localMenu = getStoredMenu(activeId);
+          if (localMenu && localMenu.length > 0) syncCloudMenu(localMenu, activeId);
         }
         if (cloudData.inventory && Array.isArray(cloudData.inventory) && cloudData.inventory.length > 0) {
           setInventoryItems(cloudData.inventory);
-          saveStoredInventory(cloudData.inventory);
+          saveStoredInventory(cloudData.inventory, activeId);
         } else {
-          const localInv = getStoredInventory();
-          if (localInv && localInv.length > 0) syncCloudInventory(localInv);
+          const localInv = getStoredInventory(activeId);
+          if (localInv && localInv.length > 0) syncCloudInventory(localInv, activeId);
         }
         if (cloudData.sales && Array.isArray(cloudData.sales) && cloudData.sales.length > 0) {
           setSalesLogs(cloudData.sales);
-          saveStoredSales(cloudData.sales);
+          saveStoredSales(cloudData.sales, activeId);
         }
         if (cloudData.procurement && Array.isArray(cloudData.procurement) && cloudData.procurement.length > 0) {
           setProcurementLogs(cloudData.procurement);
-          saveStoredProcurement(cloudData.procurement);
+          saveStoredProcurement(cloudData.procurement, activeId);
         }
         if (cloudData.expenses && Array.isArray(cloudData.expenses)) {
           setExpenses(cloudData.expenses);
-          saveStoredExpenses(cloudData.expenses);
+          saveStoredExpenses(cloudData.expenses, activeId);
         }
         if (cloudData.wastage && Array.isArray(cloudData.wastage)) {
           setWastageLogs(cloudData.wastage);
-          saveStoredWastage(cloudData.wastage);
+          saveStoredWastage(cloudData.wastage, activeId);
         }
         if (cloudData.diningOrders && Array.isArray(cloudData.diningOrders)) {
           setDiningOrders(cloudData.diningOrders);
-          saveStoredDiningOrders(cloudData.diningOrders);
+          saveStoredDiningOrders(cloudData.diningOrders, activeId);
         }
       }
     });
 
-    // Realtime subscription across phones/laptops
+    // Realtime subscription across devices for this active cafe
     const unsubscribe = subscribeToCloudData({
       onMenuUpdate: (newMenu) => {
         setMenuItems(newMenu);
-        saveStoredMenu(newMenu);
+        saveStoredMenu(newMenu, activeId);
       },
       onInventoryUpdate: (newInv) => {
         setInventoryItems(newInv);
-        saveStoredInventory(newInv);
+        saveStoredInventory(newInv, activeId);
       },
       onSalesUpdate: (newSales) => {
         setSalesLogs(newSales);
-        saveStoredSales(newSales);
+        saveStoredSales(newSales, activeId);
       },
       onProcurementUpdate: (newProc) => {
         setProcurementLogs(newProc);
-        saveStoredProcurement(newProc);
+        saveStoredProcurement(newProc, activeId);
       },
       onExpensesUpdate: (newExp) => {
         setExpenses(newExp);
-        saveStoredExpenses(newExp);
+        saveStoredExpenses(newExp, activeId);
       },
       onWastageUpdate: (newWaste) => {
         setWastageLogs(newWaste);
-        saveStoredWastage(newWaste);
+        saveStoredWastage(newWaste, activeId);
       },
       onDiningOrdersUpdate: (newOrders) => {
         setDiningOrders(prevOrders => {
@@ -266,47 +329,52 @@ export default function App() {
           }
           return newOrders;
         });
-        saveStoredDiningOrders(newOrders);
+        saveStoredDiningOrders(newOrders, activeId);
       }
-    });
+    }, activeId);
 
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [isCloudConnected]);
+  }, [isCloudConnected, currentCafe?.cafeId]);
 
-  // Save State (LocalStorage + Cloud Firestore)
+  // Save State (LocalStorage + Cloud Firestore) scoped to active cafe
   const updateMenu = (newItems) => {
+    const activeId = currentCafe?.cafeId || 'default';
     setMenuItems(newItems);
-    saveStoredMenu(newItems);
-    if (isFirebaseConfigured()) syncCloudMenu(newItems);
+    saveStoredMenu(newItems, activeId);
+    if (isFirebaseConfigured()) syncCloudMenu(newItems, activeId);
   };
   const updateSales = (newSales) => {
+    const activeId = currentCafe?.cafeId || 'default';
     setSalesLogs(newSales);
-    saveStoredSales(newSales);
-    if (isFirebaseConfigured()) syncCloudSales(newSales);
+    saveStoredSales(newSales, activeId);
+    if (isFirebaseConfigured()) syncCloudSales(newSales, activeId);
   };
   const updateProcurement = (newProc) => {
+    const activeId = currentCafe?.cafeId || 'default';
     setProcurementLogs(newProc);
-    saveStoredProcurement(newProc);
-    if (isFirebaseConfigured()) syncCloudProcurement(newProc);
+    saveStoredProcurement(newProc, activeId);
+    if (isFirebaseConfigured()) syncCloudProcurement(newProc, activeId);
   };
   const updateInventory = (newInv) => {
+    const activeId = currentCafe?.cafeId || 'default';
     setInventoryItems(newInv);
-    saveStoredInventory(newInv);
-    if (isFirebaseConfigured()) syncCloudInventory(newInv);
-    // Background silent automatic WhatsApp alert for low stock items
+    saveStoredInventory(newInv, activeId);
+    if (isFirebaseConfigured()) syncCloudInventory(newInv, activeId);
     triggerAutomaticStockAlerts(newInv);
   };
   const updateExpenses = (newExp) => {
+    const activeId = currentCafe?.cafeId || 'default';
     setExpenses(newExp);
-    saveStoredExpenses(newExp);
-    if (isFirebaseConfigured()) syncCloudExpenses(newExp);
+    saveStoredExpenses(newExp, activeId);
+    if (isFirebaseConfigured()) syncCloudExpenses(newExp, activeId);
   };
   const updateWastage = (newWaste) => {
+    const activeId = currentCafe?.cafeId || 'default';
     setWastageLogs(newWaste);
-    saveStoredWastage(newWaste);
-    if (isFirebaseConfigured()) syncCloudWastage(newWaste);
+    saveStoredWastage(newWaste, activeId);
+    if (isFirebaseConfigured()) syncCloudWastage(newWaste, activeId);
   };
 
   // 💸 Expenses & Overhead Handlers
@@ -323,31 +391,67 @@ export default function App() {
   };
 
   const handleDeleteExpense = (id) => {
+    const activeId = currentCafe?.cafeId || 'default';
     const updated = expenses.filter(e => e.id !== id);
     updateExpenses(updated);
-    if (isFirebaseConfigured()) deleteSingleExpense(id);
+    if (isFirebaseConfigured()) deleteSingleExpense(id, activeId);
     showToast('Expense entry deleted');
   };
 
   // 🛵 Aggregator Settlement Handlers (Swiggy / Zomato Weekly Payouts)
   const handleAddSettlement = (newSettlement) => {
+    const activeId = currentCafe?.cafeId || 'default';
     const updated = [newSettlement, ...settlements];
     setSettlements(updated);
-    saveStoredSettlements(updated);
+    saveStoredSettlements(updated, activeId);
     showToast(`✅ ${newSettlement.platform} Weekly Settlement of ₹${newSettlement.grossAmount} recorded!`);
   };
 
   const handleDeleteSettlement = (id) => {
+    const activeId = currentCafe?.cafeId || 'default';
     const updated = settlements.filter(s => s.id !== id);
     setSettlements(updated);
-    saveStoredSettlements(updated);
+    saveStoredSettlements(updated, activeId);
     showToast('Settlement record deleted');
   };
 
   const handleClearAllSettlements = () => {
+    const activeId = currentCafe?.cafeId || 'default';
     setSettlements([]);
-    saveStoredSettlements([]);
+    saveStoredSettlements([], activeId);
     showToast('All settlement history cleared');
+  };
+
+  // Auth & Multi-Cafe Handlers
+  const handleAuthSuccess = ({ user, cafe, cafes }) => {
+    setCurrentUser(user);
+    if (cafe) {
+      setCurrentCafe(cafe);
+      setUserCafes(cafes);
+      loadCafeData(cafe.cafeId);
+    }
+    showToast(`🎉 Swagat hai, ${cafe?.cafeName || 'Cafe Owner'}!`);
+  };
+
+  const handleSwitchCafe = (cafe) => {
+    setCurrentCafe(cafe);
+    loadCafeData(cafe.cafeId);
+    showToast(`Switched to "${cafe.cafeName}"`);
+  };
+
+  const handleLogout = async () => {
+    await logoutCafeOwner();
+    setCurrentUser(null);
+    const fallback = {
+      cafeId: 'default',
+      cafeName: 'S&S Cafe',
+      ownerName: 'Admin',
+      city: 'Indore',
+      role: 'owner'
+    };
+    setCurrentCafe(fallback);
+    loadCafeData('default');
+    showToast('Logged out successfully');
   };
 
   // 🗑️ Raw Material Spoilage / Wastage Handlers (Auto Stock Deduction)
@@ -882,6 +986,7 @@ export default function App() {
             window.history.pushState({}, '', window.location.pathname);
           } catch (e) {}
         }}
+        cafeName={currentCafe?.cafeName || 'S&S Cafe'}
       />
     );
   }
@@ -904,6 +1009,10 @@ export default function App() {
         isCloudConnected={isCloudConnected}
         onOpenCloudModal={() => setIsCloudModalOpen(true)}
         onOpenExportModal={() => setIsExportModalOpen(true)}
+        currentCafe={currentCafe}
+        currentUser={currentUser}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        onOpenCafeProfileModal={() => setIsCafeProfileModalOpen(true)}
       />
 
       {/* Main Container */}
@@ -1214,6 +1323,28 @@ export default function App() {
         onDeleteSale={handleDeleteSale}
         onUpdateSale={handleUpdateSale}
         onAddExpense={handleAddExpense}
+      />
+
+      {/* 🔐 Multi-Tenant Cafe Authentication Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onAuthSuccess={handleAuthSuccess}
+      />
+
+      {/* 🏬 Multi-Cafe Outlets & Profile Management Modal */}
+      <CafeProfileModal
+        isOpen={isCafeProfileModalOpen}
+        onClose={() => setIsCafeProfileModalOpen(false)}
+        currentCafe={currentCafe}
+        currentUser={currentUser}
+        allCafes={userCafes}
+        onSwitchCafe={handleSwitchCafe}
+        onLogout={handleLogout}
+        onUpdateCafe={(updated) => {
+          setCurrentCafe(updated);
+          showToast(`Cafe details updated: ${updated.cafeName}`);
+        }}
       />
 
 

@@ -601,10 +601,29 @@ export const INITIAL_PROCUREMENT_LOGS = [
   { id: 'proc-2', materialName: 'Whole Milk', category: 'Dairy', quantityReceived: 10, unit: 'Liters', ratePerUnit: 60, totalCost: 600, supplier: 'Amul Dairy', date: getTodayDateString(0) }
 ];
 
+// Multi-Tenant Scoped Storage Key Helpers
+let currentCafeId = 'default';
+
+export const setCurrentCafeId = (cafeId) => {
+  currentCafeId = cafeId || 'default';
+};
+
+export const getCurrentCafeId = () => currentCafeId;
+
+export const getScopedKey = (baseKey, cafeId = currentCafeId) => {
+  if (!cafeId || cafeId === 'default') return baseKey;
+  return `${baseKey}_${cafeId}`;
+};
+
 // Helper functions with automatic migration & fallback
-export const getStoredMenu = () => {
+export const getStoredMenu = (cafeId = currentCafeId) => {
   try {
-    const data = localStorage.getItem(MENU_STORAGE_KEY);
+    const key = getScopedKey(MENU_STORAGE_KEY, cafeId);
+    let data = localStorage.getItem(key);
+    if (!data && cafeId !== 'default') {
+      // Check if fallback to base key exists
+      data = localStorage.getItem(MENU_STORAGE_KEY);
+    }
     if (!data) return INITIAL_MENU_ITEMS;
     const parsed = JSON.parse(data);
     // Ensure every item has a recipe array
@@ -617,47 +636,75 @@ export const getStoredMenu = () => {
   }
 };
 
-export const saveStoredMenu = (items) => {
-  localStorage.setItem(MENU_STORAGE_KEY, JSON.stringify(items));
+export const saveStoredMenu = (items, cafeId = currentCafeId) => {
+  const key = getScopedKey(MENU_STORAGE_KEY, cafeId);
+  localStorage.setItem(key, JSON.stringify(items));
+  if (cafeId === 'default') {
+    localStorage.setItem(MENU_STORAGE_KEY, JSON.stringify(items));
+  }
 };
 
-export const getStoredInventory = () => {
+export const getStoredInventory = (cafeId = currentCafeId) => {
   try {
-    const data = localStorage.getItem(INVENTORY_STORAGE_KEY);
+    const key = getScopedKey(INVENTORY_STORAGE_KEY, cafeId);
+    let data = localStorage.getItem(key);
+    if (!data && cafeId !== 'default') {
+      data = localStorage.getItem(INVENTORY_STORAGE_KEY);
+    }
     return data ? JSON.parse(data) : INITIAL_INVENTORY_ITEMS;
   } catch (e) {
     return INITIAL_INVENTORY_ITEMS;
   }
 };
 
-export const saveStoredInventory = (inventory) => {
-  localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(inventory));
+export const saveStoredInventory = (inventory, cafeId = currentCafeId) => {
+  const key = getScopedKey(INVENTORY_STORAGE_KEY, cafeId);
+  localStorage.setItem(key, JSON.stringify(inventory));
+  if (cafeId === 'default') {
+    localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(inventory));
+  }
 };
 
-export const getStoredSales = () => {
+export const getStoredSales = (cafeId = currentCafeId) => {
   try {
-    const data = localStorage.getItem(SALES_STORAGE_KEY);
+    const key = getScopedKey(SALES_STORAGE_KEY, cafeId);
+    let data = localStorage.getItem(key);
+    if (!data && cafeId !== 'default') {
+      data = localStorage.getItem(SALES_STORAGE_KEY);
+    }
     return data ? JSON.parse(data) : INITIAL_SALES_LOGS;
   } catch (e) {
     return INITIAL_SALES_LOGS;
   }
 };
 
-export const saveStoredSales = (sales) => {
-  localStorage.setItem(SALES_STORAGE_KEY, JSON.stringify(sales));
+export const saveStoredSales = (sales, cafeId = currentCafeId) => {
+  const key = getScopedKey(SALES_STORAGE_KEY, cafeId);
+  localStorage.setItem(key, JSON.stringify(sales));
+  if (cafeId === 'default') {
+    localStorage.setItem(SALES_STORAGE_KEY, JSON.stringify(sales));
+  }
 };
 
-export const getStoredProcurement = () => {
+export const getStoredProcurement = (cafeId = currentCafeId) => {
   try {
-    const data = localStorage.getItem(PROCUREMENT_STORAGE_KEY);
+    const key = getScopedKey(PROCUREMENT_STORAGE_KEY, cafeId);
+    let data = localStorage.getItem(key);
+    if (!data && cafeId !== 'default') {
+      data = localStorage.getItem(PROCUREMENT_STORAGE_KEY);
+    }
     return data ? JSON.parse(data) : INITIAL_PROCUREMENT_LOGS;
   } catch (e) {
     return INITIAL_PROCUREMENT_LOGS;
   }
 };
 
-export const saveStoredProcurement = (proc) => {
-  localStorage.setItem(PROCUREMENT_STORAGE_KEY, JSON.stringify(proc));
+export const saveStoredProcurement = (proc, cafeId = currentCafeId) => {
+  const key = getScopedKey(PROCUREMENT_STORAGE_KEY, cafeId);
+  localStorage.setItem(key, JSON.stringify(proc));
+  if (cafeId === 'default') {
+    localStorage.setItem(PROCUREMENT_STORAGE_KEY, JSON.stringify(proc));
+  }
 };
 
 // Initial Cafe Operational Expenses Presets
@@ -675,59 +722,87 @@ export const INITIAL_WASTAGE_LOGS = [
   { id: 'waste-2', date: getTodayDateString(1), ingredientId: 'inv-7', ingredientName: 'Whole Milk', quantity: 1000, unit: 'ml', reason: 'Curdled / Sour', costValue: 60, loggedBy: 'Barista', remarks: 'Milk turned sour due to heat' }
 ];
 
-export const getStoredExpenses = () => {
+export const getStoredExpenses = (cafeId = currentCafeId) => {
   try {
-    const data = localStorage.getItem(EXPENSES_STORAGE_KEY);
+    const key = getScopedKey(EXPENSES_STORAGE_KEY, cafeId);
+    let data = localStorage.getItem(key);
+    if (!data && cafeId !== 'default') {
+      data = localStorage.getItem(EXPENSES_STORAGE_KEY);
+    }
     return data ? JSON.parse(data) : INITIAL_EXPENSES;
   } catch (e) {
     return INITIAL_EXPENSES;
   }
 };
 
-export const saveStoredExpenses = (expenses) => {
-  localStorage.setItem(EXPENSES_STORAGE_KEY, JSON.stringify(expenses));
+export const saveStoredExpenses = (expenses, cafeId = currentCafeId) => {
+  const key = getScopedKey(EXPENSES_STORAGE_KEY, cafeId);
+  localStorage.setItem(key, JSON.stringify(expenses));
+  if (cafeId === 'default') {
+    localStorage.setItem(EXPENSES_STORAGE_KEY, JSON.stringify(expenses));
+  }
 };
 
-export const getStoredWastage = () => {
+export const getStoredWastage = (cafeId = currentCafeId) => {
   try {
-    const data = localStorage.getItem(WASTAGE_STORAGE_KEY);
+    const key = getScopedKey(WASTAGE_STORAGE_KEY, cafeId);
+    let data = localStorage.getItem(key);
+    if (!data && cafeId !== 'default') {
+      data = localStorage.getItem(WASTAGE_STORAGE_KEY);
+    }
     return data ? JSON.parse(data) : INITIAL_WASTAGE_LOGS;
   } catch (e) {
     return INITIAL_WASTAGE_LOGS;
   }
 };
 
-export const saveStoredWastage = (wastage) => {
-  localStorage.setItem(WASTAGE_STORAGE_KEY, JSON.stringify(wastage));
+export const saveStoredWastage = (wastage, cafeId = currentCafeId) => {
+  const key = getScopedKey(WASTAGE_STORAGE_KEY, cafeId);
+  localStorage.setItem(key, JSON.stringify(wastage));
+  if (cafeId === 'default') {
+    localStorage.setItem(WASTAGE_STORAGE_KEY, JSON.stringify(wastage));
+  }
 };
 
-export const getStoredDiningOrders = () => {
+export const getStoredDiningOrders = (cafeId = currentCafeId) => {
   try {
-    const data = localStorage.getItem(DINING_ORDERS_STORAGE_KEY);
+    const key = getScopedKey(DINING_ORDERS_STORAGE_KEY, cafeId);
+    let data = localStorage.getItem(key);
+    if (!data && cafeId !== 'default') {
+      data = localStorage.getItem(DINING_ORDERS_STORAGE_KEY);
+    }
     return data ? JSON.parse(data) : [];
   } catch (e) {
     return [];
   }
 };
 
-export const saveStoredDiningOrders = (orders) => {
+export const saveStoredDiningOrders = (orders, cafeId = currentCafeId) => {
   try {
-    localStorage.setItem(DINING_ORDERS_STORAGE_KEY, JSON.stringify(orders));
+    const key = getScopedKey(DINING_ORDERS_STORAGE_KEY, cafeId);
+    localStorage.setItem(key, JSON.stringify(orders));
+    if (cafeId === 'default') {
+      localStorage.setItem(DINING_ORDERS_STORAGE_KEY, JSON.stringify(orders));
+    }
   } catch (e) {
     console.error('Error saving dining orders to localStorage:', e);
   }
 };
 
-export const getStoredSettlements = () => {
+export const getStoredSettlements = (cafeId = currentCafeId) => {
   try {
-    const data = localStorage.getItem(AGGREGATOR_SETTLEMENTS_STORAGE_KEY);
+    const key = getScopedKey(AGGREGATOR_SETTLEMENTS_STORAGE_KEY, cafeId);
+    let data = localStorage.getItem(key);
+    if (!data && cafeId !== 'default') {
+      data = localStorage.getItem(AGGREGATOR_SETTLEMENTS_STORAGE_KEY);
+    }
     if (!data) return INITIAL_AGGREGATOR_SETTLEMENTS;
     const parsed = JSON.parse(data);
     if (!Array.isArray(parsed)) return INITIAL_AGGREGATOR_SETTLEMENTS;
     // Auto-remove dummy settlement seeded in earlier version so real sales are never suppressed
     const cleaned = parsed.filter(s => s && s.id !== 'settle-swiggy-1');
     if (cleaned.length !== parsed.length) {
-      localStorage.setItem(AGGREGATOR_SETTLEMENTS_STORAGE_KEY, JSON.stringify(cleaned));
+      localStorage.setItem(key, JSON.stringify(cleaned));
     }
     return cleaned;
   } catch (e) {
@@ -735,9 +810,13 @@ export const getStoredSettlements = () => {
   }
 };
 
-export const saveStoredSettlements = (settlements) => {
+export const saveStoredSettlements = (settlements, cafeId = currentCafeId) => {
   try {
-    localStorage.setItem(AGGREGATOR_SETTLEMENTS_STORAGE_KEY, JSON.stringify(settlements));
+    const key = getScopedKey(AGGREGATOR_SETTLEMENTS_STORAGE_KEY, cafeId);
+    localStorage.setItem(key, JSON.stringify(settlements));
+    if (cafeId === 'default') {
+      localStorage.setItem(AGGREGATOR_SETTLEMENTS_STORAGE_KEY, JSON.stringify(settlements));
+    }
   } catch (e) {
     console.error('Error saving settlements to localStorage:', e);
   }

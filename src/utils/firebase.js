@@ -9,6 +9,7 @@ import {
   getDoc,
   deleteDoc
 } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 
 const FIREBASE_LOCAL_CONFIG_KEY = 'ss_cafe_firebase_config_v1';
 
@@ -47,9 +48,10 @@ export const getSavedFirebaseConfig = () => {
 export const saveFirebaseConfig = (config) => {
   try {
     localStorage.setItem(FIREBASE_LOCAL_CONFIG_KEY, JSON.stringify(config));
-    // Reset cached app and db instances so next call picks up the new config
+    // Reset cached app, db and auth instances so next call picks up the new config
     app = null;
     db = null;
+    auth = null;
   } catch (e) {
     console.error('Error saving firebase config:', e);
   }
@@ -60,6 +62,7 @@ export const clearFirebaseConfig = () => {
   localStorage.removeItem(FIREBASE_LOCAL_CONFIG_KEY);
   app = null;
   db = null;
+  auth = null;
 };
 
 // Get active configuration (priority: localStorage > environment variables)
@@ -74,6 +77,34 @@ export const isFirebaseConfigured = () => {
 
 let app = null;
 let db = null;
+let auth = null;
+
+/**
+ * Initialize and get Firebase Auth instance
+ */
+export const getFirebaseAuth = () => {
+  const config = getActiveFirebaseConfig();
+  if (!config || !config.apiKey || !config.projectId) {
+    return null;
+  }
+
+  if (auth) {
+    return auth;
+  }
+
+  try {
+    if (!getApps().length) {
+      app = initializeApp(config);
+    } else {
+      app = getApp();
+    }
+    auth = getAuth(app);
+    return auth;
+  } catch (err) {
+    console.error('Failed to initialize Firebase Auth:', err);
+    return null;
+  }
+};
 
 /**
  * Initialize and get Firebase Firestore instance with multi-tab offline persistence
