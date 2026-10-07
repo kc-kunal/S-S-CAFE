@@ -754,8 +754,11 @@ export const calculateAggregatorLedger = (salesLogs = [], settlements = []) => {
     const totalMenuValue = platSales.reduce((sum, s) => sum + ((Number(s.sellingPrice) || 0) * (Number(s.quantitySold) || 1)), 0);
     const totalGross = platSales.reduce((sum, s) => sum + (Number(s.totalRevenue) || 0), 0);
     const totalOrdersCount = platSales.length;
-    const totalUnitsSold = platSales.reduce((sum, s) => sum + (Number(s.quantitySold) || 0), 0);
-    const totalDiscountGiven = platSales.reduce((sum, s) => sum + (Number(s.discountAmount) || 0), 0);
+    const totalDiscountGiven = platSales.reduce((sum, s) => {
+      const recorded = Number(s.discountAmount) || 0;
+      const computed = Math.max(0, ((Number(s.sellingPrice) || 0) * (Number(s.quantitySold) || 1)) - (Number(s.totalRevenue) || 0));
+      return sum + (recorded > 0 ? recorded : computed);
+    }, 0);
 
     // Settlements for this platform
     const platSettlements = settlements.filter(set => (set.platform || '').toLowerCase() === plat.toLowerCase());

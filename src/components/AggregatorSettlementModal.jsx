@@ -14,7 +14,8 @@ import {
   Search,
   RotateCcw,
   Tag,
-  Wand2
+  Wand2,
+  Check
 } from 'lucide-react';
 import { calculateAggregatorLedger } from '../utils/storage';
 
@@ -35,11 +36,9 @@ export default function AggregatorSettlementModal({
   const [activeTab, setActiveTab] = useState('orders'); // 'orders' or 'settle'
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Settlement input state
+  // Single-input settlement state
   const [settlementDate, setSettlementDate] = useState(new Date().toISOString().split('T')[0]);
-  const [grossAmount, setGrossAmount] = useState('');
   const [bankAmountReceived, setBankAmountReceived] = useState('');
-  const [referenceNo, setReferenceNo] = useState('');
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
 
@@ -52,6 +51,7 @@ export default function AggregatorSettlementModal({
       setSearchQuery('');
       setFormError('');
       setFormSuccess('');
+      setBankAmountReceived('');
     }
   }, [isOpen, initialPlatform]);
 
@@ -73,23 +73,42 @@ export default function AggregatorSettlementModal({
     settlementsCount: 0 
   };
 
-  // Filtered sales list for the active platform (sorted newest first)
+  // Filtered sales list for the active platform (newest first)
   const platSales = useMemo(() => {
     return salesLogs
       .filter(s => (s.paymentMethod || '').toLowerCase() === selectedPlatform.toLowerCase())
       .sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
   }, [salesLogs, selectedPlatform]);
 
+  // Compute settled vs pending status for each sale accurately
+  const salesWithSettledStatus = useMemo(() => {
+    let remainingSettled = Number(platLedger.totalSettledGross) || 0;
+    const isAllSettled = platLedger.pendingUnsettled === 0 && platLedger.totalSettledGross > 0;
+
+    // Process from oldest to newest to match settlement consumption, then reverse back to newest first
+    return [...platSales].reverse().map(sale => {
+      const rev = Number(sale.totalRevenue) || 0;
+      let isSettled = false;
+      if (isAllSettled) {
+        isSettled = true;
+      } else if (remainingSettled >= rev && rev > 0) {
+        isSettled = true;
+        remainingSettled -= rev;
+      }
+      return { ...sale, isSettled };
+    }).reverse();
+  }, [platSales, platLedger.totalSettledGross, platLedger.pendingUnsettled]);
+
   // Filtered sales matching search query
   const filteredSales = useMemo(() => {
-    if (!searchQuery.trim()) return platSales;
+    if (!searchQuery.trim()) return salesWithSettledStatus;
     const q = searchQuery.toLowerCase().trim();
-    return platSales.filter(s => 
+    return salesWithSettledStatus.filter(s => 
       (s.itemName && s.itemName.toLowerCase().includes(q)) ||
       (s.platformOrderId && s.platformOrderId.toLowerCase().includes(q)) ||
       (s.category && s.category.toLowerCase().includes(q))
     );
-  }, [platSales, searchQuery]);
+  }, [salesWithSettledStatus, searchQuery]);
 
   // Filtered settlements for active platform
   const platSettlements = useMemo(() => {
@@ -98,53 +117,45 @@ export default function AggregatorSettlementModal({
       .sort((a, b) => new Date(b.settlementDate || b.createdAt) - new Date(a.settlementDate || a.createdAt));
   }, [settlements, selectedPlatform]);
 
-  // Quick fill gross amount with current pending amount
-  const handleQuickFillPending = () => {
-    if (platLedger.pendingUnsettled > 0) {
-      setGrossAmount(String(platLedger.pendingUnsettled));
-      setFormError('');
-    }
-  };
-
-  // Auto calculate commission deductions: Gross - Net Bank Received
+  // Auto calculate commission deductions: Pending Gross - Net Bank Received
   const calculatedCommission = useMemo(() => {
-    const gross = Number(grossAmount) || 0;
+    const gross = platLedger.pendingUnsettled;
     const net = Number(bankAmountReceived) || 0;
     if (gross > 0 && net >= 0) {
       return Math.max(0, gross - net);
     }
     return 0;
-  }, [grossAmount, bankAmountReceived]);
+  }, [platLedger.pendingUnsettled, bankAmountReceived]);
 
   const commissionPct = useMemo(() => {
-    const gross = Number(grossAmount) || 0;
+    const gross = platLedger.pendingUnsettled;
     if (gross > 0 && calculatedCommission > 0) {
       return ((calculatedCommission / gross) * 100).toFixed(1);
     }
     return '0.0';
-  }, [grossAmount, calculatedCommission]);
+  }, [platLedger.pendingUnsettled, calculatedCommission]);
 
-  // Submit Settlement
+  // Submit Settlement - USER ONLY ENTERS BANK AMOUNT!
   const handleSubmitSettlement = (e) => {
     e.preventDefault();
     setFormError('');
     setFormSuccess('');
 
-    const gross = Number(grossAmount) || platLedger.pendingUnsettled;
+    const gross = platLedger.pendingUnsettled;
     const net = Number(bankAmountReceived);
 
-    if (!gross || gross <= 0) {
-      setFormError('Settle karne ke liye koi pending order amount nahi hai.');
+    if (gross <= 0) {
+      setFormError('Settle karne ke liye koi pending balance nahi hai.');
       return;
     }
 
-    if (net === undefined || net === '' || net < 0) {
-      setFormError('Kripya bank me aaya hua actual paisa (Net Credit) bharein.');
+    if (net === undefined || net === '' || isNaN(net) || net < 0) {
+      setFormError('Kripya bank account me aaya hua actual paisa bharein.');
       return;
     }
 
     if (net > gross) {
-      setFormError('Bank me aaya paisa order bill se zyada nahi ho sakta!');
+      setFormError(`Bank me aaya paisa pending order bill (₹${gross}) se zyada nahi ho sakta!`);
       return;
     }
 
@@ -155,8 +166,8 @@ export default function AggregatorSettlementModal({
       grossAmount: gross,
       commissionDeducted: calculatedCommission,
       bankAmountReceived: net,
-      referenceNo: referenceNo.trim() || 'N/A',
-      notes: `Weekly ${selectedPlatform} Payout`,
+      referenceNo: `Bank Credit - ${settlementDate}`,
+      notes: `${selectedPlatform} Weekly Payout Settled`,
       expenseLogged: calculatedCommission > 0,
       createdAt: new Date().toISOString()
     };
@@ -179,24 +190,22 @@ export default function AggregatorSettlementModal({
       });
     }
 
-    setFormSuccess(`✅ ₹${net.toLocaleString()} Bank me jama ho gaya! Pending balance clear ho gaya.`);
-    setGrossAmount('');
+    setFormSuccess(`✅ ₹${net.toLocaleString()} Bank me jama ho gaya! Sabhi orders settle ho gaye.`);
     setBankAmountReceived('');
-    setReferenceNo('');
     setTimeout(() => {
       setFormSuccess('');
       setActiveTab('orders');
-    }, 2000);
+    }, 1500);
   };
 
-  // Helper to remove accidental discount and restore full price (e.g. fix 140 back to 160)
-  const handleFixDiscount = (sale) => {
+  // Helper to remove offer discount and restore full price (e.g. fix 140 back to 160)
+  const handleFixDiscount = (sale, fullPrice) => {
     if (!onUpdateSale) return;
-    const fullPrice = (Number(sale.sellingPrice) || 0) * (Number(sale.quantitySold) || 1);
+    const target = fullPrice || ((Number(sale.sellingPrice) || 0) * (Number(sale.quantitySold) || 1));
     const updated = {
       ...sale,
       discountAmount: 0,
-      totalRevenue: fullPrice
+      totalRevenue: target
     };
     onUpdateSale(updated);
   };
@@ -222,11 +231,11 @@ export default function AggregatorSettlementModal({
                   {selectedPlatform} Payouts & Orders
                 </h2>
                 <span className="text-[10px] bg-amber-500/20 text-amber-300 font-extrabold px-2 py-0.5 rounded-full border border-amber-500/30">
-                  Aapka Paisa
+                  Live Status
                 </span>
               </div>
               <p className="text-xs text-stone-400">
-                Swiggy aur Zomato par beche gaye orders aur bank me aane wala paisa
+                Punched orders, offer details aur bank settlement ledger
               </p>
             </div>
           </div>
@@ -281,11 +290,11 @@ export default function AggregatorSettlementModal({
           </div>
         </div>
 
-        {/* 3 Simple Metric Cards (Crystal Clear) */}
+        {/* 3 Simple Metric Cards */}
         <div className="p-4 bg-stone-50 border-b border-stone-200 grid grid-cols-1 sm:grid-cols-3 gap-2.5 shrink-0">
           
-          {/* Card 1: Pending Bank Payout (PROMINENT HIGHLIGHT) */}
-          <div className="bg-gradient-to-br from-amber-50 to-orange-50 p-3.5 rounded-2xl border-2 border-amber-400 shadow-sm flex flex-col justify-between sm:col-span-1">
+          {/* Card 1: Pending Bank Payout */}
+          <div className="bg-gradient-to-br from-amber-50 to-orange-50 p-3.5 rounded-2xl border-2 border-amber-400 shadow-sm flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-extrabold text-amber-950 uppercase tracking-wide flex items-center gap-1.5">
                 <Clock className="w-4 h-4 text-amber-600" />
@@ -300,7 +309,7 @@ export default function AggregatorSettlementModal({
                 ₹{platLedger.pendingUnsettled.toLocaleString()}
               </div>
               <div className="text-[11px] text-amber-900/90 font-semibold mt-0.5">
-                Yeh paisa {selectedPlatform} ke paas hai (Weekly transfer hoga)
+                {platLedger.pendingUnsettled > 0 ? 'Paisa bank me aana baki hai' : '✅ Sabhi payouts bank me jama ho chuke hain'}
               </div>
             </div>
           </div>
@@ -325,14 +334,14 @@ export default function AggregatorSettlementModal({
           <div className="bg-white p-3.5 rounded-2xl border border-stone-200 shadow-xs flex flex-col justify-between">
             <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wide flex items-center gap-1.5">
               <Building2 className="w-4 h-4 text-emerald-600" />
-              <span>Bank Me Received (Settled):</span>
+              <span>Bank Me Deposit Hua (Settled):</span>
             </span>
             <div className="my-1.5">
               <div className="text-xl sm:text-2xl font-black text-emerald-700">
                 ₹{platLedger.totalBankReceived.toLocaleString()}
               </div>
               <div className="text-[11px] text-stone-500 font-medium mt-0.5">
-                {platSettlements.length} weekly payouts bank me deposit hue
+                {platSettlements.length} settlements bank me jama hue
               </div>
             </div>
           </div>
@@ -357,7 +366,7 @@ export default function AggregatorSettlementModal({
             <button
               onClick={() => {
                 setActiveTab('settle');
-                handleQuickFillPending();
+                setFormError('');
               }}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeTab === 'settle'
@@ -374,18 +383,18 @@ export default function AggregatorSettlementModal({
         {/* Modal Scrollable Body */}
         <div className="p-4 sm:p-5 overflow-y-auto flex-1 space-y-4">
 
-          {/* TAB 1: ORDERS LIST (WHERE USER SEES THEIR ITEMS) */}
+          {/* TAB 1: ORDERS LIST */}
           {activeTab === 'orders' && (
             <div className="space-y-3">
               
-              {/* Header with Search and Quick CTA */}
+              {/* Header with Search and Quick Settle Button */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                 <div>
                   <h3 className="text-xs sm:text-sm font-extrabold text-stone-800 flex items-center gap-1.5">
                     <span>{selectedPlatform === 'Swiggy' ? '🟠 Swiggy' : '🔴 Zomato'} Par Beche Gaye Orders</span>
                   </h3>
                   <p className="text-[11px] text-stone-500">
-                    Aapke punch kiye gaye har order ki live list
+                    Aapke beche gaye sabhi orders aur unka live bank status
                   </p>
                 </div>
 
@@ -404,11 +413,8 @@ export default function AggregatorSettlementModal({
                   {platLedger.pendingUnsettled > 0 && (
                     <button
                       type="button"
-                      onClick={() => {
-                        setActiveTab('settle');
-                        handleQuickFillPending();
-                      }}
-                      className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1 shrink-0"
+                      onClick={() => setActiveTab('settle')}
+                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1 shrink-0"
                     >
                       <span>Bank Me Settle Karein</span>
                       <ArrowRight className="w-3 h-3" />
@@ -416,21 +422,6 @@ export default function AggregatorSettlementModal({
                   )}
                 </div>
               </div>
-
-              {/* Notice Banner if any discount exists */}
-              {platLedger.totalDiscountGiven > 0 && (
-                <div className="p-3 bg-amber-50 border border-amber-300 rounded-2xl text-xs text-amber-900 flex items-start gap-2.5">
-                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <span className="font-extrabold text-amber-950 block">
-                      💡 Notice: Order me ₹{platLedger.totalDiscountGiven} ka Promo Discount laga hua hai!
-                    </span>
-                    <span className="text-[11px] text-amber-900/90 leading-relaxed block mt-0.5">
-                      Menu rate <strong>₹{platLedger.totalMenuValue || (platLedger.totalGross + platLedger.totalDiscountGiven)}</strong> tha, lekin punch karte waqt <strong>-₹{platLedger.totalDiscountGiven}</strong> discount lagne se net bill <strong>₹{platLedger.totalGross}</strong> bana. Agar galti se discount lag gaya tha, to aap niche item ke aage <strong>"⚡ Discount Hata Kar Poora Price Banao"</strong> daba kar direct theek kar sakte hain!
-                    </span>
-                  </div>
-                </div>
-              )}
 
               {/* Items List */}
               {platSales.length === 0 ? (
@@ -452,23 +443,32 @@ export default function AggregatorSettlementModal({
               ) : (
                 <div className="divide-y divide-stone-100 border border-stone-200 rounded-2xl overflow-hidden bg-white shadow-xs">
                   {filteredSales.map((sale, idx) => {
-                    const originalPrice = (Number(sale.sellingPrice) || 0) * (Number(sale.quantitySold) || 1);
-                    const hasDiscount = sale.discountAmount > 0;
+                    const menuRate = Number(sale.sellingPrice) || 0;
+                    const qty = Number(sale.quantitySold) || 1;
+                    const expectedTotal = menuRate * qty;
+                    const actualTotal = Number(sale.totalRevenue) || 0;
+                    const recordedDiscount = Number(sale.discountAmount) || 0;
+                    const calculatedDiscount = Math.max(0, expectedTotal - actualTotal);
+                    const discountAmt = recordedDiscount > 0 ? recordedDiscount : calculatedDiscount;
+                    const isDiscounted = discountAmt > 0 || (expectedTotal > actualTotal);
+                    const isSettled = Boolean(sale.isSettled);
 
                     return (
                       <div 
                         key={sale.id || idx} 
-                        className="p-3 sm:p-3.5 hover:bg-stone-50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                        className={`p-3.5 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                          isDiscounted ? 'bg-amber-50/40 hover:bg-amber-50/70 border-l-4 border-l-rose-500' : 'hover:bg-stone-50'
+                        }`}
                       >
-                        {/* Left: Item Info */}
+                        {/* Left: Item Details */}
                         <div className="flex items-start gap-3 min-w-0">
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black text-white shrink-0 mt-0.5 shadow-xs ${
                             selectedPlatform === 'Swiggy' ? 'bg-[#f48c06]' : 'bg-[#e5383b]'
                           }`}>
-                            {sale.quantitySold}x
+                            {qty}x
                           </div>
                           
-                          <div className="min-w-0">
+                          <div className="min-w-0 space-y-1">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-extrabold text-stone-900 text-xs sm:text-sm">
                                 {sale.itemName}
@@ -480,41 +480,61 @@ export default function AggregatorSettlementModal({
                               )}
                             </div>
 
-                            <div className="text-[11px] text-stone-400 mt-0.5 flex items-center gap-2 flex-wrap">
+                            <div className="text-[11px] text-stone-500 flex items-center gap-2 flex-wrap">
                               <span>📅 {sale.date}</span>
                               <span>•</span>
-                              <span>{sale.quantitySold} items × ₹{sale.sellingPrice} = ₹{originalPrice}</span>
-                              {hasDiscount && (
-                                <span className="text-rose-600 font-bold bg-rose-50 px-1.5 py-0.2 rounded border border-rose-200">
-                                  -₹{sale.discountAmount} Offer Discount
-                                </span>
-                              )}
+                              <span>{qty} items × ₹{menuRate} = <strong>₹{expectedTotal}</strong></span>
                             </div>
+
+                            {/* PROMINENT OFFER / DISCOUNT BANNER ON THIS SPECIFIC ITEM */}
+                            {isDiscounted && (
+                              <div className="flex items-center gap-2 flex-wrap pt-0.5">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-rose-100 text-rose-800 border border-rose-300 rounded-md text-[11px] font-extrabold">
+                                  <Tag className="w-3 h-3 text-rose-600" />
+                                  <span>🏷️ Is Item Par Offer Laga Tha: -₹{discountAmt} OFF</span>
+                                </span>
+                                <span className="text-[11px] text-rose-700 font-medium">
+                                  (Menu: ₹{expectedTotal} − Offer: ₹{discountAmt} = Net: ₹{actualTotal})
+                                </span>
+                              </div>
+                            )}
                           </div>
                         </div>
 
-                        {/* Right: Price & Quick Fix / Delete Actions */}
+                        {/* Right: Price & Real-time Settled / Pending Status */}
                         <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pl-11 sm:pl-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-stone-100">
                           
-                          {/* If has accidental discount, provide 1-click fix button */}
-                          {hasDiscount && onUpdateSale && (
+                          {/* 1-Click Fix Button to restore full price if user didn't want discount */}
+                          {isDiscounted && onUpdateSale && (
                             <button
                               type="button"
-                              onClick={() => handleFixDiscount(sale)}
-                              className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-lg text-[10px] font-extrabold flex items-center gap-1 transition-colors cursor-pointer"
-                              title="Discount hata kar poora menu price karein"
+                              onClick={() => handleFixDiscount(sale, expectedTotal)}
+                              className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-stone-950 rounded-lg text-[10px] font-black flex items-center gap-1 transition-all shadow-xs cursor-pointer"
+                              title="Offer discount hata kar poora rate karein"
                             >
-                              <Wand2 className="w-3 h-3 text-amber-600" />
-                              <span>Fix to ₹{originalPrice}</span>
+                              <Wand2 className="w-3 h-3" />
+                              <span>⚡ Offer Hatao (₹{expectedTotal} Banao)</span>
                             </button>
                           )}
 
                           <div className="text-right">
                             <div className="text-xs sm:text-sm font-black text-stone-900">
-                              ₹{(sale.totalRevenue || 0).toLocaleString()}
+                              ₹{actualTotal.toLocaleString()}
                             </div>
-                            <div className="text-[10px] text-amber-700 font-bold">
-                              ⏳ Bank Me Aana Baki
+                            
+                            {/* DYNAMIC LIVE SETTLED VS PENDING STATUS */}
+                            <div className="mt-0.5">
+                              {isSettled ? (
+                                <span className="text-[10px] bg-emerald-100 text-emerald-800 font-extrabold px-2 py-0.5 rounded-full inline-flex items-center gap-1 border border-emerald-300">
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                  <span>✅ Bank Me Aa Chuka (Settled)</span>
+                                </span>
+                              ) : (
+                                <span className="text-[10px] bg-amber-100 text-amber-800 font-extrabold px-2 py-0.5 rounded-full inline-flex items-center gap-1 border border-amber-300">
+                                  <Clock className="w-3 h-3 text-amber-600" />
+                                  <span>⏳ Bank Me Aana Baki (Pending)</span>
+                                </span>
+                              )}
                             </div>
                           </div>
 
@@ -555,7 +575,7 @@ export default function AggregatorSettlementModal({
             </div>
           )}
 
-          {/* TAB 2: BANK SETTLEMENT (HOW USER CLEARS PENDING BALANCE) */}
+          {/* TAB 2: BANK SETTLEMENT (1 SINGLE INPUT ONLY!) */}
           {activeTab === 'settle' && (
             <div className="space-y-4">
               
@@ -567,81 +587,53 @@ export default function AggregatorSettlementModal({
                     <span>{selectedPlatform} Se Bank Me Paisa Aaya? (Payout Settle Karein)</span>
                   </h3>
                   <p className="text-xs text-stone-500 mt-0.5 leading-relaxed">
-                    Jab {selectedPlatform} hafte me aapke bank account me paisa credit kare, bas yahan enter karein. Pending balance clear ho jayega aur platform ka commission cut apne aap cafe expenses me shamil ho jayega.
+                    Aapke <strong>₹{platLedger.pendingUnsettled.toLocaleString()}</strong> ke orders pending hain. Swiggy ne jitna paisa aapke bank account me transfer kiya hai, bas wo amount yahan enter karein.
                   </p>
                 </div>
 
                 <form onSubmit={handleSubmitSettlement} className="space-y-3 pt-1">
                   
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    
-                    {/* Gross Pending Amount */}
-                    <div className="bg-white p-3 rounded-xl border border-stone-200">
-                      <span className="text-[11px] font-bold text-stone-500 block mb-1">
-                        1. Orders Settle Amount (Gross):
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          placeholder="e.g. 160"
-                          value={grossAmount}
-                          onChange={(e) => setGrossAmount(e.target.value)}
-                          className="w-full px-3 py-1.5 bg-stone-50 border border-stone-300 rounded-lg text-xs font-bold text-stone-800 focus:outline-none"
-                          required
-                        />
-                        {platLedger.pendingUnsettled > 0 && (
-                          <button
-                            type="button"
-                            onClick={handleQuickFillPending}
-                            className="text-[10px] bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold px-2 py-1 rounded-lg shrink-0 cursor-pointer"
-                          >
-                            Fill ₹{platLedger.pendingUnsettled}
-                          </button>
-                        )}
-                      </div>
-                      <span className="text-[10px] text-stone-400 mt-1 block">
-                        Pending: ₹{platLedger.pendingUnsettled}
-                      </span>
+                  {/* Single Clean Input: Bank me kitna aaya */}
+                  <div className="bg-white p-4 rounded-2xl border-2 border-emerald-400 shadow-xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-extrabold text-emerald-900 uppercase tracking-wide">
+                        Bank Account Me Kitna Paisa Aaya? (Net Credit) (₹):
+                      </label>
+                      {platLedger.pendingUnsettled > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setBankAmountReceived(String(platLedger.pendingUnsettled))}
+                          className="text-[10px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold px-2 py-0.5 rounded cursor-pointer"
+                        >
+                          Poora ₹{platLedger.pendingUnsettled} Aaya
+                        </button>
+                      )}
                     </div>
 
-                    {/* Actual Bank Received */}
-                    <div className="bg-white p-3 rounded-xl border-2 border-emerald-300">
-                      <span className="text-[11px] font-bold text-emerald-800 block mb-1">
-                        2. Actual Bank Me Kitna Paisa Aaya? (Net Credit):
-                      </span>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-black text-emerald-700 text-lg">₹</span>
                       <input
                         type="number"
-                        placeholder="e.g. 135"
+                        placeholder={`e.g. ${platLedger.pendingUnsettled}`}
                         value={bankAmountReceived}
                         onChange={(e) => setBankAmountReceived(e.target.value)}
-                        className="w-full px-3 py-1.5 bg-emerald-50/40 border border-emerald-300 rounded-lg text-xs font-black text-emerald-900 focus:outline-none"
+                        className="w-full pl-8 pr-4 py-2.5 bg-emerald-50/40 border border-emerald-300 rounded-xl text-base font-black text-emerald-950 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                         required
+                        autoFocus
                       />
-                      <span className="text-[10px] text-emerald-700 mt-1 block">
-                        Aapke bank account me transfer hua net amount
-                      </span>
                     </div>
 
-                  </div>
-
-                  {/* Calculated Platform Cut Summary Box */}
-                  <div className="bg-white p-3 rounded-xl border border-stone-200 flex items-center justify-between">
-                    <div>
-                      <span className="text-xs font-bold text-stone-700 block">
-                        Platform Cut (Commission & Taxes):
-                      </span>
-                      <span className="text-[10px] text-stone-400">
-                        Gross (₹{grossAmount || platLedger.pendingUnsettled}) − Bank (₹{bankAmountReceived || 0})
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-base font-black text-rose-600">
-                        ₹{calculatedCommission.toLocaleString()}
+                    {/* Live Commission Calculation Feedback */}
+                    {platLedger.pendingUnsettled > 0 && bankAmountReceived !== '' && (
+                      <div className="pt-2 border-t border-stone-100 flex items-center justify-between text-xs">
+                        <span className="text-stone-500">
+                          Pending: <strong>₹{platLedger.pendingUnsettled}</strong> − Bank: <strong>₹{bankAmountReceived || 0}</strong>
+                        </span>
+                        <span className="font-extrabold text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                          {selectedPlatform} Commission Cut: ₹{calculatedCommission} ({commissionPct}%)
+                        </span>
                       </div>
-                      <span className="text-[10px] font-bold text-rose-700 bg-rose-50 px-1.5 py-0.2 rounded">
-                        {commissionPct}% Cut
-                      </span>
-                    </div>
+                    )}
                   </div>
 
                   {formError && (
@@ -661,10 +653,10 @@ export default function AggregatorSettlementModal({
                   {/* Submit Button */}
                   <button
                     type="submit"
-                    className="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white rounded-xl text-xs sm:text-sm font-extrabold shadow-md shadow-emerald-600/20 transition-all cursor-pointer flex items-center justify-center gap-2"
+                    className="w-full py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white rounded-xl text-xs sm:text-sm font-extrabold shadow-md shadow-emerald-600/20 transition-all cursor-pointer flex items-center justify-center gap-2"
                   >
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>Save Settlement & Clear Pending</span>
+                    <span>Settle Karein (Paisa Bank Me Aa Gaya)</span>
                   </button>
 
                 </form>
@@ -711,7 +703,7 @@ export default function AggregatorSettlementModal({
                             </span>
                           </div>
                           <div className="text-[11px] text-stone-500 mt-0.5">
-                            Gross: ₹{set.grossAmount} • Commission: -₹{set.commissionDeducted}
+                            Gross Settle: ₹{set.grossAmount} • Commission Cut: -₹{set.commissionDeducted}
                           </div>
                         </div>
 
