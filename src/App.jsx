@@ -468,6 +468,81 @@ export default function App() {
     return true;
   };
 
+  // ⚡ High-Speed Batch Sales Handler (For multi-item Swiggy/Zomato orders & rush hour punching)
+  const handleAddBatchSales = (salesList) => {
+    if (!salesList || salesList.length === 0) return true;
+
+    // Check stock for all items
+    for (const newSale of salesList) {
+      const targetMenuItem = menuItems.find(m => m.id === newSale.itemId || m.name === newSale.itemName);
+      if (targetMenuItem) {
+        const stockStatus = checkItemStock(targetMenuItem, inventoryItems);
+        if (stockStatus.isOutOfStock) {
+          showToast(`🚫 Order Blocked: "${newSale.itemName}" OUT OF STOCK hai!`);
+          return false;
+        }
+      }
+    }
+
+    let currentSales = [...salesLogs];
+    let currentInv = [...inventoryItems];
+
+    salesList.forEach(newSale => {
+      currentSales = [newSale, ...currentSales];
+      const targetMenuItem = menuItems.find(m => m.id === newSale.itemId || m.name === newSale.itemName);
+      const qty = Number(newSale.quantitySold) || 1;
+
+      if (targetMenuItem && Array.isArray(targetMenuItem.recipe) && targetMenuItem.recipe.length > 0) {
+        currentInv = currentInv.map(invItem => {
+          const recipeMatch = targetMenuItem.recipe.find(r => {
+            const matched = findMatchingInventoryItem(r.ingredientId, [invItem]) ||
+              findMatchingInventoryItem(r.name, [invItem]);
+            return Boolean(matched);
+          });
+
+          if (recipeMatch) {
+            const recipeNeeded = (Number(recipeMatch.quantity) || 0) * qty;
+            const deductAmount = convertQuantity(recipeNeeded, recipeMatch.unit, invItem.unit);
+            const newStock = Math.max(0, Math.round((Number(invItem.currentStock) - deductAmount) * 100) / 100);
+            return {
+              ...invItem,
+              currentStock: newStock,
+              lastUpdated: new Date().toISOString().split('T')[0]
+            };
+          }
+          return invItem;
+        });
+      } else if (targetMenuItem) {
+        const directIndex = currentInv.findIndex(
+          i => i.materialName.toLowerCase() === targetMenuItem.name.toLowerCase()
+        );
+        if (directIndex !== -1) {
+          currentInv = currentInv.map((inv, idx) => {
+            if (idx === directIndex) {
+              const newStock = Math.max(0, Math.round((Number(inv.currentStock) - qty) * 100) / 100);
+              return {
+                ...inv,
+                currentStock: newStock,
+                lastUpdated: new Date().toISOString().split('T')[0]
+              };
+            }
+            return inv;
+          });
+        }
+      }
+    });
+
+    updateSales(currentSales);
+    updateInventory(currentInv);
+
+    const totalRev = salesList.reduce((s, x) => s + (Number(x.totalRevenue) || 0), 0);
+    const orderRef = salesList[0]?.platformOrderId || '';
+    const platform = salesList[0]?.paymentMethod || 'Online';
+    showToast(`⚡ ${platform} Order ${orderRef ? `${orderRef} ` : ''}Punched! (${salesList.length} items • ₹${totalRev})`);
+    return true;
+  };
+
+
   const handleUpdateSale = (updatedSale) => {
     const oldSale = salesLogs.find(s => s.id === updatedSale.id);
     const diff = oldSale ? (Number(oldSale.quantitySold) - Number(updatedSale.quantitySold)) : 0;
@@ -959,6 +1034,7 @@ export default function App() {
             inventoryItems={inventoryItems}
             settlements={settlements}
             onAddSale={handleAddSale}
+            onAddBatchSales={handleAddBatchSales}
             onUpdateSale={handleUpdateSale}
             onDeleteSale={handleDeleteSale}
             onOpenExportModal={() => setIsExportModalOpen(true)}

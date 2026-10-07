@@ -29,6 +29,7 @@ export default function SalesTracker({
   inventoryItems = [], 
   settlements = [],
   onAddSale, 
+  onAddBatchSales,
   onUpdateSale, 
   onDeleteSale, 
   onOpenExportModal,
@@ -869,6 +870,7 @@ export default function SalesTracker({
         menuItems={menuItems}
         inventoryItems={inventoryItems}
         onAddSale={onAddSale}
+        onAddBatchSales={onAddBatchSales}
       />
 
       {/* MODAL 2: SWIGGY & ZOMATO WEEKLY PAYOUT SETTLEMENTS */}
