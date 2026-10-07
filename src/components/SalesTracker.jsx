@@ -542,28 +542,6 @@ export default function SalesTracker({
               />
             </div>
 
-            {/* Counter Walk-in Quick Jump Button */}
-            <button
-              type="button"
-              onClick={() => scrollToPos('counter')}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-2xl text-xs font-bold transition-all shadow-md cursor-pointer border border-emerald-400/30"
-              title="Punch Counter Walk-in Order (Cash ya UPI)"
-            >
-              <Banknote className="w-3.5 h-3.5 text-white" />
-              <span>💵 Punch Counter Order</span>
-            </button>
-
-            {/* Online Order Punch Modal / Jump Button */}
-            <button
-              type="button"
-              onClick={() => scrollToPos('online')}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white rounded-2xl text-xs font-bold transition-all shadow-md cursor-pointer border border-orange-400/30"
-              title="Punch Swiggy or Zomato order with custom price & promo offers"
-            >
-              <Bike className="w-3.5 h-3.5 text-white" />
-              <span>🛵 Punch Online Order</span>
-            </button>
-
             {/* Aggregator Settlement / Ledger Button */}
             <button
               type="button"
