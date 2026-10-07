@@ -35,6 +35,7 @@ export default function SalesTracker({
   onOpenExportModal,
   onAddSettlement,
   onDeleteSettlement,
+  onClearAllSettlements,
   onAddExpense
 }) {
   const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
@@ -48,6 +49,7 @@ export default function SalesTracker({
   // Modals state
   const [isOnlinePunchOpen, setIsOnlinePunchOpen] = useState(false);
   const [isSettlementModalOpen, setIsSettlementModalOpen] = useState(false);
+  const [settlementPlatform, setSettlementPlatform] = useState('Swiggy');
 
   const showWarning = (msg) => {
     setWarningMessage(msg);
@@ -274,7 +276,10 @@ export default function SalesTracker({
             {/* Aggregator Settlement / Ledger Button */}
             <button
               type="button"
-              onClick={() => setIsSettlementModalOpen(true)}
+              onClick={() => {
+                setSettlementPlatform('Swiggy');
+                setIsSettlementModalOpen(true);
+              }}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-800 hover:bg-stone-700 active:bg-stone-900 text-amber-300 rounded-2xl text-xs font-bold transition-all border border-amber-500/30 cursor-pointer shadow-md"
               title="Manage Swiggy & Zomato Weekly Payouts & Commission Settlements"
             >
@@ -338,7 +343,10 @@ export default function SalesTracker({
 
           {/* Swiggy Orders */}
           <div 
-            onClick={() => setIsSettlementModalOpen(true)}
+            onClick={() => {
+              setSettlementPlatform('Swiggy');
+              setIsSettlementModalOpen(true);
+            }}
             className="bg-stone-800/60 p-3 sm:p-3.5 rounded-2xl border border-orange-900/40 hover:border-orange-500/80 transition-all flex flex-col justify-between cursor-pointer group"
             title="Click to manage Swiggy Weekly Settlements & Ledger"
           >
@@ -356,7 +364,10 @@ export default function SalesTracker({
 
           {/* Zomato Orders */}
           <div 
-            onClick={() => setIsSettlementModalOpen(true)}
+            onClick={() => {
+              setSettlementPlatform('Zomato');
+              setIsSettlementModalOpen(true);
+            }}
             className="bg-stone-800/60 p-3 sm:p-3.5 rounded-2xl border border-rose-900/40 hover:border-rose-500/80 transition-all flex flex-col justify-between cursor-pointer group"
             title="Click to manage Zomato Weekly Settlements & Ledger"
           >
@@ -889,8 +900,10 @@ export default function SalesTracker({
         onClose={() => setIsSettlementModalOpen(false)}
         salesLogs={salesLogs}
         settlements={settlements}
+        initialPlatform={settlementPlatform}
         onAddSettlement={onAddSettlement}
         onDeleteSettlement={onDeleteSettlement}
+        onClearAllSettlements={onClearAllSettlements}
         onAddExpense={onAddExpense}
       />
 

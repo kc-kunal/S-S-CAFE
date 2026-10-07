@@ -343,6 +343,12 @@ export default function App() {
     showToast('Settlement record deleted');
   };
 
+  const handleClearAllSettlements = () => {
+    setSettlements([]);
+    saveStoredSettlements([]);
+    showToast('All settlement history cleared');
+  };
+
   // 🗑️ Raw Material Spoilage / Wastage Handlers (Auto Stock Deduction)
   const handleAddWastage = (entry) => {
     // 1. Deduct raw material quantity from current stock in inventory
@@ -1022,6 +1028,7 @@ export default function App() {
             onOpenExportModal={() => setIsExportModalOpen(true)}
             onAddSettlement={handleAddSettlement}
             onDeleteSettlement={handleDeleteSettlement}
+            onClearAllSettlements={handleClearAllSettlements}
             onAddExpense={handleAddExpense}
           />
         )}
@@ -1199,8 +1206,10 @@ export default function App() {
         onClose={() => setIsAggregatorModalOpen(false)}
         salesLogs={salesLogs}
         settlements={settlements}
+        initialPlatform="Swiggy"
         onAddSettlement={handleAddSettlement}
         onDeleteSettlement={handleDeleteSettlement}
+        onClearAllSettlements={handleClearAllSettlements}
         onAddExpense={handleAddExpense}
       />
 

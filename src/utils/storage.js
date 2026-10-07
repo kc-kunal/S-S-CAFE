@@ -593,20 +593,7 @@ export const INITIAL_SALES_LOGS = [
   { id: 'sale-4', itemId: 'burger-2', itemName: 'Crispy Veg Supreme Burger', category: 'Burgers', quantitySold: 2, sellingPrice: 69, costPrice: 22, totalRevenue: 138, totalCost: 44, paymentMethod: 'Zomato', platformOrderId: '#ZOM-7821', discountAmount: 15, date: getTodayDateString(0) }
 ];
 
-export const INITIAL_AGGREGATOR_SETTLEMENTS = [
-  {
-    id: 'settle-swiggy-1',
-    platform: 'Swiggy',
-    settlementDate: getTodayDateString(3),
-    grossAmount: 1500,
-    commissionDeducted: 330,
-    bankAmountReceived: 1170,
-    referenceNo: 'SWG-UTR-892341',
-    notes: 'Last week Tuesday payout',
-    expenseLogged: true,
-    createdAt: new Date().toISOString()
-  }
-];
+export const INITIAL_AGGREGATOR_SETTLEMENTS = [];
 
 
 export const INITIAL_PROCUREMENT_LOGS = [
@@ -734,7 +721,15 @@ export const saveStoredDiningOrders = (orders) => {
 export const getStoredSettlements = () => {
   try {
     const data = localStorage.getItem(AGGREGATOR_SETTLEMENTS_STORAGE_KEY);
-    return data ? JSON.parse(data) : INITIAL_AGGREGATOR_SETTLEMENTS;
+    if (!data) return INITIAL_AGGREGATOR_SETTLEMENTS;
+    const parsed = JSON.parse(data);
+    if (!Array.isArray(parsed)) return INITIAL_AGGREGATOR_SETTLEMENTS;
+    // Auto-remove dummy settlement seeded in earlier version so real sales are never suppressed
+    const cleaned = parsed.filter(s => s && s.id !== 'settle-swiggy-1');
+    if (cleaned.length !== parsed.length) {
+      localStorage.setItem(AGGREGATOR_SETTLEMENTS_STORAGE_KEY, JSON.stringify(cleaned));
+    }
+    return cleaned;
   } catch (e) {
     return INITIAL_AGGREGATOR_SETTLEMENTS;
   }
