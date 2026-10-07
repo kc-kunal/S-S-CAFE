@@ -934,24 +934,6 @@ export default function App() {
               )}
             </button>
 
-            {/* 🛵 Swiggy & Zomato Online Orders & Payouts Button */}
-            <button
-              onClick={() => setIsAggregatorModalOpen(true)}
-              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 shadow-xs"
-              title="Swiggy & Zomato Weekly Payouts and Ledger"
-            >
-              <Bike className="w-4 h-4 text-orange-600" />
-              <span>🛵 Swiggy/Zomato</span>
-              {(() => {
-                const agg = calculateAggregatorLedger(salesLogs, settlements);
-                return agg.overall.pendingUnsettled > 0 ? (
-                  <span className="text-[10px] bg-orange-600 text-white font-extrabold px-1.5 py-0.2 rounded-full">
-                    ₹{agg.overall.pendingUnsettled.toLocaleString()}
-                  </span>
-                ) : null;
-              })()}
-            </button>
-
             {/* 📦 Raw Material Stock Tab */}
             <button
               onClick={() => setActiveTab('inventory')}

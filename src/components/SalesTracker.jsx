@@ -337,9 +337,14 @@ export default function SalesTracker({
           </div>
 
           {/* Swiggy Orders */}
-          <div className="bg-stone-800/60 p-3 sm:p-3.5 rounded-2xl border border-orange-900/40 flex flex-col justify-between">
+          <div 
+            onClick={() => setIsSettlementModalOpen(true)}
+            className="bg-stone-800/60 p-3 sm:p-3.5 rounded-2xl border border-orange-900/40 hover:border-orange-500/80 transition-all flex flex-col justify-between cursor-pointer group"
+            title="Click to manage Swiggy Weekly Settlements & Ledger"
+          >
             <div className="flex items-center justify-between">
-              <span className="text-[10px] sm:text-[11px] font-bold text-orange-400 uppercase tracking-wider">🟠 Swiggy</span>
+              <span className="text-[10px] sm:text-[11px] font-bold text-orange-400 uppercase tracking-wider group-hover:text-orange-300">🟠 Swiggy</span>
+              <span className="text-[9px] text-orange-400/70 group-hover:underline">Payouts →</span>
             </div>
             <div className="text-xl sm:text-2xl font-extrabold text-orange-300 mt-1">
               ₹{dailySummary.swiggyRevenue.toLocaleString()}
@@ -350,9 +355,14 @@ export default function SalesTracker({
           </div>
 
           {/* Zomato Orders */}
-          <div className="bg-stone-800/60 p-3 sm:p-3.5 rounded-2xl border border-rose-900/40 flex flex-col justify-between">
+          <div 
+            onClick={() => setIsSettlementModalOpen(true)}
+            className="bg-stone-800/60 p-3 sm:p-3.5 rounded-2xl border border-rose-900/40 hover:border-rose-500/80 transition-all flex flex-col justify-between cursor-pointer group"
+            title="Click to manage Zomato Weekly Settlements & Ledger"
+          >
             <div className="flex items-center justify-between">
-              <span className="text-[10px] sm:text-[11px] font-bold text-rose-400 uppercase tracking-wider">🔴 Zomato</span>
+              <span className="text-[10px] sm:text-[11px] font-bold text-rose-400 uppercase tracking-wider group-hover:text-rose-300">🔴 Zomato</span>
+              <span className="text-[9px] text-rose-400/70 group-hover:underline">Payouts →</span>
             </div>
             <div className="text-xl sm:text-2xl font-extrabold text-rose-300 mt-1">
               ₹{dailySummary.zomatoRevenue.toLocaleString()}
