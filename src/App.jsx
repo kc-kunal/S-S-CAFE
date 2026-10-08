@@ -987,8 +987,8 @@ export default function App() {
     return (
       <>
         {toast && (
-          <div className="fixed bottom-6 right-6 z-50 flex items-center space-x-2.5 bg-stone-950 text-amber-100 px-5 py-3.5 rounded-2xl shadow-2xl border border-stone-800 animate-in fade-in">
-            <CheckCircle2 className="w-5 h-5 text-amber-500" />
+          <div className="fixed bottom-6 right-6 z-50 flex items-center space-x-2.5 bg-slate-900 text-white px-5 py-3.5 rounded-2xl shadow-xl border border-slate-800 animate-in fade-in">
+            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
             <span className="text-sm font-semibold">{toast}</span>
           </div>
         )}
@@ -1032,12 +1032,12 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-amber-50/20 text-stone-800 font-sans">
+    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans">
 
       {/* Toast Notification */}
       {toast && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center space-x-2.5 bg-stone-950 text-amber-100 px-5 py-3.5 rounded-2xl shadow-2xl border border-stone-800 animate-in fade-in">
-          <CheckCircle2 className="w-5 h-5 text-amber-500" />
+        <div className="fixed bottom-6 right-6 z-50 flex items-center space-x-2.5 bg-slate-900 text-white px-5 py-3.5 rounded-2xl shadow-xl border border-slate-800 animate-in fade-in">
+          <CheckCircle2 className="w-5 h-5 text-emerald-400" />
           <span className="text-sm font-semibold">{toast}</span>
         </div>
       )}
@@ -1065,7 +1065,7 @@ export default function App() {
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 pb-20 sm:pb-8">
 
         {/* Navigation Tabs Bar */}
-        <div className="flex items-center justify-between gap-3 mb-6 sm:mb-8 bg-white p-1.5 sm:p-2 rounded-2xl border border-stone-200 shadow-sm cafe-glass overflow-hidden">
+        <div className="flex items-center justify-between gap-3 mb-6 sm:mb-8 bg-white p-1.5 sm:p-2 rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
 
           <div className="flex items-center space-x-1 sm:space-x-2 overflow-x-auto w-full no-scrollbar py-0.5 px-0.5">
 
@@ -1073,8 +1073,8 @@ export default function App() {
             <button
               onClick={() => setActiveTab('sales')}
               className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${activeTab === 'sales'
-                  ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
-                  : 'text-stone-600 hover:bg-stone-100'
+                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/25'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
             >
               <ShoppingBag className="w-4 h-4" />
@@ -1085,8 +1085,8 @@ export default function App() {
             <button
               onClick={() => setActiveTab('dining')}
               className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 relative ${activeTab === 'dining'
-                  ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
-                  : 'text-stone-600 hover:bg-stone-100'
+                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/25'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
             >
               <UtensilsCrossed className="w-4 h-4" />
@@ -1100,8 +1100,8 @@ export default function App() {
             <button
               onClick={() => setActiveTab('inventory')}
               className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${activeTab === 'inventory'
-                  ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
-                  : 'text-stone-600 hover:bg-stone-100'
+                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/25'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
             >
               <Boxes className="w-4 h-4" />
@@ -1112,8 +1112,8 @@ export default function App() {
             <button
               onClick={() => setActiveTab('dashboard')}
               className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${activeTab === 'dashboard'
-                  ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
-                  : 'text-stone-600 hover:bg-stone-100'
+                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/25'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
             >
               <PieChart className="w-4 h-4" />
@@ -1124,8 +1124,8 @@ export default function App() {
             <button
               onClick={() => setActiveTab('procurement')}
               className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${activeTab === 'procurement'
-                  ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
-                  : 'text-stone-600 hover:bg-stone-100'
+                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/25'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
             >
               <PackageCheck className="w-4 h-4" />
@@ -1136,8 +1136,8 @@ export default function App() {
             <button
               onClick={() => setActiveTab('expenses')}
               className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${activeTab === 'expenses'
-                  ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
-                  : 'text-stone-600 hover:bg-stone-100'
+                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/25'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
             >
               <Receipt className="w-4 h-4" />
@@ -1148,8 +1148,8 @@ export default function App() {
             <button
               onClick={() => setActiveTab('menu')}
               className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${activeTab === 'menu'
-                  ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
-                  : 'text-stone-600 hover:bg-stone-100'
+                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/25'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
             >
               <Coffee className="w-4 h-4" />
@@ -1161,9 +1161,9 @@ export default function App() {
           {activeTab === 'menu' && (
             <button
               onClick={() => { setEditingItem(null); setIsModalOpen(true); }}
-              className="hidden lg:flex items-center gap-1.5 px-4 py-2 bg-stone-950 text-amber-100 hover:text-white text-xs font-bold rounded-xl hover:bg-stone-900 border border-amber-500/30 shadow-md cursor-pointer transition-all shrink-0"
+              className="hidden lg:flex items-center gap-1.5 px-4 py-2 bg-slate-900 text-white hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-700 shadow-xs cursor-pointer transition-all shrink-0"
             >
-              <Plus className="w-3.5 h-3.5 text-amber-400" />
+              <Plus className="w-3.5 h-3.5 text-indigo-400" />
               <span>Add Item</span>
             </button>
           )}

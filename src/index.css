@@ -3,19 +3,20 @@
 @tailwind utilities;
 
 :root {
-  --espresso-dark: #140f0c;
-  --espresso-card: #1c1612;
-  --amber-gold: #d97706;
-  --amber-gold-hover: #b45309;
-  --amber-gold-light: #fef3c7;
-  --amber-glow: rgba(217, 119, 6, 0.25);
-  --stone-bg: #faf7f2;
+  --slate-dark: #0f172a;
+  --slate-card: #1e293b;
+  --primary-indigo: #4f46e5;
+  --primary-indigo-hover: #4338ca;
+  --primary-indigo-light: #eef2ff;
+  --accent-emerald: #10b981;
+  --accent-emerald-light: #ecfdf5;
+  --slate-bg: #f8fafc;
 }
 
 @layer base {
   body {
-    background-color: var(--stone-bg);
-    color: #292524;
+    background-color: var(--slate-bg);
+    color: #0f172a;
     min-height: 100vh;
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
@@ -29,52 +30,52 @@
 
 /* Glassmorphism Utilities */
 .cafe-glass {
-  background: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
 }
 
 .cafe-glass-dark {
-  background: rgba(22, 17, 13, 0.92);
+  background: rgba(15, 23, 42, 0.94);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
 }
 
-/* Custom Card Styles */
+/* Clean Professional Card Styles */
 .cafe-card {
   background: #ffffff;
-  border: 1px solid rgba(231, 229, 228, 0.9);
+  border: 1px solid #e2e8f0;
   border-radius: 1.25rem;
-  box-shadow: 0 4px 20px -2px rgba(28, 22, 18, 0.05), 0 2px 6px -1px rgba(28, 22, 18, 0.03);
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.04), 0 1px 2px -1px rgba(15, 23, 42, 0.03);
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .cafe-card:hover {
-  border-color: rgba(217, 119, 6, 0.4);
-  box-shadow: 0 12px 28px -4px rgba(217, 119, 6, 0.12), 0 4px 12px -2px rgba(28, 22, 18, 0.05);
+  border-color: #cbd5e1;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 4px 10px -2px rgba(15, 23, 42, 0.03);
 }
 
 .cafe-card-dark {
-  background: linear-gradient(145deg, #1c1612, #140f0c);
-  border: 1px solid rgba(217, 119, 6, 0.2);
+  background: linear-gradient(145deg, #1e293b, #0f172a);
+  border: 1px solid rgba(148, 163, 184, 0.2);
   border-radius: 1.5rem;
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.25);
 }
 
 /* Compact Micro Card for Sales Logger */
 .cafe-micro-card {
   background: #ffffff;
-  border: 1px solid #e7e5e4;
+  border: 1px solid #e2e8f0;
   border-radius: 0.875rem;
   padding: 0.625rem;
   transition: all 0.2s ease;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 .cafe-micro-card:hover {
-  border-color: #d97706;
-  background: rgba(254, 243, 199, 0.25);
-  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.1);
+  border-color: #6366f1;
+  background: #f8fafc;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08);
 }
 
 /* Input Fields & Select Control Styles */
@@ -82,17 +83,18 @@
   width: 100%;
   padding: 0.625rem 0.875rem;
   font-size: 0.875rem;
-  background-color: #fafaf9;
-  border: 1px solid #d6d3d1;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
   border-radius: 0.75rem;
+  color: #0f172a;
   transition: all 0.2s ease;
 }
 
 .cafe-input:focus {
   outline: none;
   background-color: #ffffff;
-  border-color: #d97706;
-  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.2);
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
 }
 
 .cafe-select {
@@ -100,34 +102,35 @@
   padding: 0.625rem 0.875rem;
   font-size: 0.875rem;
   font-weight: 600;
-  background-color: #fafaf9;
-  border: 1px solid #d6d3d1;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
   border-radius: 0.75rem;
+  color: #0f172a;
   transition: all 0.2s ease;
 }
 
 .cafe-select:focus {
   outline: none;
   background-color: #ffffff;
-  border-color: #d97706;
-  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.2);
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
 }
 
-/* Standardized Button Styles */
+/* Standardized Clean Button Styles */
 .cafe-btn-gold {
-  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
   color: #ffffff;
   font-weight: 700;
   border-radius: 0.75rem;
-  box-shadow: 0 4px 14px rgba(217, 119, 6, 0.3);
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.25);
   transition: all 0.2s ease;
   cursor: pointer;
 }
 
 .cafe-btn-gold:hover {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: linear-gradient(135deg, #4338ca 0%, #2563eb 100%);
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(217, 119, 6, 0.4);
+  box-shadow: 0 6px 20px rgba(79, 70, 229, 0.35);
 }
 
 .cafe-btn-emerald {
@@ -180,9 +183,9 @@
 
 /* Pill Badges */
 .cafe-badge-gold {
-  background-color: rgba(254, 243, 199, 0.9);
-  color: #78350f;
-  border: 1px solid rgba(252, 211, 77, 0.7);
+  background-color: #eef2ff;
+  color: #3730a3;
+  border: 1px solid #c7d2fe;
   font-weight: 700;
   border-radius: 9999px;
   padding: 0.15rem 0.625rem;
@@ -190,9 +193,9 @@
 }
 
 .cafe-badge-cash {
-  background-color: rgba(209, 250, 229, 0.9);
+  background-color: #ecfdf5;
   color: #065f46;
-  border: 1px solid rgba(110, 231, 183, 0.7);
+  border: 1px solid #a7f3d0;
   font-weight: 700;
   border-radius: 9999px;
   padding: 0.15rem 0.625rem;
@@ -200,9 +203,9 @@
 }
 
 .cafe-badge-online {
-  background-color: rgba(224, 242, 254, 0.9);
+  background-color: #f0f9ff;
   color: #075985;
-  border: 1px solid rgba(125, 211, 252, 0.7);
+  border: 1px solid #bae6fd;
   font-weight: 700;
   border-radius: 9999px;
   padding: 0.15rem 0.625rem;
@@ -211,8 +214,8 @@
 
 /* Table Design */
 .cafe-table-header {
-  background-color: #140f0c;
-  color: #fef3c7;
+  background-color: #0f172a;
+  color: #f8fafc;
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -224,19 +227,19 @@
 }
 
 .cafe-table-row:hover {
-  background-color: rgba(254, 243, 199, 0.35);
+  background-color: #f1f5f9;
 }
 
 /* Animations & Scrollbar */
-@keyframes shimmer-gold {
+@keyframes shimmer-indigo {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
 
 .animate-shimmer {
-  background: linear-gradient(90deg, rgba(217,119,6,0.1) 0%, rgba(217,119,6,0.3) 50%, rgba(217,119,6,0.1) 100%);
+  background: linear-gradient(90deg, rgba(79,70,229,0.06) 0%, rgba(79,70,229,0.18) 50%, rgba(79,70,229,0.06) 100%);
   background-size: 200% 100%;
-  animation: shimmer-gold 3s infinite;
+  animation: shimmer-indigo 3s infinite;
 }
 
 ::-webkit-scrollbar {
@@ -244,12 +247,12 @@
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #f5f5f4;
+  background: #f1f5f9;
 }
 ::-webkit-scrollbar-thumb {
-  background: #d6d3d1;
+  background: #cbd5e1;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #d97706;
+  background: #94a3b8;
 }
