@@ -1,21 +1,52 @@
 import React, { useState, useMemo } from 'react';
-import { Edit2, Trash2, CheckCircle2, XCircle, Tag, Coffee, Check, X, DollarSign, AlertCircle } from 'lucide-react';
+import { Edit2, Trash2, CheckCircle2, XCircle, Tag, Coffee, Check, X, DollarSign, AlertCircle, Sparkles, Plus } from 'lucide-react';
 import { checkItemStock } from '../utils/storage';
 
-export default function ItemCards({ items, inventoryItems = [], onEdit, onDelete, onToggleStatus, onSaveItem }) {
+export default function ItemCards({
+  items,
+  inventoryItems = [],
+  onEdit,
+  onDelete,
+  onToggleStatus,
+  onSaveItem,
+  onOpenAIScanner,
+  onOpenAddItem
+}) {
   const [editingPriceId, setEditingPriceId] = useState(null);
   const [quickPrices, setQuickPrices] = useState({ sellingPrice: '', costPrice: '' });
 
   if (items.length === 0) {
     return (
-      <div className="bg-white rounded-2xl border border-stone-200 p-12 text-center">
-        <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-700 flex items-center justify-center mx-auto mb-3">
-          <Coffee className="w-6 h-6" />
+      <div className="bg-white rounded-2xl border border-stone-200 p-12 text-center max-w-lg mx-auto shadow-xs">
+        <div className="w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center mx-auto mb-4 shadow-xs">
+          <Sparkles className="w-7 h-7 text-indigo-600" />
         </div>
-        <h3 className="text-base font-semibold text-stone-800">No items found</h3>
-        <p className="text-sm text-stone-500 mt-1">
-          Try adding a new menu item.
+        <h3 className="text-lg font-bold text-stone-900">Aapka Cafe Menu Abhi Khaali Hai</h3>
+        <p className="text-xs text-stone-500 mt-1 max-w-sm mx-auto leading-relaxed">
+          Apne cafe ke printed menu card ki photo click karke scan karein, WhatsApp rate card paste karein, ya manual item add karein.
         </p>
+        <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
+          {onOpenAIScanner && (
+            <button
+              type="button"
+              onClick={onOpenAIScanner}
+              className="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-indigo-600 via-indigo-700 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-600/25 flex items-center justify-center gap-2 cursor-pointer transition-all transform hover:-translate-y-0.5"
+            >
+              <Sparkles className="w-4 h-4 text-amber-300" />
+              <span>📸 AI Menu Card Scanner</span>
+            </button>
+          )}
+          {onOpenAddItem && (
+            <button
+              type="button"
+              onClick={onOpenAddItem}
+              className="w-full sm:w-auto px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+            >
+              <Plus className="w-3.5 h-3.5 text-slate-600" />
+              <span>Add Item Manually</span>
+            </button>
+          )}
+        </div>
       </div>
     );
   }

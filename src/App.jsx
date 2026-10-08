@@ -16,6 +16,7 @@ import ExpenseTracker from './components/ExpenseTracker';
 import AuthModal from './components/AuthModal';
 import CafeProfileModal from './components/CafeProfileModal';
 import LandingPage from './components/LandingPage';
+import AIMenuScannerModal from './components/AIMenuScannerModal';
 import {
   subscribeToAuthChanges,
   getLocalActiveCafe,
@@ -61,7 +62,7 @@ import {
   subscribeToCloudData
 } from './utils/cloudSync';
 import AggregatorSettlementModal from './components/AggregatorSettlementModal';
-import { PieChart, ShoppingBag, PackageCheck, Coffee, CheckCircle2, Plus, Boxes, Receipt, UtensilsCrossed, Bike } from 'lucide-react';
+import { PieChart, ShoppingBag, PackageCheck, Coffee, CheckCircle2, Plus, Boxes, Receipt, UtensilsCrossed, Bike, Sparkles } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('sales'); // 'sales', 'inventory', 'dashboard', 'procurement', 'menu'
@@ -98,6 +99,9 @@ export default function App() {
 
   // Excel Export Modal State
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+
+  // AI Menu Photo & Text Importer Modal State
+  const [isAIScannerOpen, setIsAIScannerOpen] = useState(false);
 
   // Dine-In Customer QR Mode & Dining Orders State
   const getInitialTableParam = () => {
@@ -342,6 +346,22 @@ export default function App() {
     setMenuItems(newItems);
     saveStoredMenu(newItems, activeId);
     if (isFirebaseConfigured()) syncCloudMenu(newItems, activeId);
+  };
+
+  const handleImportScannedMenuItems = (scannedList, mode) => {
+    if (!scannedList || scannedList.length === 0) return;
+    let updatedMenu = [];
+    if (mode === 'replace') {
+      updatedMenu = scannedList;
+      showToast(`✨ Successfully imported ${scannedList.length} items to your cafe menu!`);
+    } else {
+      // Merge mode: preserve existing items, append only items with different names
+      const existingNames = new Set(menuItems.map(m => m.name.toLowerCase().trim()));
+      const newItems = scannedList.filter(s => !existingNames.has(s.name.toLowerCase().trim()));
+      updatedMenu = [...menuItems, ...newItems];
+      showToast(`✨ Added ${newItems.length} new items to your menu (${existingNames.size} retained)!`);
+    }
+    updateMenu(updatedMenu);
   };
   const updateSales = (newSales) => {
     const activeId = currentCafe?.cafeId || 'default';
@@ -1159,13 +1179,24 @@ export default function App() {
           </div>
 
           {activeTab === 'menu' && (
-            <button
-              onClick={() => { setEditingItem(null); setIsModalOpen(true); }}
-              className="hidden lg:flex items-center gap-1.5 px-4 py-2 bg-slate-900 text-white hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-700 shadow-xs cursor-pointer transition-all shrink-0"
-            >
-              <Plus className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Add Item</span>
-            </button>
+            <div className="hidden lg:flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsAIScannerOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer transition-all"
+                title="Scan Menu Card Photo or Paste Rate Card"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                <span>AI Menu Scanner</span>
+              </button>
+              <button
+                onClick={() => { setEditingItem(null); setIsModalOpen(true); }}
+                className="flex items-center gap-1.5 px-4 py-2 bg-slate-900 text-white hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-700 shadow-xs cursor-pointer transition-all shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Add Item</span>
+              </button>
+            </div>
           )}
 
         </div>
@@ -1253,24 +1284,43 @@ export default function App() {
 
         {activeTab === 'menu' && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-stone-200">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-stone-200">
               <div>
-                <h3 className="text-base font-bold text-stone-900">S&S Cafe Menu & Recipes (Category-Wise)</h3>
-                <p className="text-xs text-stone-500">Manage cafe products and attach raw material recipes to each item.</p>
+                <h3 className="text-base font-bold text-stone-900">{currentCafe?.cafeName || 'S&S Cafe'} Menu & Recipes</h3>
+                <p className="text-xs text-stone-500">Manage cafe products, selling prices, categories and raw material recipes.</p>
               </div>
-              <div className="flex items-center bg-stone-100 p-1 rounded-xl text-xs">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
-                  onClick={() => setViewMode('cards')}
-                  className={`px-3 py-1 rounded-lg font-bold ${viewMode === 'cards' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500'}`}
+                  type="button"
+                  onClick={() => setIsAIScannerOpen(true)}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-indigo-600 via-indigo-700 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer transition-all transform hover:-translate-y-0.5"
+                  title="Scan Menu Card Photo or Paste WhatsApp Rate Card"
                 >
-                  Category Cards
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                  <span>📸 AI Menu Scanner</span>
                 </button>
                 <button
-                  onClick={() => setViewMode('table')}
-                  className={`px-3 py-1 rounded-lg font-bold ${viewMode === 'table' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500'}`}
+                  type="button"
+                  onClick={() => { setEditingItem(null); setIsModalOpen(true); }}
+                  className="flex sm:hidden items-center gap-1.5 px-3 py-1.5 bg-slate-900 text-white text-xs font-bold rounded-xl cursor-pointer"
                 >
-                  Table
+                  <Plus className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Add Item</span>
                 </button>
+                <div className="flex items-center bg-stone-100 p-1 rounded-xl text-xs">
+                  <button
+                    onClick={() => setViewMode('cards')}
+                    className={`px-3 py-1 rounded-lg font-bold ${viewMode === 'cards' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500'}`}
+                  >
+                    Category Cards
+                  </button>
+                  <button
+                    onClick={() => setViewMode('table')}
+                    className={`px-3 py-1 rounded-lg font-bold ${viewMode === 'table' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500'}`}
+                  >
+                    Table
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1282,6 +1332,8 @@ export default function App() {
                 onDelete={(item) => setDeletingItem(item)}
                 onToggleStatus={handleToggleMenuItemStatus}
                 onSaveItem={handleSaveMenuItem}
+                onOpenAIScanner={() => setIsAIScannerOpen(true)}
+                onOpenAddItem={() => { setEditingItem(null); setIsModalOpen(true); }}
               />
             ) : (
               <ItemTable
@@ -1393,6 +1445,14 @@ export default function App() {
           setCurrentCafe(updated);
           showToast(`Cafe details updated: ${updated.cafeName}`);
         }}
+      />
+
+      {/* 📸 AI Menu Scanner Modal (OCR Photo / Bulk Text / Starter Packs) */}
+      <AIMenuScannerModal
+        isOpen={isAIScannerOpen}
+        onClose={() => setIsAIScannerOpen(false)}
+        onImportItems={handleImportScannedMenuItems}
+        currentMenuCount={menuItems.length}
       />
 
 

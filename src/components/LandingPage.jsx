@@ -28,7 +28,8 @@ import {
   Bell,
   Flame,
   Percent,
-  ChevronDown
+  ChevronDown,
+  Camera
 } from 'lucide-react';
 import BrandLogo from './BrandLogo';
 
@@ -340,7 +341,7 @@ export default function LandingPage({
           </div>
 
           {/* Highlights Grid Bar */}
-          <div className="mt-16 pt-8 border-t border-slate-200 grid grid-cols-2 md:grid-cols-4 gap-4 text-left">
+          <div className="mt-16 pt-8 border-t border-slate-200 grid grid-cols-2 md:grid-cols-5 gap-4 text-left">
             <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-xs flex items-center gap-3.5 hover:border-indigo-400 transition-colors">
               <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0">
                 <Zap className="w-5 h-5 text-indigo-600" />
@@ -348,6 +349,16 @@ export default function LandingPage({
               <div>
                 <h4 className="text-sm font-bold text-slate-900">10-Sec POS Billing</h4>
                 <p className="text-[11px] text-slate-500">Cash, UPI & Token Numbers</p>
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-xs flex items-center gap-3.5 hover:border-amber-400 transition-colors">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center shrink-0">
+                <Camera className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-slate-900">AI Menu Scanner</h4>
+                <p className="text-[11px] text-slate-500">Photo to Live Menu in 5s</p>
               </div>
             </div>
 
@@ -983,6 +994,13 @@ export default function LandingPage({
           </h2>
 
           <div className="space-y-4">
+            <div className="bg-white border border-slate-200 p-4 sm:p-5 rounded-2xl shadow-xs">
+              <h4 className="text-sm font-bold text-slate-900">Kya mujhe apna poora menu manually ek ek karke type karna padega?</h4>
+              <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+                Bilkul nahi! CafePulse me built-in <strong className="text-indigo-600 font-semibold">AI Menu Card Scanner</strong> hai. Aap apne printed menu card ki photo click karke upload kijiye ya WhatsApp rate card paste kijiye — AI automatically 5 second me categories, item names aur prices extract karke aapka live menu bana deta hai.
+              </p>
+            </div>
+
             <div className="bg-white border border-slate-200 p-4 sm:p-5 rounded-2xl shadow-xs">
               <h4 className="text-sm font-bold text-slate-900">Kya yeh software phone ya tablet par chalega?</h4>
               <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
