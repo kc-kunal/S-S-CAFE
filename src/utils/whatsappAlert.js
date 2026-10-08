@@ -1,5 +1,5 @@
-// S&S Cafe Automated Alert System
-// Supports: Official Telegram Bot (100% Free, Silent Background, Zero Clicks) & Direct WhatsApp Links
+// S&S Cafe Automated Alert & Silent WhatsApp Dispatch System
+// Supports: Official Telegram Bot & Zero-Redirect WhatsApp Gateways (Meta Cloud, UltraMsg, GreenAPI, Webhooks)
 
 const ALERT_CONFIG_KEY = 'ss_cafe_alert_config_v2';
 const ALERT_HISTORY_KEY = 'ss_cafe_alert_history_v2';
@@ -10,10 +10,16 @@ const DEFAULT_CONFIG = {
   // Telegram Bot Settings (Official & 100% Reliable Background Alerts)
   telegramBotToken: import.meta.env.VITE_TELEGRAM_BOT_TOKEN || '',
   telegramChatId: import.meta.env.VITE_TELEGRAM_CHAT_ID || '',
-  // WhatsApp Settings (For optional 1-click links)
+  // WhatsApp Settings
   ownerPhone: import.meta.env.VITE_OWNER_WHATSAPP_PHONE || '',
   vendorPhone: import.meta.env.VITE_VENDOR_WHATSAPP_PHONE || '',
-  reorderQuantity: 20
+  reorderQuantity: 20,
+  // Silent Background WhatsApp Gateway Settings (Zero Redirect)
+  whatsappProvider: import.meta.env.VITE_WHATSAPP_PROVIDER || 'ultramsg', // 'ultramsg' | 'greenapi' | 'meta' | 'webhook'
+  whatsappToken: import.meta.env.VITE_WHATSAPP_TOKEN || '',
+  whatsappPhoneId: import.meta.env.VITE_WHATSAPP_PHONE_ID || '', // Meta phone number id
+  whatsappInstanceId: import.meta.env.VITE_WHATSAPP_INSTANCE_ID || '', // UltraMsg or GreenAPI instance ID
+  whatsappWebhookUrl: import.meta.env.VITE_WHATSAPP_WEBHOOK_URL || '' // Custom webhook or local server
 };
 
 // Retrieve configuration with priority to .env variables
@@ -22,6 +28,11 @@ export const getAlertConfig = () => {
   const envChatId = import.meta.env.VITE_TELEGRAM_CHAT_ID || '';
   const envOwnerPhone = import.meta.env.VITE_OWNER_WHATSAPP_PHONE || '';
   const envVendorPhone = import.meta.env.VITE_VENDOR_WHATSAPP_PHONE || '';
+  const envWaProvider = import.meta.env.VITE_WHATSAPP_PROVIDER || '';
+  const envWaToken = import.meta.env.VITE_WHATSAPP_TOKEN || '';
+  const envWaPhoneId = import.meta.env.VITE_WHATSAPP_PHONE_ID || '';
+  const envWaInstanceId = import.meta.env.VITE_WHATSAPP_INSTANCE_ID || '';
+  const envWaWebhook = import.meta.env.VITE_WHATSAPP_WEBHOOK_URL || '';
 
   try {
     const raw = localStorage.getItem(ALERT_CONFIG_KEY);
@@ -35,6 +46,11 @@ export const getAlertConfig = () => {
         telegramChatId: envChatId || parsed.telegramChatId || '',
         ownerPhone: envOwnerPhone || parsed.ownerPhone || '',
         vendorPhone: envVendorPhone || parsed.vendorPhone || '',
+        whatsappProvider: envWaProvider || parsed.whatsappProvider || DEFAULT_CONFIG.whatsappProvider,
+        whatsappToken: envWaToken || parsed.whatsappToken || '',
+        whatsappPhoneId: envWaPhoneId || parsed.whatsappPhoneId || '',
+        whatsappInstanceId: envWaInstanceId || parsed.whatsappInstanceId || '',
+        whatsappWebhookUrl: envWaWebhook || parsed.whatsappWebhookUrl || '',
         isEnabled: true
       };
     }
@@ -47,6 +63,11 @@ export const getAlertConfig = () => {
     telegramChatId: envChatId,
     ownerPhone: envOwnerPhone,
     vendorPhone: envVendorPhone,
+    whatsappProvider: envWaProvider || DEFAULT_CONFIG.whatsappProvider,
+    whatsappToken: envWaToken,
+    whatsappPhoneId: envWaPhoneId,
+    whatsappInstanceId: envWaInstanceId,
+    whatsappWebhookUrl: envWaWebhook,
     isEnabled: true
   };
 };
@@ -270,10 +291,9 @@ export const generateCustomerWhatsAppOrderLink = (order, cafePhone = '') => {
 };
 
 /**
- * Generate 1-Click WhatsApp Digital Tax/E-Bill Invoice Link for Customers
- * 100% Free, Zero Meta API Charges, Zero Paper Receipt Costs!
+ * Format Customer Digital Tax/E-Bill Invoice Text Message
  */
-export const generateCustomerEBillLink = ({
+export const formatCustomerEBillText = ({
   cafeName = 'S&S Cafe',
   cafeCity = '',
   cafePhone = '',
@@ -288,7 +308,6 @@ export const generateCustomerEBillLink = ({
   customerPhone = '',
   customerName = ''
 }) => {
-  const phone = formatPhoneNumber(customerPhone);
   const itemsText = items.map(i => {
     const qty = i.qty || i.quantitySold || i.quantity || 1;
     const name = i.name || i.itemName || 'Dish';
@@ -300,8 +319,8 @@ export const generateCustomerEBillLink = ({
   const dateFormatted = date || now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
   const timeFormatted = time || now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
 
-  const billMessage =
-    `🧾 *${cafeName.toUpperCase()} — DIGITAL E-BILL*\n` +
+  return (
+    `🧾 *${(cafeName || 'S&S Cafe').toUpperCase()} — DIGITAL E-BILL*\n` +
     (cafeCity ? `📍 ${cafeCity}\n` : '') +
     (cafePhone ? `📞 Contact: ${cafePhone}\n` : '') +
     `━━━━━━━━━━━━━━━━━━━━\n` +
@@ -317,8 +336,186 @@ export const generateCustomerEBillLink = ({
     `💰 *TOTAL PAID:* *₹${totalAmount}*\n` +
     `━━━━━━━━━━━━━━━━━━━━\n` +
     `🙏 *Thank you for dining with us!*\n` +
-    `Save this digital receipt for your records. Visit again soon! ✨`;
+    `Save this digital receipt for your records. Visit again soon! ✨`
+  );
+};
 
+/**
+ * Generate 1-Click WhatsApp Digital Tax/E-Bill Invoice Link for Customers (Fallback)
+ */
+export const generateCustomerEBillLink = (billData) => {
+  const phone = formatPhoneNumber(billData.customerPhone || '');
+  const billMessage = formatCustomerEBillText(billData);
   const encoded = encodeURIComponent(billMessage);
   return phone ? `https://wa.me/${phone}?text=${encoded}` : `https://wa.me/?text=${encoded}`;
+};
+
+/**
+ * ⚡ Send Silent Background WhatsApp E-Bill (Zero Redirect!)
+ * Dispatches via authenticated Gateway (UltraMsg, Green-API, Meta Cloud API, or Webhook).
+ * The cashier stays 100% on the POS screen with ZERO tab switches.
+ */
+export const sendBackgroundWhatsAppEBill = async (billData) => {
+  const config = billData.customConfig || getAlertConfig();
+  const rawPhone = billData.customerPhone || '';
+  if (!rawPhone) {
+    return { success: false, reason: 'Customer phone number is missing' };
+  }
+
+  const cleanPhone = formatPhoneNumber(rawPhone);
+  if (!cleanPhone || cleanPhone.length < 10) {
+    return { success: false, reason: 'Invalid phone number format' };
+  }
+
+  const messageText = billData.customMessage || formatCustomerEBillText(billData);
+  const provider = (config.whatsappProvider || 'ultramsg').toLowerCase();
+
+  const token = (config.whatsappToken || '').trim();
+  const phoneId = (config.whatsappPhoneId || '').trim();
+  const instanceId = (config.whatsappInstanceId || '').trim();
+  const webhookUrl = (config.whatsappWebhookUrl || '').trim();
+
+  // If no credentials configured
+  const hasCredentials = token || webhookUrl;
+  if (!hasCredentials) {
+    return {
+      success: false,
+      notConfigured: true,
+      messageText,
+      cleanPhone,
+      reason: 'WhatsApp Gateway credentials not configured yet'
+    };
+  }
+
+  try {
+    // 1. UltraMsg (Scan QR once from phone, sends automatically via REST API)
+    if (provider === 'ultramsg') {
+      if (!instanceId || !token) {
+        return { success: false, notConfigured: true, reason: 'UltraMsg Instance ID ya Token missing hai' };
+      }
+      const response = await fetch(`https://api.ultramsg.com/${instanceId}/messages/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: new URLSearchParams({
+          token: token,
+          to: `+${cleanPhone}`,
+          body: messageText
+        })
+      });
+      const data = await response.json();
+      if (data.sent === 'true' || data.sent === true || data.id) {
+        return { success: true, provider: 'ultramsg', data };
+      }
+      return { success: false, reason: data.error || data.message || 'UltraMsg error' };
+    }
+
+    // 2. Green-API (Developer Free Tier QR Scan)
+    if (provider === 'greenapi') {
+      const activeInstance = instanceId || phoneId;
+      if (!activeInstance || !token) {
+        return { success: false, notConfigured: true, reason: 'Green-API Instance ID ya API Token missing hai' };
+      }
+      const response = await fetch(`https://api.green-api.com/waInstance${activeInstance}/sendMessage/${token}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          chatId: `${cleanPhone}@c.us`,
+          message: messageText
+        })
+      });
+      const data = await response.json();
+      if (data.idMessage || response.ok) {
+        return { success: true, provider: 'greenapi', data };
+      }
+      return { success: false, reason: data.message || 'Green-API error' };
+    }
+
+    // 3. Meta WhatsApp Business Cloud API (Official Cloud, 1000 Free Messages/Month)
+    if (provider === 'meta') {
+      if (!phoneId || !token) {
+        return { success: false, notConfigured: true, reason: 'Meta Phone Number ID ya Access Token missing hai' };
+      }
+      const response = await fetch(`https://graph.facebook.com/v20.0/${phoneId}/messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: cleanPhone,
+          type: 'text',
+          text: {
+            preview_url: false,
+            body: messageText
+          }
+        })
+      });
+      const data = await response.json();
+      if (response.ok && !data.error) {
+        return { success: true, provider: 'meta', data };
+      }
+      return { success: false, reason: data.error?.message || 'Meta Cloud API error' };
+    }
+
+    // 4. Custom Webhook / Local Node Bridge
+    if (provider === 'webhook' || webhookUrl) {
+      if (!webhookUrl) {
+        return { success: false, notConfigured: true, reason: 'Custom Webhook URL missing hai' };
+      }
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          to: cleanPhone,
+          phone: cleanPhone,
+          message: messageText,
+          text: messageText,
+          billData: billData
+        })
+      });
+      if (response.ok) {
+        return { success: true, provider: 'webhook' };
+      }
+      return { success: false, reason: `Webhook returned status ${response.status}` };
+    }
+
+    return { success: false, reason: `Unknown WhatsApp provider: ${provider}` };
+  } catch (err) {
+    console.error('Silent WhatsApp Dispatch Error:', err);
+    return { success: false, reason: err.message || 'Network / CORS error' };
+  }
+};
+
+/**
+ * Send Test WhatsApp Message to verify gateway connectivity
+ */
+export const sendTestWhatsAppMessage = async (customConfig, testPhone) => {
+  if (!testPhone) {
+    return { success: false, reason: 'Kripya test mobile number darj karein!' };
+  }
+  const cleanPhone = formatPhoneNumber(testPhone);
+  const testMessage =
+    `🎉 *S&S CAFE — WHATSAPP GATEWAY TEST SUCCESS!*\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    `Badhai ho! Aapka WhatsApp Silent Gateway 100% connect ho gaya hai!\n\n` +
+    `⚡ Ab POS counter par jab bhi staff "Punch & WhatsApp Bill" dabayega:\n` +
+    `• Browser kisi naye tab par redirect NAHI hoga\n` +
+    `• Order data turant save ho jayega\n` +
+    `• Customer ke WhatsApp par chup-chap digital bill pahunch jayega!\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    `_S&S Cafe Automated POS System_`;
+
+  return sendBackgroundWhatsAppEBill({
+    customerPhone: cleanPhone,
+    customMessage: testMessage,
+    customConfig: customConfig
+  });
 };

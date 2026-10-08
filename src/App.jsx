@@ -17,6 +17,7 @@ import AuthModal from './components/AuthModal';
 import CafeProfileModal from './components/CafeProfileModal';
 import LandingPage from './components/LandingPage';
 import AIMenuScannerModal from './components/AIMenuScannerModal';
+import StockAlertSettingsModal from './components/StockAlertSettingsModal';
 import {
   subscribeToAuthChanges,
   getLocalActiveCafe,
@@ -102,6 +103,9 @@ export default function App() {
 
   // AI Menu Photo & Text Importer Modal State
   const [isAIScannerOpen, setIsAIScannerOpen] = useState(false);
+
+  // Communications & WhatsApp Silent Gateway Modal State
+  const [isAlertSettingsOpen, setIsAlertSettingsOpen] = useState(false);
 
   // Dine-In Customer QR Mode & Dining Orders State
   const getInitialTableParam = () => {
@@ -1097,6 +1101,7 @@ export default function App() {
         isCloudConnected={isCloudConnected}
         onOpenCloudModal={() => setIsCloudModalOpen(true)}
         onOpenExportModal={() => setIsExportModalOpen(true)}
+        onOpenAlertSettings={() => setIsAlertSettingsOpen(true)}
         currentCafe={currentCafe}
         currentUser={currentUser}
         isDemoMode={isDemoMode}
@@ -1246,6 +1251,8 @@ export default function App() {
             onDeleteSettlement={handleDeleteSettlement}
             onClearAllSettlements={handleClearAllSettlements}
             onAddExpense={handleAddExpense}
+            onOpenAlertSettings={() => setIsAlertSettingsOpen(true)}
+            showToast={showToast}
           />
         )}
 
@@ -1261,6 +1268,8 @@ export default function App() {
               setCustomerTableNumber(tableNum);
               setIsCustomerMode(true);
             }}
+            onOpenAlertSettings={() => setIsAlertSettingsOpen(true)}
+            showToast={showToast}
           />
         )}
 
@@ -1483,6 +1492,13 @@ export default function App() {
         onClose={() => setIsAIScannerOpen(false)}
         onImportItems={handleImportScannedMenuItems}
         currentMenuCount={menuItems.length}
+      />
+
+      {/* 📱 Communications & WhatsApp Silent Gateway Modal */}
+      <StockAlertSettingsModal
+        isOpen={isAlertSettingsOpen}
+        onClose={() => setIsAlertSettingsOpen(false)}
+        showToast={showToast}
       />
 
 

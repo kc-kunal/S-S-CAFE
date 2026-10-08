@@ -1,5 +1,4 @@
-import React from 'react';
-import { Plus, Sparkles, FileSpreadsheet, Store, LogIn, ChevronDown, LogOut, Eye, ShieldCheck } from 'lucide-react';
+import { Plus, Sparkles, FileSpreadsheet, Store, LogIn, ChevronDown, LogOut, Eye, ShieldCheck, MessageSquare } from 'lucide-react';
 import BrandLogo from './BrandLogo';
 
 export default function Navbar({
@@ -8,6 +7,7 @@ export default function Navbar({
   isCloudConnected,
   onOpenCloudModal,
   onOpenExportModal,
+  onOpenAlertSettings,
   currentCafe,
   currentUser,
   isDemoMode = false,
@@ -89,6 +89,19 @@ export default function Navbar({
 
         {/* Action Buttons */}
         <div className="flex items-center space-x-1.5 sm:space-x-2.5 shrink-0">
+
+          {/* WhatsApp Gateway & Alerts Button */}
+          {onOpenAlertSettings && (
+            <button
+              type="button"
+              onClick={onOpenAlertSettings}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-slate-800/90 hover:bg-emerald-500/20 text-slate-200 hover:text-emerald-300 border border-slate-700 hover:border-emerald-500/40 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-xs"
+              title="WhatsApp Gateway & Automated Stock Alerts"
+            >
+              <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden sm:inline">WhatsApp Gateway</span>
+            </button>
+          )}
 
           {/* User Cafe Profile Button (Visible when logged in or in demo) */}
           {(currentUser || isDemoMode) && (

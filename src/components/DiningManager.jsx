@@ -21,7 +21,7 @@ import {
   Phone
 } from 'lucide-react';
 import { playOrderChime } from '../utils/audioAlert';
-import { generateCustomerEBillLink } from '../utils/whatsappAlert';
+import { generateCustomerEBillLink, sendBackgroundWhatsAppEBill } from '../utils/whatsappAlert';
 
 export default function DiningManager({
   diningOrders = [],
@@ -29,7 +29,9 @@ export default function DiningManager({
   onUpdateOrderStatus,
   onSettleOrderToSales,
   onDeleteOrder,
-  onPreviewCustomerView
+  onPreviewCustomerView,
+  onOpenAlertSettings,
+  showToast
 }) {
   const [activeSubTab, setActiveSubTab] = useState('orders'); // 'orders' or 'qrcodes'
   const [statusFilter, setStatusFilter] = useState('active'); // 'active', 'pending', 'preparing', 'served', 'billed', 'all'
@@ -112,35 +114,51 @@ export default function DiningManager({
   }, [diningOrders]);
 
   // Settle order into POS Sales
-  const handleConfirmSettle = (sendWhatsApp = false) => {
+  // Settle order into POS Sales
+  const handleConfirmSettle = async (sendWhatsApp = false) => {
     if (!settlingOrder) return;
+    const currentSettling = { ...settlingOrder };
+    const currentMode = settlePaymentMode;
+    const phoneInput = settleCustomerPhone.trim();
+
     if (onSettleOrderToSales) {
-      onSettleOrderToSales(settlingOrder, settlePaymentMode);
+      onSettleOrderToSales(currentSettling, currentMode);
     }
 
     if (sendWhatsApp) {
-      let phone = settleCustomerPhone.trim() || settlingOrder.customerPhone || '';
+      let phone = phoneInput || currentSettling.customerPhone || '';
       if (!phone) {
         phone = window.prompt('Customer ka 10-digit WhatsApp number darj karein:', '');
       }
       if (phone) {
         const cleanPhone = phone.replace(/\D/g, '');
-        const url = generateCustomerEBillLink({
+        const billPayload = {
           cafeName: currentCafe?.cafeName || 'S&S Cafe',
           cafeCity: currentCafe?.city || '',
           cafePhone: currentCafe?.phone || '',
-          tokenOrBillNo: `Table #${settlingOrder.tableNumber}`,
-          date: settlingOrder.date,
+          tokenOrBillNo: `Table #${currentSettling.tableNumber}`,
+          date: currentSettling.date,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          items: settlingOrder.items || [],
-          subtotal: settlingOrder.totalAmount,
+          items: currentSettling.items || [],
+          subtotal: currentSettling.totalAmount,
           discount: 0,
-          totalAmount: settlingOrder.totalAmount,
-          paymentMethod: settlePaymentMode,
+          totalAmount: currentSettling.totalAmount,
+          paymentMethod: currentMode,
           customerPhone: cleanPhone,
-          customerName: settlingOrder.customerName || ''
+          customerName: currentSettling.customerName || ''
+        };
+
+        // Dispatched silently in background (Zero Redirect!)
+        sendBackgroundWhatsAppEBill(billPayload).then((result) => {
+          if (result.success) {
+            if (showToast) showToast(`⚡ Table #${currentSettling.tableNumber} Settled & WhatsApp Bill Sent to +91 ${cleanPhone}! (Zero Redirect)`);
+          } else if (result.notConfigured) {
+            const url = generateCustomerEBillLink(billPayload);
+            window.open(url, '_blank');
+          }
+        }).catch((err) => {
+          console.error('Table settle WhatsApp error:', err);
         });
-        window.open(url, '_blank');
       }
     }
 

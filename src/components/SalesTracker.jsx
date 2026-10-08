@@ -28,7 +28,7 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { checkItemStock, calculateAggregatorLedger } from '../utils/storage';
-import { generateCustomerEBillLink } from '../utils/whatsappAlert';
+import { generateCustomerEBillLink, sendBackgroundWhatsAppEBill, getAlertConfig } from '../utils/whatsappAlert';
 import OnlineOrderPunchModal from './OnlineOrderPunchModal';
 import AggregatorSettlementModal from './AggregatorSettlementModal';
 
@@ -46,7 +46,9 @@ export default function SalesTracker({
   onAddSettlement,
   onDeleteSettlement,
   onClearAllSettlements,
-  onAddExpense
+  onAddExpense,
+  onOpenAlertSettings,
+  showToast
 }) {
   const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
   const [paymentMode, setPaymentMode] = useState('Cash'); // 'Cash', 'Online', 'Swiggy', 'Zomato'
@@ -271,7 +273,7 @@ export default function SalesTracker({
     return Math.max(0, counterSubtotal - Number(counterDiscount || 0));
   }, [counterSubtotal, counterDiscount]);
 
-  const handleSendWhatsAppBill = (orderOrSession) => {
+  const handleSendWhatsAppBill = async (orderOrSession) => {
     let phone = orderOrSession.customerPhone || customerPhone || '';
     if (!phone) {
       phone = window.prompt('📱 Customer ka 10-digit WhatsApp number darj karein:', '');
@@ -284,7 +286,7 @@ export default function SalesTracker({
       price: Number(orderOrSession.sellingPrice) || Number(orderOrSession.totalRevenue) || 0
     }] : []);
 
-    const url = generateCustomerEBillLink({
+    const billPayload = {
       cafeName: currentCafe?.cafeName || 'S&S Cafe',
       cafeCity: currentCafe?.city || '',
       cafePhone: currentCafe?.phone || '',
@@ -297,12 +299,27 @@ export default function SalesTracker({
       totalAmount: orderOrSession.bill || orderOrSession.totalRevenue || 0,
       paymentMethod: orderOrSession.channel || orderOrSession.paymentMethod || 'Cash',
       customerPhone: cleanPhone
-    });
+    };
 
-    window.open(url, '_blank');
+    // Attempt silent background dispatch first (Zero Redirect!)
+    const result = await sendBackgroundWhatsAppEBill(billPayload);
+    if (result.success) {
+      const msg = `⚡ WhatsApp E-Bill directly sent to +91 ${cleanPhone}! (Zero Redirect)`;
+      if (showToast) showToast(msg);
+      else showWarning(msg);
+    } else if (result.notConfigured) {
+      // If gateway is not yet configured, provide fallback for manual click
+      const url = generateCustomerEBillLink(billPayload);
+      window.open(url, '_blank');
+    } else {
+      const msg = `⚠️ WhatsApp Error: ${result.reason || 'Failed'}. Opening fallback WhatsApp Web...`;
+      if (showToast) showToast(msg);
+      const url = generateCustomerEBillLink(billPayload);
+      window.open(url, '_blank');
+    }
   };
 
-  const handlePunchCounterOrder = (sendWhatsApp = false) => {
+  const handlePunchCounterOrder = async (sendWhatsApp = false) => {
     const itemsInCart = Object.values(counterCart);
     if (itemsInCart.length === 0) {
       showWarning('Kripya kam se kam 1 item cart me add karein!');
@@ -341,6 +358,7 @@ export default function SalesTracker({
       };
     });
 
+    // 1. COMMIT ORDER TO SALES & DEDUCT RAW MATERIALS (DATA SAVED IMMEDIATELY!)
     if (onAddBatchSales) {
       const success = onAddBatchSales(salesBatch);
       if (!success) return;
@@ -363,15 +381,10 @@ export default function SalesTracker({
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
-    // Add to session log tray
+    // Add to live session log tray
     setSessionPunchedOrders(prev => [sessionOrderData, ...prev]);
 
-    // If requested, open WhatsApp with digital E-bill
-    if (sendWhatsApp) {
-      handleSendWhatsAppBill(sessionOrderData);
-    }
-
-    // Reset Cart & advance Token
+    // Reset Cart & advance Token immediately so cashier is instantly ready for next order
     setCounterCart({});
     setCounterNotes('');
     setCounterDiscount(0);
@@ -380,6 +393,53 @@ export default function SalesTracker({
     const nextTokenNum = counterTokenNum + 1;
     setCounterTokenNum(nextTokenNum);
     setCounterToken(`C-${nextTokenNum}`);
+
+    // 2. DISPATCH WHATSAPP SILENTLY IN THE BACKGROUND (ABSOLUTE ZERO REDIRECT!)
+    if (sendWhatsApp) {
+      if (!orderCustomerPhone) {
+        const msg = `⚡ Order ${token} Punched & Saved! (WhatsApp number khali tha, bill add ho gaya)`;
+        if (showToast) showToast(msg);
+        else showWarning(msg);
+      } else {
+        // Dispatched asynchronously via HTTP API - POS screen STAYS 100% active with zero tab switches!
+        sendBackgroundWhatsAppEBill({
+          cafeName: currentCafe?.cafeName || 'S&S Cafe',
+          cafeCity: currentCafe?.city || '',
+          cafePhone: currentCafe?.phone || '',
+          tokenOrBillNo: token,
+          date: saleDate,
+          time: sessionOrderData.time,
+          items: itemsInCart,
+          subtotal: totalGross,
+          discount: discTotal,
+          totalAmount: orderFinalBill,
+          paymentMethod: counterPaymentMode,
+          customerPhone: orderCustomerPhone,
+          customerName: counterNotes.trim()
+        }).then((result) => {
+          if (result.success) {
+            const successMsg = `⚡ Order ${token} Punched & WhatsApp Bill Sent to +91 ${orderCustomerPhone} (Zero Redirect)!`;
+            if (showToast) showToast(successMsg);
+            else showWarning(successMsg);
+          } else if (result.notConfigured) {
+            const noticeMsg = `✅ Order ${token} Punched & Saved! Direct Auto-WhatsApp active karne ke liye Settings me Gateway connect karein.`;
+            if (showToast) showToast(noticeMsg);
+            else showWarning(noticeMsg);
+          } else {
+            const errNotice = `✅ Order ${token} Punched & Saved! (WhatsApp Notice: ${result.reason || 'Offline'})`;
+            if (showToast) showToast(errNotice);
+            else showWarning(errNotice);
+          }
+        }).catch((err) => {
+          console.error('Silent WhatsApp dispatch error:', err);
+          if (showToast) showToast(`✅ Order ${token} Punched & Saved!`);
+        });
+      }
+    } else {
+      if (showToast) {
+        showToast(`⚡ Order ${token} Punched (₹${orderFinalBill})!`);
+      }
+    }
   };
 
   // =======================
@@ -1467,14 +1527,34 @@ export default function SalesTracker({
                     )}
                   </div>
 
-                  {/* Optional Customer WhatsApp Phone */}
+                  {/* Optional Customer WhatsApp Phone & Silent Gateway Indicator */}
                   {counterTotalUnits > 0 && (
-                    <div className="flex items-center justify-between text-xs bg-white px-3 py-2 rounded-xl border border-stone-200">
-                      <span className="font-bold text-stone-600 flex items-center gap-1.5">
-                        <Phone className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>Customer WhatsApp (Optional):</span>
-                      </span>
-                      <div className="flex items-center gap-1">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 text-xs bg-white px-3 py-2 rounded-xl border border-stone-200 shadow-2xs">
+                      <div className="flex items-center justify-between sm:justify-start gap-2">
+                        <span className="font-bold text-stone-700 flex items-center gap-1.5">
+                          <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Customer WhatsApp:</span>
+                        </span>
+                        {onOpenAlertSettings && (
+                          <button
+                            type="button"
+                            onClick={onOpenAlertSettings}
+                            className={`text-[10px] px-2 py-0.5 rounded-md font-bold transition-colors cursor-pointer flex items-center gap-1 ${
+                              getAlertConfig().whatsappToken?.trim() || getAlertConfig().whatsappWebhookUrl?.trim()
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
+                                : 'bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100'
+                            }`}
+                            title="WhatsApp Gateway Setup / Status"
+                          >
+                            <span>
+                              {getAlertConfig().whatsappToken?.trim() || getAlertConfig().whatsappWebhookUrl?.trim()
+                                ? '🟢 Silent Send Active'
+                                : '⚙️ Setup Gateway'}
+                            </span>
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 self-end sm:self-auto">
                         <span className="text-[11px] text-stone-400 font-bold">+91</span>
                         <input
                           type="tel"
@@ -1482,7 +1562,7 @@ export default function SalesTracker({
                           value={customerPhone}
                           onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, ''))}
                           placeholder="10-digit mobile"
-                          className="w-24 px-2 py-0.5 text-right font-bold text-stone-900 border border-stone-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 text-xs placeholder:text-stone-300"
+                          className="w-28 px-2 py-0.5 text-right font-bold text-stone-900 border border-stone-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 text-xs placeholder:text-stone-300"
                         />
                       </div>
                     </div>
@@ -1509,7 +1589,7 @@ export default function SalesTracker({
                       onClick={() => handlePunchCounterOrder(true)}
                       disabled={counterTotalUnits === 0}
                       className="py-3 px-3 bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-700 hover:from-emerald-500 hover:to-teal-600 active:from-emerald-800 text-white rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-md shadow-emerald-700/25 active:scale-98 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                      title="Punch Order aur Customer ke WhatsApp par E-Bill bhejein"
+                      title="Direct Punch Order & Background WhatsApp Bill (Zero Page Redirect)"
                     >
                       <Phone className="w-3.5 h-3.5 text-amber-300" />
                       <span>📱 Punch & WhatsApp Bill</span>
