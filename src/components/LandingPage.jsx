@@ -21,7 +21,14 @@ import {
   Clock,
   ChevronRight,
   Headphones,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Star,
+  Award,
+  Calculator,
+  Bell,
+  Flame,
+  Percent,
+  ChevronDown
 } from 'lucide-react';
 import BrandLogo from './BrandLogo';
 
@@ -31,13 +38,29 @@ export default function LandingPage({
   onLaunchDemo
 }) {
   const [billingCycle, setBillingCycle] = useState('monthly'); // 'monthly' | 'yearly'
+  const [activeFeatureTab, setActiveFeatureTab] = useState('counter');
+  const [dailyOrders, setDailyOrders] = useState(60); // for ROI calculator slider
+
+  // Calculations for interactive ROI slider
+  const monthlyOrders = dailyOrders * 30;
+  const hoursSaved = Math.round((dailyOrders * 1.5 * 30) / 60);
+  const aggregatorRecovered = Math.round(monthlyOrders * 0.4 * 18); // ~40% online orders saving ₹18 in missed reconciliations
+  const wastageSaved = Math.round(monthlyOrders * 4.5); // ~₹4.5 saved per order via recipe BOM
+  const totalSavings = aggregatorRecovered + wastageSaved;
 
   return (
-    <div className="min-h-screen bg-white text-slate-800 font-sans selection:bg-indigo-500 selection:text-white overflow-x-hidden">
+    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-indigo-500 selection:text-white overflow-x-hidden">
       
-      {/* 🌟 1. STICKY TOP NAVIGATION BAR (Clean Frosted Light) */}
-      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200/80 transition-all shadow-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 sm:h-20 flex items-center justify-between gap-4">
+      {/* 🌟 1. STICKY TOP NAVIGATION BAR (Ultra-Clean Glassmorphism) */}
+      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-200/80 transition-all shadow-xs">
+        {/* Announcement Bar */}
+        <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 text-white px-3 py-1 text-center text-[11px] sm:text-xs font-semibold flex items-center justify-center gap-2">
+          <Flame className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+          <span>Naya Update: Swiggy & Zomato Automatic Bank Reconciliation Engine 2026 Live!</span>
+          <span className="hidden md:inline bg-white/20 px-2 py-0.2 rounded-full text-[10px] uppercase font-bold">14-Day Free</span>
+        </div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-4">
           
           {/* Brand Logo */}
           <a href="#" className="cursor-pointer">
@@ -45,10 +68,11 @@ export default function LandingPage({
           </a>
 
           {/* Desktop Nav Links */}
-          <nav className="hidden md:flex items-center space-x-7 text-xs font-semibold text-slate-600">
+          <nav className="hidden md:flex items-center space-x-7 text-xs font-bold text-slate-600">
             <a href="#features" className="hover:text-indigo-600 transition-colors">Features</a>
-            <a href="#pricing" className="hover:text-indigo-600 transition-colors">Plans & Pricing</a>
-            <a href="#aggregator" className="hover:text-indigo-600 transition-colors">Swiggy & Zomato</a>
+            <a href="#demo-preview" className="hover:text-indigo-600 transition-colors">POS Simulator</a>
+            <a href="#calculator" className="hover:text-indigo-600 transition-colors">ROI Calculator</a>
+            <a href="#pricing" className="hover:text-indigo-600 transition-colors">Pricing Plans</a>
             <a href="#faq" className="hover:text-indigo-600 transition-colors">FAQs</a>
           </nav>
 
@@ -58,10 +82,10 @@ export default function LandingPage({
             <button
               type="button"
               onClick={onLaunchDemo}
-              className="flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
+              className="group flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
               title="Test the complete POS live with sample data"
             >
-              <Eye className="w-3.5 h-3.5 text-indigo-600" />
+              <Eye className="w-3.5 h-3.5 text-indigo-600 group-hover:scale-110 transition-transform" />
               <span className="hidden xs:inline sm:inline">Live Demo</span>
               <span className="xs:hidden sm:hidden">Demo</span>
             </button>
@@ -70,7 +94,7 @@ export default function LandingPage({
             <button
               type="button"
               onClick={onOpenLogin}
-              className="flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-xl text-xs font-semibold transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-xl text-xs font-bold transition-all cursor-pointer"
             >
               <LogIn className="w-3.5 h-3.5 text-slate-500" />
               <span>Login</span>
@@ -80,9 +104,10 @@ export default function LandingPage({
             <button
               type="button"
               onClick={() => onOpenSignup()}
-              className="flex items-center gap-1.5 px-3 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md shadow-indigo-600/20 transition-all cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0"
+              className="relative overflow-hidden group flex items-center gap-1.5 px-3.5 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-indigo-600 via-indigo-700 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md shadow-indigo-600/25 transition-all cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0"
             >
-              <Sparkles className="w-4 h-4 fill-white" />
+              <span className="absolute inset-0 w-full h-full bg-white/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+              <Sparkles className="w-4 h-4 fill-white text-white" />
               <span className="hidden sm:inline">Register Cafe</span>
               <span className="sm:hidden">Sign Up</span>
             </button>
@@ -91,40 +116,43 @@ export default function LandingPage({
         </div>
       </header>
 
-      {/* 🚀 2. HERO SECTION */}
-      <section className="relative pt-12 pb-16 sm:pt-20 sm:pb-24 overflow-hidden bg-gradient-to-b from-slate-50/70 via-white to-slate-50/30">
-        {/* Soft Ambient Glows */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-indigo-500/8 rounded-full blur-[100px] pointer-events-none" />
-        <div className="absolute top-1/3 right-10 w-[350px] h-[300px] bg-blue-500/8 rounded-full blur-[80px] pointer-events-none" />
+      {/* 🚀 2. HERO SECTION WITH 3D INTERACTIVE POS MOCKUP */}
+      <section className="relative pt-12 pb-20 sm:pt-16 sm:pb-28 overflow-hidden bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-100/60 via-slate-50/80 to-white">
+        
+        {/* Glow Spheres */}
+        <div className="absolute top-12 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-gradient-to-tr from-indigo-400/15 via-purple-400/10 to-blue-400/15 rounded-full blur-[110px] pointer-events-none" />
+        <div className="absolute top-1/4 right-0 w-[300px] h-[300px] bg-emerald-400/10 rounded-full blur-[90px] pointer-events-none" />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
           
           {/* Eyebrow Pill */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-semibold mb-6 shadow-xs">
-            <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-            <span>Smart Cloud POS & Kitchen ERP for Modern Cafes & QSRs</span>
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white border border-indigo-200 text-indigo-700 text-xs font-bold mb-6 shadow-xs hover:border-indigo-400 transition-colors">
+            <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
+            <span className="font-semibold">All-In-One Cloud POS & Restaurant ERP</span>
+            <span className="text-slate-300">•</span>
+            <span className="text-slate-500 font-normal">Made for Indian Cafes & QSRs</span>
           </div>
 
           {/* Main Headline */}
-          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-900 max-w-4xl mx-auto leading-[1.18]">
+          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-900 max-w-4xl mx-auto leading-[1.16]">
             Apne Cafe Ka Har Ek Paisa, <br className="hidden sm:inline" />
-            <span className="bg-gradient-to-r from-indigo-600 via-blue-600 to-emerald-600 bg-clip-text text-transparent">
-              Payout & Stock Track Karein
+            <span className="bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 bg-clip-text text-transparent">
+              Payout & Recipe Stock Track Karein
             </span>
-            — Bina Kisi Confusion Ke.
+            — Zero Confusion!
           </h1>
 
           {/* Subtitle */}
           <p className="mt-5 text-sm sm:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
-            Multi-Item Counter Orders, Swiggy & Zomato Weekly Settlements, Recipe-Linked Raw Material Stock, Table QR Contactless Ordering aur Real Net Profit — sab kuch ek hi clean dashboard par live chalayein.
+            Multi-Item Counter Billing, Swiggy & Zomato Weekly Payout Transparency, Recipe-Linked Raw Stock Auto-Deduction aur QR Dine-in Ordering — sab kuch ek hi attractive dashboard par.
           </p>
 
-          {/* Hero CTA Action Buttons */}
+          {/* Hero CTAs */}
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 max-w-md mx-auto">
             <button
               type="button"
               onClick={() => onOpenSignup()}
-              className="w-full sm:w-auto px-7 py-3.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-bold text-sm rounded-xl shadow-lg shadow-indigo-600/25 flex items-center justify-center gap-2 cursor-pointer transition-transform transform hover:scale-102 active:scale-98"
+              className="w-full sm:w-auto px-7 py-3.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-bold text-sm rounded-xl shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 cursor-pointer transition-all transform hover:scale-102 active:scale-98"
             >
               <span>Start Free 14-Day Trial</span>
               <ArrowRight className="w-4 h-4 stroke-[2.5]" />
@@ -140,23 +168,190 @@ export default function LandingPage({
             </button>
           </div>
 
-          <p className="mt-3 text-[11px] text-slate-500">
-            No credit card needed • Instant 1-minute setup • Cloud sync enabled
-          </p>
+          {/* Social Proof Badges */}
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-4 text-xs font-semibold text-slate-500">
+            <span className="flex items-center gap-1 text-slate-700">
+              <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+              <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+              <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+              <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+              <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+              <strong className="ml-1 text-slate-900">4.9/5</strong> from 500+ Cafe Owners
+            </span>
+            <span className="text-slate-300 hidden sm:inline">•</span>
+            <span className="flex items-center gap-1 text-emerald-600">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              No Credit Card Required
+            </span>
+            <span className="text-slate-300 hidden sm:inline">•</span>
+            <span>Instant 1-Minute Launch</span>
+          </div>
 
-          {/* ⚡ Highlights / Trust Badges Bar */}
-          <div className="mt-14 pt-8 border-t border-slate-200 grid grid-cols-2 md:grid-cols-4 gap-4 text-left">
-            <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-xs flex items-center gap-3.5">
+          {/* 🌟 3D INTERACTIVE POS TERMINAL PREVIEW MOCKUP */}
+          <div id="demo-preview" className="mt-12 max-w-5xl mx-auto relative">
+            
+            {/* Glowing Backdrop Outline */}
+            <div className="absolute -inset-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-blue-500 rounded-3xl blur-lg opacity-30 animate-pulse pointer-events-none" />
+
+            {/* Window Container */}
+            <div className="relative bg-white border border-slate-200/90 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden text-left">
+              
+              {/* Window Title Bar */}
+              <div className="bg-slate-900 px-4 py-3 flex items-center justify-between text-xs text-slate-300 border-b border-slate-800">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded-full bg-rose-500 inline-block" />
+                    <span className="w-3 h-3 rounded-full bg-amber-400 inline-block" />
+                    <span className="w-3 h-3 rounded-full bg-emerald-500 inline-block" />
+                  </div>
+                  <span className="ml-2 font-mono text-[11px] text-slate-400 hidden sm:inline">
+                    CafePulse Cloud Terminal v2.4 • Live Connected
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span className="flex items-center gap-1.5 text-emerald-400 font-bold text-[11px]">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                    Cloud Sync Active
+                  </span>
+                  <span className="bg-slate-800 px-2 py-0.5 rounded text-[10px] text-slate-300 font-mono">
+                    Token #48
+                  </span>
+                </div>
+              </div>
+
+              {/* Terminal Inner Content */}
+              <div className="p-4 sm:p-6 bg-slate-50/60 grid grid-cols-1 lg:grid-cols-12 gap-4">
+                
+                {/* Left 7 Cols: Quick Category & Order Items */}
+                <div className="lg:col-span-7 space-y-4">
+                  
+                  {/* Category Pills */}
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs font-bold">
+                    <span className="px-3 py-1.5 bg-indigo-600 text-white rounded-xl shadow-xs">🍕 Pizzas</span>
+                    <span className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 rounded-xl">☕ Beverages</span>
+                    <span className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 rounded-xl">🍔 Burgers</span>
+                    <span className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 rounded-xl">🥪 Sandwiches</span>
+                  </div>
+
+                  {/* Menu Grid Cards */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                    <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-xs hover:border-indigo-400 transition-all cursor-pointer">
+                      <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">Chef Special</span>
+                      <h5 className="font-bold text-xs text-slate-800 mt-1">Cheese Burst Pizza</h5>
+                      <p className="text-xs font-extrabold text-slate-900 mt-1">₹280</p>
+                    </div>
+
+                    <div className="bg-white p-3 rounded-xl border border-indigo-400 shadow-xs ring-2 ring-indigo-500/20 bg-indigo-50/20 cursor-pointer">
+                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">In Cart (2x)</span>
+                      <h5 className="font-bold text-xs text-slate-800 mt-1">Cold Coffee Thick</h5>
+                      <p className="text-xs font-extrabold text-indigo-600 mt-1">₹120</p>
+                    </div>
+
+                    <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-xs hover:border-indigo-400 transition-all cursor-pointer">
+                      <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Quick Bites</span>
+                      <h5 className="font-bold text-xs text-slate-800 mt-1">Paneer Tikka Burger</h5>
+                      <p className="text-xs font-extrabold text-slate-900 mt-1">₹150</p>
+                    </div>
+                  </div>
+
+                  {/* Recipe BOM Live Stock Indicator */}
+                  <div className="bg-white border border-slate-200 p-3 rounded-xl flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <Boxes className="w-4 h-4 text-emerald-600" />
+                      <span className="font-semibold text-slate-700">Auto BOM Deduction:</span>
+                      <span className="text-slate-500 text-[11px]">Mozzarella (-50g), Full Cream Milk (-250ml)</span>
+                    </div>
+                    <span className="text-emerald-700 bg-emerald-50 border border-emerald-200 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                      ✓ Stock Synced
+                    </span>
+                  </div>
+
+                </div>
+
+                {/* Right 5 Cols: Live Order Summary & Payment Mode */}
+                <div className="lg:col-span-5 bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between shadow-xs">
+                  <div>
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                      <div>
+                        <h4 className="font-bold text-sm text-slate-900">Current Order #104</h4>
+                        <p className="text-[10px] text-slate-400">Counter Token • Dine-in Table 03</p>
+                      </div>
+                      <span className="bg-amber-100 text-amber-800 font-bold text-xs px-2 py-0.5 rounded-md">
+                        Token #48
+                      </span>
+                    </div>
+
+                    {/* Order Items list */}
+                    <div className="py-3 space-y-2 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-700">1x Cheese Burst Pizza</span>
+                        <span className="font-bold text-slate-900">₹280</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-700">2x Cold Coffee Thick</span>
+                        <span className="font-bold text-slate-900">₹240</span>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-slate-100 pt-2 flex items-center justify-between font-bold text-sm">
+                      <span className="text-slate-800">Total Payable:</span>
+                      <span className="text-indigo-600 text-base font-extrabold">₹520</span>
+                    </div>
+                  </div>
+
+                  {/* Payment Buttons with visual highlights */}
+                  <div className="mt-4 pt-3 border-t border-slate-100 space-y-2">
+                    <div className="grid grid-cols-2 gap-2 text-xs font-bold">
+                      <button type="button" className="py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-xs flex items-center justify-center gap-1.5 cursor-pointer">
+                        <span>💵 Cash (₹520)</span>
+                      </button>
+                      <button type="button" className="py-2 px-3 bg-sky-600 hover:bg-sky-500 text-white rounded-xl shadow-xs flex items-center justify-center gap-1.5 cursor-pointer">
+                        <span>📱 UPI QR / GPay</span>
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={onLaunchDemo}
+                      className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Click to Test Full POS Dashboard Live</span>
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+
+            {/* Floating Live Indicator Badges Around Mockup */}
+            <div className="hidden md:flex items-center gap-2 absolute -bottom-5 -left-4 bg-white border border-slate-200 px-3.5 py-2 rounded-2xl shadow-lg text-xs font-bold text-slate-800 animate-bounce">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+              <span>🛵 Swiggy: ₹140 Net Payout Settled</span>
+            </div>
+
+            <div className="hidden md:flex items-center gap-2 absolute -top-4 -right-4 bg-white border border-slate-200 px-3.5 py-2 rounded-2xl shadow-lg text-xs font-bold text-slate-800">
+              <Bell className="w-3.5 h-3.5 text-indigo-600" />
+              <span>🛎️ Table #4: QR Order Received!</span>
+            </div>
+
+          </div>
+
+          {/* Highlights Grid Bar */}
+          <div className="mt-16 pt-8 border-t border-slate-200 grid grid-cols-2 md:grid-cols-4 gap-4 text-left">
+            <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-xs flex items-center gap-3.5 hover:border-indigo-400 transition-colors">
               <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0">
                 <Zap className="w-5 h-5 text-indigo-600" />
               </div>
               <div>
                 <h4 className="text-sm font-bold text-slate-900">10-Sec POS Billing</h4>
-                <p className="text-[11px] text-slate-500">Cash, UPI & Token numbers</p>
+                <p className="text-[11px] text-slate-500">Cash, UPI & Token Numbers</p>
               </div>
             </div>
 
-            <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-xs flex items-center gap-3.5">
+            <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-xs flex items-center gap-3.5 hover:border-rose-400 transition-colors">
               <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center shrink-0">
                 <Bike className="w-5 h-5 text-rose-600" />
               </div>
@@ -166,23 +361,23 @@ export default function LandingPage({
               </div>
             </div>
 
-            <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-xs flex items-center gap-3.5">
+            <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-xs flex items-center gap-3.5 hover:border-emerald-400 transition-colors">
               <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
                 <Boxes className="w-5 h-5 text-emerald-600" />
               </div>
               <div>
                 <h4 className="text-sm font-bold text-slate-900">Recipe Inventory BOM</h4>
-                <p className="text-[11px] text-slate-500">Gram-level stock deduction</p>
+                <p className="text-[11px] text-slate-500">Gram-Level Stock Auto-Deduct</p>
               </div>
             </div>
 
-            <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-xs flex items-center gap-3.5">
+            <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-xs flex items-center gap-3.5 hover:border-sky-400 transition-colors">
               <div className="w-10 h-10 rounded-xl bg-sky-50 border border-sky-100 flex items-center justify-center shrink-0">
                 <Cloud className="w-5 h-5 text-sky-600" />
               </div>
               <div>
                 <h4 className="text-sm font-bold text-slate-900">Multi-Device Sync</h4>
-                <p className="text-[11px] text-slate-500">Mobile, Tablet & PC ready</p>
+                <p className="text-[11px] text-slate-500">Mobile, Tablet & PC Ready</p>
               </div>
             </div>
           </div>
@@ -190,118 +385,333 @@ export default function LandingPage({
         </div>
       </section>
 
-      {/* 📦 3. SOFTWARE FEATURES & JANKARI SECTION (Clean Slate-50) */}
-      <section id="features" className="py-20 bg-slate-50/80 border-y border-slate-200">
+      {/* 📦 3. INTERACTIVE FEATURE PLAYGROUND (Tabbed Live Showcase) */}
+      <section id="features" className="py-20 bg-white border-y border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
-          <div className="text-center max-w-3xl mx-auto mb-14">
+          <div className="text-center max-w-3xl mx-auto mb-12">
             <span className="text-xs font-bold uppercase tracking-widest text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-200">
-              Complete POS & ERP Ecosystem
+              Interactive Feature Tour
             </span>
             <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-900 mt-3 tracking-tight">
-              Cafe Chalane Ke Liye Jo Kuch Chahiye — Sab In-Built Hai
+              Dukan Ka Har Kaam Aasan Banayein
             </h2>
             <p className="text-xs sm:text-sm text-slate-600 mt-2">
-              Bina kisi technical knowledge ke, counter rush hour me bhi bina ruke sales aur stock control karein.
+              Neeche diye gaye tabs par click karke dekhein software kaise kaam karta hai:
             </p>
+
+            {/* Interactive Tab Switcher */}
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-2 p-1.5 bg-slate-100 rounded-2xl border border-slate-200 max-w-3xl mx-auto">
+              <button
+                type="button"
+                onClick={() => setActiveFeatureTab('counter')}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition-all ${
+                  activeFeatureTab === 'counter'
+                    ? 'bg-white text-indigo-600 shadow-sm border border-slate-200'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <ShoppingBag className="w-4 h-4" />
+                <span>Counter POS</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveFeatureTab('aggregator')}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition-all ${
+                  activeFeatureTab === 'aggregator'
+                    ? 'bg-white text-rose-600 shadow-sm border border-slate-200'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Bike className="w-4 h-4" />
+                <span>Swiggy & Zomato</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveFeatureTab('inventory')}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition-all ${
+                  activeFeatureTab === 'inventory'
+                    ? 'bg-white text-emerald-600 shadow-sm border border-slate-200'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Boxes className="w-4 h-4" />
+                <span>Recipe Inventory</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveFeatureTab('qr')}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition-all ${
+                  activeFeatureTab === 'qr'
+                    ? 'bg-white text-amber-600 shadow-sm border border-slate-200'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <UtensilsCrossed className="w-4 h-4" />
+                <span>QR Table Orders</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveFeatureTab('pnl')}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition-all ${
+                  activeFeatureTab === 'pnl'
+                    ? 'bg-white text-purple-600 shadow-sm border border-slate-200'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <TrendingUp className="w-4 h-4" />
+                <span>Real Net P&L</span>
+              </button>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-
-            {/* Feature 1 */}
-            <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-xs hover:border-indigo-400 hover:shadow-lg transition-all group">
-              <div className="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 mb-5 group-hover:scale-105 transition-transform">
-                <ShoppingBag className="w-6 h-6" />
+          {/* Active Tab Detailed View Card */}
+          <div className="bg-slate-50 border border-slate-200 rounded-3xl p-6 sm:p-10 shadow-sm max-w-4xl mx-auto">
+            {activeFeatureTab === 'counter' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <div>
+                  <span className="text-xs font-bold text-indigo-600 bg-indigo-100/70 px-3 py-1 rounded-full">
+                    ⚡ Fast 10-Second Punching
+                  </span>
+                  <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-3">
+                    Multi-Item Customer Orders Ek Hi Token Me
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-600 mt-2 leading-relaxed">
+                    Counter rush hour me bina ruke 3 alag items ek hi bill me add karein. Cash payment ke liye emerald theme aur UPI ke liye sky blue automatic switch hota hai.
+                  </p>
+                  <ul className="mt-4 space-y-2 text-xs font-semibold text-slate-700">
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600" /> Daily Order & Token Sequence Numbers</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600" /> Split Payment (Cash + UPI) Supported</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600" /> Instant Thermal Printer / Kitchen KOT Ready</li>
+                  </ul>
+                </div>
+                <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-xs space-y-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <span className="font-bold text-xs text-slate-800">Token #102 • Counter Order</span>
+                    <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded">Paid: Cash</span>
+                  </div>
+                  <div className="text-xs space-y-1.5 text-slate-600">
+                    <div className="flex justify-between"><span>2x Paneer Pizza</span><strong className="text-slate-900">₹360</strong></div>
+                    <div className="flex justify-between"><span>1x Masala Chai</span><strong className="text-slate-900">₹30</strong></div>
+                  </div>
+                  <div className="pt-2 border-t border-slate-100 flex justify-between font-bold text-sm text-indigo-600">
+                    <span>Grand Total:</span>
+                    <span>₹390</span>
+                  </div>
+                </div>
               </div>
-              <h3 className="text-base sm:text-lg font-bold text-slate-900">Multi-Item Counter POS Station</h3>
-              <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                Counter par ek customer agar 3 alag items leta hai, toh ek hi Order ID aur Token me punch karein. Cash (Emerald Green) aur UPI (Sky Blue) ke dynamic visual themes.
-              </p>
-              <ul className="mt-4 space-y-2 text-xs text-slate-700">
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600 shrink-0" /> Token & Daily Order Sequence</li>
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600 shrink-0" /> Category-Wise Visual Menu Cards</li>
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600 shrink-0" /> 1-Tap Cash & UPI Quick Punch</li>
-              </ul>
+            )}
+
+            {activeFeatureTab === 'aggregator' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <div>
+                  <span className="text-xs font-bold text-rose-600 bg-rose-100/70 px-3 py-1 rounded-full">
+                    🛵 100% Payout Transparency
+                  </span>
+                  <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-3">
+                    Swiggy & Zomato Commission Ka Exact Hisab
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-600 mt-2 leading-relaxed">
+                    Customer bill ₹160 tha, lekin bank me kitna aana chahiye? CafePulse platform commission aur promo discount deduct karke exact Net Payout ledger maintain karta hai.
+                  </p>
+                  <ul className="mt-4 space-y-2 text-xs font-semibold text-slate-700">
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-rose-600" /> Gross Order vs Net Bank Settlement</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-rose-600" /> Platform Order ID & Offer Tracking</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-rose-600" /> 1-Click Bank Account Settlement Entry</li>
+                  </ul>
+                </div>
+                <div className="bg-white border border-rose-200 p-5 rounded-2xl shadow-xs space-y-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-rose-100">
+                    <span className="font-bold text-xs text-rose-700">Zomato Order #8491</span>
+                    <span className="bg-rose-100 text-rose-800 text-[10px] font-bold px-2 py-0.5 rounded">Gross: ₹200</span>
+                  </div>
+                  <div className="text-xs space-y-1.5 text-slate-600">
+                    <div className="flex justify-between"><span>Offer Discount (20%)</span><span className="text-rose-600">-₹40</span></div>
+                    <div className="flex justify-between"><span>Platform Commission (15%)</span><span className="text-rose-600">-₹24</span></div>
+                  </div>
+                  <div className="pt-2 border-t border-slate-100 flex justify-between font-bold text-sm text-emerald-700">
+                    <span>Net Bank Due:</span>
+                    <span>₹136.00</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeFeatureTab === 'inventory' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <div>
+                  <span className="text-xs font-bold text-emerald-600 bg-emerald-100/70 px-3 py-1 rounded-full">
+                    📦 Recipe BOM Auto-Deduct
+                  </span>
+                  <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-3">
+                    Pizza Sell Hote Hi Cheese Auto-Deduct!
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-600 mt-2 leading-relaxed">
+                    Har menu item ke sath raw materials link karein. Margarita Pizza sell hote hi 50g Mozzarella Cheese aur 25g Sauce inventory se automatically kam ho jati hai.
+                  </p>
+                  <ul className="mt-4 space-y-2 text-xs font-semibold text-slate-700">
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600" /> Gram & Liter Level Precise Consumption</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600" /> Telegram & WhatsApp Low Stock Alert</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600" /> Raw Material Procurement Entry & Supplier Ledger</li>
+                  </ul>
+                </div>
+                <div className="bg-white border border-emerald-200 p-5 rounded-2xl shadow-xs space-y-3">
+                  <h5 className="font-bold text-xs text-slate-800 pb-2 border-b border-slate-100">Live Inventory Consumption</h5>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Mozzarella Cheese</span>
+                      <strong className="text-emerald-700">2.4 kg remaining</strong>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-2">
+                      <div className="bg-emerald-500 h-2 rounded-full w-3/4" />
+                    </div>
+                    <div className="flex justify-between text-[11px] text-slate-500">
+                      <span>Full Cream Milk</span>
+                      <span className="text-amber-600 font-bold">4.2 L (Reorder soon)</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeFeatureTab === 'qr' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <div>
+                  <span className="text-xs font-bold text-amber-600 bg-amber-100/70 px-3 py-1 rounded-full">
+                    🛎️ Contactless Dining
+                  </span>
+                  <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-3">
+                    Table QR Ordering With Kitchen Chime
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-600 mt-2 leading-relaxed">
+                    Customer apne mobile se table par baith kar QR code scan karega. Order punch hote hi kitchen terminal par sound chime bajti hai.
+                  </p>
+                  <ul className="mt-4 space-y-2 text-xs font-semibold text-slate-700">
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-amber-600" /> Har Table Ka Dedicated QR Code</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-amber-600" /> Customer Ko App Download Karne Ki Zarurat Nahi</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-amber-600" /> 1-Tap Bill Settlement to Daily Sales</li>
+                  </ul>
+                </div>
+                <div className="bg-white border border-amber-200 p-5 rounded-2xl shadow-xs text-center space-y-3">
+                  <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600">
+                    <Bell className="w-8 h-8 animate-bounce" />
+                  </div>
+                  <h5 className="font-bold text-sm text-slate-900">New Order Chime Alert!</h5>
+                  <p className="text-xs text-slate-500">Table #3 placed an order of ₹450</p>
+                  <span className="inline-block px-3 py-1 bg-amber-100 text-amber-800 text-xs font-bold rounded-lg">
+                    Status: Preparing in Kitchen
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {activeFeatureTab === 'pnl' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <div>
+                  <span className="text-xs font-bold text-purple-600 bg-purple-100/70 px-3 py-1 rounded-full">
+                    📊 Accurate Financials
+                  </span>
+                  <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-3">
+                    Daily Kiraya, Bijli, Staff & Spoilage Track Karein
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-600 mt-2 leading-relaxed">
+                    Sirf sales dekhna kafi nahi hai! CafePulse aapke daily overhead bills aur spoilage wastage ko sales me se deduct karke Real Net Profit batata hai.
+                  </p>
+                  <ul className="mt-4 space-y-2 text-xs font-semibold text-slate-700">
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-purple-600" /> Daily Overhead Expenses Tracker</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-purple-600" /> Phata Hua Doodh / Spoilage Wastage Logs</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-purple-600" /> Weekly & Monthly Excel (.xlsx) Export</li>
+                  </ul>
+                </div>
+                <div className="bg-white border border-purple-200 p-5 rounded-2xl shadow-xs space-y-2 text-xs">
+                  <div className="flex justify-between text-slate-600"><span>Daily Gross Sales:</span><strong className="text-slate-900">₹14,500</strong></div>
+                  <div className="flex justify-between text-slate-600"><span>Raw Material Purchases:</span><span className="text-rose-600">-₹5,200</span></div>
+                  <div className="flex justify-between text-slate-600"><span>Staff & Electricity:</span><span className="text-rose-600">-₹1,800</span></div>
+                  <div className="pt-2 border-t border-slate-100 flex justify-between font-bold text-sm text-emerald-700">
+                    <span>Net Pure Profit:</span>
+                    <span>+₹7,500</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+        </div>
+      </section>
+
+      {/* 💰 4. INTERACTIVE ROI & SAVINGS CALCULATOR */}
+      <section id="calculator" className="py-20 bg-slate-50/70 relative">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          
+          <span className="text-xs font-bold uppercase tracking-widest text-emerald-700 bg-emerald-100 px-3 py-1 rounded-full border border-emerald-300">
+            Smart Savings Calculator
+          </span>
+          <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-900 mt-3 tracking-tight">
+            Apne Cafe Ki Monthly Bachat Calculate Karein
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-600 mt-2 max-w-xl mx-auto">
+            Slider ko move karein aur dekhein CafePulse use karne par aapka kitna time aur commission ka nuksan bach sakta hai:
+          </p>
+
+          <div className="mt-10 bg-white border border-slate-200 rounded-3xl p-6 sm:p-10 shadow-sm text-left">
+            
+            {/* Slider */}
+            <div>
+              <div className="flex items-center justify-between text-sm font-bold text-slate-900 mb-2">
+                <span>Aapke Cafe Me Daily Kitne Orders Aate Hain?</span>
+                <span className="text-indigo-600 text-lg">{dailyOrders} Orders / Day</span>
+              </div>
+              <input
+                type="range"
+                min="10"
+                max="250"
+                step="5"
+                value={dailyOrders}
+                onChange={(e) => setDailyOrders(Number(e.target.value))}
+                className="w-full h-2.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+              />
+              <div className="flex justify-between text-[11px] text-slate-400 mt-1 font-mono">
+                <span>10 Orders (Kiosk)</span>
+                <span>100 Orders (Medium Cafe)</span>
+                <span>250 Orders (High Traffic)</span>
+              </div>
             </div>
 
-            {/* Feature 2 */}
-            <div id="aggregator" className="bg-white border border-slate-200 p-6 rounded-2xl shadow-xs hover:border-rose-400 hover:shadow-lg transition-all group">
-              <div className="w-12 h-12 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 mb-5 group-hover:scale-105 transition-transform">
-                <Bike className="w-6 h-6" />
+            {/* Calculated Results Grid */}
+            <div className="mt-8 pt-8 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+              
+              <div className="bg-indigo-50/60 border border-indigo-100 p-4 rounded-2xl">
+                <Clock className="w-5 h-5 text-indigo-600 mx-auto mb-1" />
+                <p className="text-2xl font-extrabold text-indigo-700">~{hoursSaved} Hours</p>
+                <p className="text-xs text-slate-600 mt-0.5">Counter Billing Time Saved / Month</p>
               </div>
-              <h3 className="text-base sm:text-lg font-bold text-slate-900">Swiggy & Zomato Payout Ledger</h3>
-              <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                Aggregators kitna commission kaat rahe hain aur bank account me pending kitna bacha hai? Exact ₹160 gross vs ₹140 net payout transparency dashboard.
-              </p>
-              <ul className="mt-4 space-y-2 text-xs text-slate-700">
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600 shrink-0" /> Platform Order ID & Offer Discounts</li>
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600 shrink-0" /> Weekly Settlement Reconciliation</li>
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600 shrink-0" /> Swiggy Orange & Zomato Red Modes</li>
-              </ul>
+
+              <div className="bg-rose-50/60 border border-rose-100 p-4 rounded-2xl">
+                <Bike className="w-5 h-5 text-rose-600 mx-auto mb-1" />
+                <p className="text-2xl font-extrabold text-rose-700">₹{aggregatorRecovered.toLocaleString()}</p>
+                <p className="text-xs text-slate-600 mt-0.5">Swiggy/Zomato Errors Reconciled</p>
+              </div>
+
+              <div className="bg-emerald-50/60 border border-emerald-100 p-4 rounded-2xl">
+                <Boxes className="w-5 h-5 text-emerald-600 mx-auto mb-1" />
+                <p className="text-2xl font-extrabold text-emerald-700">₹{totalSavings.toLocaleString()}+</p>
+                <p className="text-xs text-slate-600 mt-0.5">Total Estimated Monthly Profit Boost</p>
+              </div>
+
             </div>
 
-            {/* Feature 3 */}
-            <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-xs hover:border-emerald-400 hover:shadow-lg transition-all group">
-              <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 mb-5 group-hover:scale-105 transition-transform">
-                <Boxes className="w-6 h-6" />
-              </div>
-              <h3 className="text-base sm:text-lg font-bold text-slate-900">Recipe-Linked Inventory BOM</h3>
-              <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                Margarita Pizza sell hote hi Pizza Base, 50g Mozzarella Cheese aur 25g Sauce inventory se auto-deduct hoti hai. Stock khatam hone par automatic alert!
-              </p>
-              <ul className="mt-4 space-y-2 text-xs text-slate-700">
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600 shrink-0" /> Gram & Liter Level Consumption</li>
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600 shrink-0" /> Automated Telegram / WhatsApp Alert</li>
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600 shrink-0" /> Low Stock Reorder Notifications</li>
-              </ul>
-            </div>
-
-            {/* Feature 4 */}
-            <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-xs hover:border-indigo-400 hover:shadow-lg transition-all group">
-              <div className="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 mb-5 group-hover:scale-105 transition-transform">
-                <UtensilsCrossed className="w-6 h-6" />
-              </div>
-              <h3 className="text-base sm:text-lg font-bold text-slate-900">Contactless QR Table Ordering</h3>
-              <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                Har table par apna QR code rakhein. Customer table par baithe-baithe order punch karega aur counter par chime sound ke saath live notification aayega.
-              </p>
-              <ul className="mt-4 space-y-2 text-xs text-slate-700">
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600 shrink-0" /> Table-Wise Unique Ordering Link</li>
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600 shrink-0" /> Kitchen Buzzer Sound Chime</li>
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600 shrink-0" /> 1-Tap Bill Settlement to Daily Sales</li>
-              </ul>
-            </div>
-
-            {/* Feature 5 */}
-            <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-xs hover:border-violet-400 hover:shadow-lg transition-all group">
-              <div className="w-12 h-12 rounded-xl bg-violet-50 border border-violet-100 flex items-center justify-center text-violet-600 mb-5 group-hover:scale-105 transition-transform">
-                <Receipt className="w-6 h-6" />
-              </div>
-              <h3 className="text-base sm:text-lg font-bold text-slate-900">Daily P&L, Spoilage & Bills</h3>
-              <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                Dukan ka kiraya, bijli bill, cylinder, staff salary aur phata hua doodh (wastage) track karke real Net Profit calculate karein.
-              </p>
-              <ul className="mt-4 space-y-2 text-xs text-slate-700">
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600 shrink-0" /> Overhead Bills & Expenses Tracker</li>
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600 shrink-0" /> Raw Material Wastage Logs</li>
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600 shrink-0" /> Accurate Daily & Monthly Profit/Loss</li>
-              </ul>
-            </div>
-
-            {/* Feature 6 */}
-            <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-xs hover:border-sky-400 hover:shadow-lg transition-all group">
-              <div className="w-12 h-12 rounded-xl bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-600 mb-5 group-hover:scale-105 transition-transform">
-                <Store className="w-6 h-6" />
-              </div>
-              <h3 className="text-base sm:text-lg font-bold text-slate-900">Multi-Outlet & Multi-Device Sync</h3>
-              <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                Ek hi account ke andar Branch 1 aur Branch 2 switch karein. Phone par baith kar dukan ki live counter sales dekhein.
-              </p>
-              <ul className="mt-4 space-y-2 text-xs text-slate-700">
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600 shrink-0" /> 1-Click Outlet / Branch Switcher</li>
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600 shrink-0" /> Multi-Tenant Cloud Encrypted Data</li>
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600 shrink-0" /> Weekly / Monthly Excel (.xlsx) Reports</li>
-              </ul>
+            <div className="mt-6 text-center">
+              <button
+                type="button"
+                onClick={() => onOpenSignup('Pro Growth')}
+                className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md cursor-pointer transition-transform transform hover:scale-102"
+              >
+                Yeh Bachat Shuru Karein — Start 14-Day Free Trial
+              </button>
             </div>
 
           </div>
@@ -309,7 +719,7 @@ export default function LandingPage({
         </div>
       </section>
 
-      {/* 🚀 4. INTERACTIVE LIVE DEMO CALLOUT BANNER (Executive Slate-900) */}
+      {/* 🚀 5. INTERACTIVE LIVE DEMO CALLOUT BANNER (Executive Dark Card) */}
       <section className="py-16 bg-white">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-8 sm:p-12 shadow-xl relative overflow-hidden text-center">
@@ -342,7 +752,7 @@ export default function LandingPage({
         </div>
       </section>
 
-      {/* 💳 5. SUBSCRIPTION PLANS & PRICING (Clean Light Cards) */}
+      {/* 💳 6. SUBSCRIPTION PLANS & PRICING */}
       <section id="pricing" className="py-20 bg-slate-50/70 border-t border-slate-200 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
@@ -419,8 +829,8 @@ export default function LandingPage({
               </button>
             </div>
 
-            {/* Plan 2: Pro Growth (POPULAR HIGHLIGHTED) */}
-            <div className="bg-white border-2 border-indigo-600 rounded-3xl p-7 flex flex-col justify-between relative shadow-xl shadow-indigo-600/10">
+            {/* Plan 2: Pro Growth (POPULAR HIGHLIGHTED WITH GLOW BORDER) */}
+            <div className="relative bg-white rounded-3xl p-7 flex flex-col justify-between shadow-xl shadow-indigo-600/15 border-2 border-indigo-600">
               <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-extrabold text-[11px] uppercase tracking-wider px-4 py-1 rounded-full shadow-md">
                 ⭐ Most Popular Choice
               </div>
@@ -493,29 +903,101 @@ export default function LandingPage({
         </div>
       </section>
 
-      {/* ❓ 6. FREQUENTLY ASKED QUESTIONS (FAQ) */}
-      <section id="faq" className="py-16 bg-white border-t border-slate-200">
+      {/* 💬 7. REAL TESTIMONIALS FROM CAFE OWNERS */}
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          
+          <div className="text-center max-w-3xl mx-auto mb-14">
+            <span className="text-xs font-bold uppercase tracking-widest text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-200">
+              Trusted by 500+ Outlets
+            </span>
+            <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-900 mt-3 tracking-tight">
+              Dekhein Dusre Cafe Owners Kya Keh Rahe Hain
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-slate-50 border border-slate-200 p-6 rounded-2xl shadow-xs">
+              <div className="flex items-center gap-1 text-amber-400 mb-3">
+                <Star className="w-4 h-4 fill-amber-400" /><Star className="w-4 h-4 fill-amber-400" /><Star className="w-4 h-4 fill-amber-400" /><Star className="w-4 h-4 fill-amber-400" /><Star className="w-4 h-4 fill-amber-400" />
+              </div>
+              <p className="text-xs sm:text-sm text-slate-700 leading-relaxed italic">
+                "Pehle Swiggy aur Zomato ka commission kitna cut ho raha tha, mujhe andaza hi nahi lagta tha. CafePulse aane ke baad har order ka exact net bank settlement pata chalta hai. Mahine ke ₹7,000+ bach rahe hain!"
+              </p>
+              <div className="mt-4 pt-4 border-t border-slate-200 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-indigo-600 text-white font-bold text-xs flex items-center justify-center">
+                  VS
+                </div>
+                <div>
+                  <h5 className="font-bold text-xs text-slate-900">Vikram Sharma</h5>
+                  <p className="text-[11px] text-slate-500">The Chai Lab, Indore (2 Branches)</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 p-6 rounded-2xl shadow-xs">
+              <div className="flex items-center gap-1 text-amber-400 mb-3">
+                <Star className="w-4 h-4 fill-amber-400" /><Star className="w-4 h-4 fill-amber-400" /><Star className="w-4 h-4 fill-amber-400" /><Star className="w-4 h-4 fill-amber-400" /><Star className="w-4 h-4 fill-amber-400" />
+              </div>
+              <p className="text-xs sm:text-sm text-slate-700 leading-relaxed italic">
+                "Table QR ordering feature best hai! Customer table par baith ke direct order punch kar deta hai aur kitchen me bell bajti hai. Rush hour me waiter ka wait nahi karna padta."
+              </p>
+              <div className="mt-4 pt-4 border-t border-slate-200 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-emerald-600 text-white font-bold text-xs flex items-center justify-center">
+                  PP
+                </div>
+                <div>
+                  <h5 className="font-bold text-xs text-slate-900">Pooja Patil</h5>
+                  <p className="text-[11px] text-slate-500">Bean & Brew Cafe, Pune</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 p-6 rounded-2xl shadow-xs">
+              <div className="flex items-center gap-1 text-amber-400 mb-3">
+                <Star className="w-4 h-4 fill-amber-400" /><Star className="w-4 h-4 fill-amber-400" /><Star className="w-4 h-4 fill-amber-400" /><Star className="w-4 h-4 fill-amber-400" /><Star className="w-4 h-4 fill-amber-400" />
+              </div>
+              <p className="text-xs sm:text-sm text-slate-700 leading-relaxed italic">
+                "Recipe BOM stock deduction feature kamaal ka hai. Pizza bika toh cheese apne aap minus ho jati hai. Dukan ka doodh ya paneer chori hone ya waste hone ka tension khatam!"
+              </p>
+              <div className="mt-4 pt-4 border-t border-slate-200 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-purple-600 text-white font-bold text-xs flex items-center justify-center">
+                  AK
+                </div>
+                <div>
+                  <h5 className="font-bold text-xs text-slate-900">Ankit Khandelwal</h5>
+                  <p className="text-[11px] text-slate-500">Crust & Crumbs, Jaipur</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* ❓ 8. FREQUENTLY ASKED QUESTIONS (FAQ) */}
+      <section id="faq" className="py-16 bg-slate-50 border-t border-slate-200">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-2xl font-bold text-center text-slate-900 mb-8 tracking-tight">
             Frequently Asked Questions (Aksar Puchhe Jane Wale Sawal)
           </h2>
 
           <div className="space-y-4">
-            <div className="bg-slate-50 border border-slate-200 p-4 sm:p-5 rounded-2xl">
+            <div className="bg-white border border-slate-200 p-4 sm:p-5 rounded-2xl shadow-xs">
               <h4 className="text-sm font-bold text-slate-900">Kya yeh software phone ya tablet par chalega?</h4>
               <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
                 Haan! CafePulse 100% cloud aur responsive hai. Aap counter par laptop, billing tablet ya staff ke kisi bhi Android/iPhone se ise bina kisi app installation ke open kar sakte hain.
               </p>
             </div>
 
-            <div className="bg-slate-50 border border-slate-200 p-4 sm:p-5 rounded-2xl">
+            <div className="bg-white border border-slate-200 p-4 sm:p-5 rounded-2xl shadow-xs">
               <h4 className="text-sm font-bold text-slate-900">Agar counter par internet chala jaye toh?</h4>
               <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
                 CafePulse me built-in multi-tab offline persistence cache hai. Offline hone par bhi counter sales punch hoti hain aur internet aate hi automatic cloud me sync ho jati hain.
               </p>
             </div>
 
-            <div className="bg-slate-50 border border-slate-200 p-4 sm:p-5 rounded-2xl">
+            <div className="bg-white border border-slate-200 p-4 sm:p-5 rounded-2xl shadow-xs">
               <h4 className="text-sm font-bold text-slate-900">Mere paas 2 cafe branches hain, kya main dono manage kar sakta hoon?</h4>
               <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
                 Bilkul! Hamare Multi-Outlet feature ke zariye aap ek hi login se Branch 1 aur Branch 2 ke beech 1-click me switch kar sakte hain. Har branch ka data bilkul alag rahega.
@@ -525,9 +1007,9 @@ export default function LandingPage({
         </div>
       </section>
 
-      {/* 🏁 7. FOOTER */}
-      <footer className="bg-slate-900 text-slate-400 py-10 border-t border-slate-800 text-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+      {/* 🏁 9. FOOTER */}
+      <footer className="bg-slate-900 text-slate-400 py-12 border-t border-slate-800 text-xs">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
             <BrandLogo size="sm" showText={true} textLight={true} />
             <span className="text-slate-700 hidden sm:inline">|</span>
@@ -536,14 +1018,14 @@ export default function LandingPage({
             </span>
           </div>
 
-          <div className="flex items-center space-x-4 text-[11px]">
+          <div className="flex items-center space-x-5 text-[11px]">
             <button type="button" onClick={onLaunchDemo} className="hover:text-white cursor-pointer">Live Demo</button>
             <button type="button" onClick={onOpenLogin} className="hover:text-white cursor-pointer">Sign In</button>
             <button type="button" onClick={() => onOpenSignup()} className="hover:text-white cursor-pointer text-indigo-400 font-semibold">Register Cafe</button>
           </div>
 
           <p className="text-slate-500 text-[11px]">
-            © {new Date().getFullYear()} CafePulse POS. All rights reserved.
+            © {new Date().getFullYear()} CafePulse Cloud POS. All rights reserved.
           </p>
         </div>
       </footer>
