@@ -126,12 +126,13 @@ export const getFirebaseDb = () => {
       app = getApp();
     }
 
-    // Try initializing with multi-tab offline persistent cache
+    // Try initializing with multi-tab offline persistent cache & long polling to prevent QUIC protocol drops
     try {
       db = initializeFirestore(app, {
         localCache: persistentLocalCache({
           tabManager: persistentMultipleTabManager()
-        })
+        }),
+        experimentalAutoDetectLongPolling: true
       });
     } catch {
       // If already initialized or persistent cache not supported (e.g. private window), fallback to getFirestore

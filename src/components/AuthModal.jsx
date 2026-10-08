@@ -16,7 +16,13 @@ import {
   ShieldCheck,
   KeyRound
 } from 'lucide-react';
-import { registerCafeOwner, loginCafeOwner, sendResetPassword } from '../utils/auth';
+import {
+  registerCafeOwner,
+  loginCafeOwner,
+  sendResetPassword,
+  registerLocalCafeOwner,
+  loginLocalCafeOwner
+} from '../utils/auth';
 import BrandLogo from './BrandLogo';
 
 export default function AuthModal({
@@ -34,12 +40,14 @@ export default function AuthModal({
       setActiveTab(initialTab || 'login');
       setErrorMsg('');
       setSuccessMsg('');
+      setIsConfigError(false);
     }
   }, [isOpen, initialTab]);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [isConfigError, setIsConfigError] = useState(false);
 
   // Form Fields
   const [email, setEmail] = useState('');
@@ -56,6 +64,7 @@ export default function AuthModal({
   const resetForm = () => {
     setErrorMsg('');
     setSuccessMsg('');
+    setIsConfigError(false);
   };
 
   const handleSwitchTab = (tab) => {
@@ -66,6 +75,10 @@ export default function AuthModal({
   const getFriendlyErrorMessage = (err) => {
     const code = err?.code || '';
     const msg = err?.message || '';
+    if (code === 'auth/configuration-not-found' || msg.includes('configuration-not-found')) {
+      setIsConfigError(true);
+      return 'Firebase Console me "Email/Password" sign-in method enable nahi hai. Niche diye button se aap turant Local Cafe mode me shuru kar sakte hain!';
+    }
     if (code === 'auth/invalid-email' || msg.includes('invalid-email')) {
       return 'Kripya sahi email address enter karein.';
     }
@@ -82,6 +95,33 @@ export default function AuthModal({
       return 'Password kam se kam 6 characters ka hona chahiye.';
     }
     return msg || 'Kuch dikkat aayi, kripya dobara try karein.';
+  };
+
+  // Immediate 1-Click Offline / Local Mode Launch
+  const handleFallbackLocal = () => {
+    setErrorMsg('');
+    setIsConfigError(false);
+    if (activeTab === 'signup') {
+      const res = registerLocalCafeOwner({
+        email: email || 'owner@mycafe.com',
+        cafeName: cafeName || 'My Cafe',
+        ownerName: ownerName || 'Cafe Owner',
+        phone,
+        city
+      });
+      setSuccessMsg(`🎉 "${res.cafe.cafeName}" Local mode me successfully create ho gaya!`);
+      setTimeout(() => {
+        onAuthSuccess(res);
+        onClose();
+      }, 700);
+    } else {
+      const res = loginLocalCafeOwner(email || 'owner@mycafe.com');
+      setSuccessMsg('🎉 Login successful (Local Cafe Mode).');
+      setTimeout(() => {
+        onAuthSuccess(res);
+        onClose();
+      }, 700);
+    }
   };
 
   // 1. Handle Login
@@ -254,9 +294,35 @@ export default function AuthModal({
 
           {/* Alert / Feedback message */}
           {errorMsg && (
-            <div className="flex items-start gap-2.5 p-3.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
-              <p className="leading-relaxed font-medium">{errorMsg}</p>
+            <div className="space-y-3">
+              <div className="flex items-start gap-2.5 p-3.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
+                <p className="leading-relaxed font-medium">{errorMsg}</p>
+              </div>
+
+              {isConfigError && (
+                <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-2xl text-xs text-amber-900 space-y-2.5 shadow-xs">
+                  <div className="flex items-center gap-2 font-bold text-amber-800 text-xs">
+                    <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>Option 1: Turant Local Cafe Mode Me Chalu Karein (Instant)</span>
+                  </div>
+                  <p className="text-[11px] text-amber-800/90 leading-relaxed">
+                    Aapko Firebase configure karne ki wait karne ki zarurat nahi hai. Niche click karke abhi direct dashboard me enter karein:
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleFallbackLocal}
+                    className="w-full py-2.5 px-4 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-bold rounded-xl text-xs shadow-md cursor-pointer flex items-center justify-center gap-2 transition-all"
+                  >
+                    <Store className="w-4 h-4" />
+                    <span>Launch "{cafeName || 'My Cafe'}" in Local Cafe Mode 🚀</span>
+                  </button>
+
+                  <div className="pt-2 border-t border-amber-200/80 text-[11px] text-amber-800/80 leading-relaxed">
+                    <strong>Option 2 (Firebase Cloud Auth):</strong> Agar cloud login chahiye toh Firebase Console &gt; Authentication &gt; Sign-in method me jakar <em>Email/Password</em> ko Enable karein.
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
