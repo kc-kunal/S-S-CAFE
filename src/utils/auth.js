@@ -16,6 +16,7 @@ import {
   getDocs,
   writeBatch
 } from 'firebase/firestore';
+import { getFirebaseAuth, getFirebaseDb } from './firebase';
 import {
   INITIAL_MENU_ITEMS,
   INITIAL_INVENTORY_ITEMS,
