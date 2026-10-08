@@ -671,8 +671,8 @@ export default function App() {
     const updatedSales = salesLogs.map(s => s.id === updatedSale.id ? updatedSale : s);
     updateSales(updatedSales);
 
-    // If sale quantity decreased (diff > 0), restore recipe ingredients back into stock
-    if (diff > 0) {
+    // If sale quantity changed (diff !== 0), adjust recipe ingredients in inventory
+    if (diff !== 0) {
       const targetMenuItem = menuItems.find(m => m.id === updatedSale.itemId || m.name === updatedSale.itemName);
       if (targetMenuItem && Array.isArray(targetMenuItem.recipe) && targetMenuItem.recipe.length > 0) {
         const updatedInv = inventoryItems.map(invItem => {
@@ -682,9 +682,10 @@ export default function App() {
             return Boolean(matched);
           });
           if (recipeMatch) {
-            const restoreInRecipe = (Number(recipeMatch.quantity) || 0) * diff;
-            const restoreAmount = convertQuantity(restoreInRecipe, recipeMatch.unit, invItem.unit);
-            const newStock = Math.round((Number(invItem.currentStock) + restoreAmount) * 100) / 100;
+            // If diff > 0 (reduced qty): restore into stock; if diff < 0 (increased qty): deduct additional stock
+            const recipeChange = (Number(recipeMatch.quantity) || 0) * diff;
+            const changeAmount = convertQuantity(recipeChange, recipeMatch.unit, invItem.unit);
+            const newStock = Math.max(0, Math.round((Number(invItem.currentStock) + changeAmount) * 100) / 100);
             return {
               ...invItem,
               currentStock: newStock,
@@ -697,7 +698,7 @@ export default function App() {
       }
     }
 
-    showToast(`Deducted 1 item: ${updatedSale.itemName} (${updatedSale.quantitySold} pcs remaining in sale log)`);
+    showToast(`Updated sale log: ${updatedSale.itemName} (${updatedSale.quantitySold} pcs)`);
   };
 
   const handleDeleteSale = (id) => {
@@ -748,7 +749,10 @@ export default function App() {
     if (matchedItem) {
       // Convert purchased qty to the inventory item's unit!
       const convertedQty = convertQuantity(qty, newProc.unit, matchedItem.unit);
-      const unitCost = Number(newProc.ratePerUnit) || (qty > 0 ? Number(newProc.totalCost) / qty : 0);
+      const totalPurchasedCost = Number(newProc.totalCost) || (qty * (Number(newProc.ratePerUnit) || 0));
+      // Unit rate must be calculated per INVENTORY UNIT (e.g. per gram or per ml, NOT per kg or per liter)
+      const costPerInvUnit = convertedQty > 0 ? (totalPurchasedCost / convertedQty) : (Number(newProc.ratePerUnit) || matchedItem.unitCost);
+      const roundedCostPerInvUnit = Math.round(costPerInvUnit * 10000) / 10000;
 
       updatedInv = inventoryItems.map(inv => {
         if (inv.id === matchedItem.id) {
@@ -756,7 +760,7 @@ export default function App() {
           return {
             ...inv,
             currentStock: newStock,
-            unitCost: unitCost || inv.unitCost,
+            unitCost: roundedCostPerInvUnit > 0 ? roundedCostPerInvUnit : inv.unitCost,
             lastUpdated: new Date().toISOString().split('T')[0]
           };
         }
@@ -786,7 +790,9 @@ export default function App() {
       }
 
       const convertedQty = convertQuantity(qty, newProc.unit, standardUnit);
-      const unitCost = Number(newProc.ratePerUnit) || (qty > 0 ? Number(newProc.totalCost) / qty : 0);
+      const totalPurchasedCost = Number(newProc.totalCost) || (qty * (Number(newProc.ratePerUnit) || 0));
+      const costPerInvUnit = convertedQty > 0 ? (totalPurchasedCost / convertedQty) : (Number(newProc.ratePerUnit) || 0);
+      const roundedCostPerInvUnit = Math.round(costPerInvUnit * 10000) / 10000;
 
       const newItem = {
         id: `inv-${Date.now()}`,
@@ -795,7 +801,7 @@ export default function App() {
         currentStock: convertedQty,
         unit: standardUnit,
         reorderLevel: 5,
-        unitCost: unitCost,
+        unitCost: roundedCostPerInvUnit,
         lastUpdated: new Date().toISOString().split('T')[0]
       };
       updatedInv = [newItem, ...inventoryItems];
@@ -806,10 +812,30 @@ export default function App() {
   };
 
   const handleDeleteProcurement = (id) => {
+    const toDelete = procurementLogs.find(p => p.id === id);
+    if (toDelete) {
+      const qty = Number(toDelete.quantityReceived) || 0;
+      const matchedItem = findMatchingInventoryItem(toDelete.materialName, inventoryItems);
+      if (matchedItem && qty > 0) {
+        const convertedQty = convertQuantity(qty, toDelete.unit, matchedItem.unit);
+        const updatedInv = inventoryItems.map(inv => {
+          if (inv.id === matchedItem.id) {
+            const newStock = Math.max(0, Math.round((Number(inv.currentStock) - convertedQty) * 100) / 100);
+            return {
+              ...inv,
+              currentStock: newStock,
+              lastUpdated: new Date().toISOString().split('T')[0]
+            };
+          }
+          return inv;
+        });
+        updateInventory(updatedInv);
+      }
+    }
     const updated = procurementLogs.filter(p => p.id !== id);
     updateProcurement(updated);
     if (isFirebaseConfigured()) deleteSingleProcurement(id);
-    showToast('Procurement log entry deleted');
+    showToast('Procurement log entry deleted & inventory stock adjusted');
   };
 
   // 📦 Inventory Management Handlers
@@ -949,24 +975,26 @@ export default function App() {
   };
 
   const handleSettleDiningOrderToSales = (order, paymentMode = 'Cash') => {
-    // Commit items to sales and deduct inventory
-    order.items.forEach(item => {
-      const salePayload = {
-        id: `sale-dining-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-        itemId: item.id,
-        itemName: item.name,
-        category: item.category || 'General',
-        quantitySold: Number(item.quantity) || 1,
-        sellingPrice: item.price,
-        costPrice: item.costPrice || 0,
-        totalRevenue: item.total || (item.price * (item.quantity || 1)),
-        totalCost: (item.costPrice || 0) * (item.quantity || 1),
-        paymentMethod: paymentMode,
-        date: new Date().toISOString().split('T')[0],
-        createdAt: new Date().toISOString()
-      };
-      handleAddSale(salePayload);
-    });
+    if (!order || !order.items || order.items.length === 0) return;
+
+    // Atomically commit all items to daily sales via handleAddBatchSales to avoid state closure overwrite
+    const salesBatch = order.items.map((item, idx) => ({
+      id: `sale-dining-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 4)}`,
+      itemId: item.id,
+      itemName: item.name,
+      category: item.category || 'General',
+      quantitySold: Number(item.quantity) || 1,
+      sellingPrice: item.price,
+      costPrice: item.costPrice || 0,
+      totalRevenue: item.total || (item.price * (item.quantity || 1)),
+      totalCost: (item.costPrice || 0) * (item.quantity || 1),
+      paymentMethod: paymentMode,
+      platformOrderId: `Table #${order.tableNumber}`,
+      date: new Date().toISOString().split('T')[0],
+      createdAt: new Date().toISOString()
+    }));
+
+    handleAddBatchSales(salesBatch);
 
     handleUpdateDiningOrderStatus(order.id, 'billed');
     showToast(`✅ Table #${order.tableNumber} Order Settled & Punched to Daily Sales!`);

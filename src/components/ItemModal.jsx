@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Check, Coffee, Tag, Plus, Trash2, Layers, Calculator, Sparkles, AlertTriangle } from 'lucide-react';
+import { convertQuantity, findMatchingInventoryItem } from '../utils/storage';
 
 const PRESET_CATEGORIES = [
   'Pizza',
@@ -113,11 +114,16 @@ export default function ItemModal({ isOpen, onClose, onSave, editingItem, existi
     setRecipe(recipe.filter((_, i) => i !== index));
   };
 
-  // Compute live recipe cost
+  // Compute live recipe cost with accurate unit conversion
   const totalRecipeCost = recipe.reduce((sum, item) => {
-    const matchedInv = inventoryItems.find(i => i.id === item.ingredientId || i.materialName.toLowerCase() === (item.name || '').toLowerCase());
-    const unitRate = matchedInv ? (Number(matchedInv.unitCost) || 0) : 0;
-    return sum + (Number(item.quantity) || 0) * unitRate;
+    const matchedInv = findMatchingInventoryItem(item.ingredientId, inventoryItems) ||
+                       findMatchingInventoryItem(item.name, inventoryItems);
+    if (!matchedInv) return sum;
+    const invUnitCost = Number(matchedInv.unitCost) || 0;
+    const itemQty = Number(item.quantity) || 0;
+    // Convert recipe unit to inventory unit (e.g. 60g -> 0.06kg, or 250ml -> 0.25L)
+    const convertedQty = convertQuantity(itemQty, item.unit || matchedInv.unit, matchedInv.unit);
+    return sum + (convertedQty * invUnitCost);
   }, 0);
 
   const roundedRecipeCost = Math.round(totalRecipeCost * 100) / 100;

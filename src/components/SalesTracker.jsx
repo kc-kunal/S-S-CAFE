@@ -62,6 +62,7 @@ export default function SalesTracker({
   const [counterNotes, setCounterNotes] = useState('');
   const [counterDiscount, setCounterDiscount] = useState(0);
   const [counterCart, setCounterCart] = useState({}); // { [itemId]: { item, qty, price } }
+  const [cashTendered, setCashTendered] = useState(''); // Cash Given by Customer for Change Return
 
   // 🛵 Online Aggregator (Swiggy / Zomato) State
   const [onlinePlatform, setOnlinePlatform] = useState('Swiggy'); // 'Swiggy' or 'Zomato'
@@ -249,6 +250,7 @@ export default function SalesTracker({
     setCounterCart({});
     setCounterNotes('');
     setCounterDiscount(0);
+    setCashTendered('');
   };
 
   const counterSubtotal = useMemo(() => {
@@ -324,6 +326,7 @@ export default function SalesTracker({
     setCounterCart({});
     setCounterNotes('');
     setCounterDiscount(0);
+    setCashTendered('');
     const nextTokenNum = counterTokenNum + 1;
     setCounterTokenNum(nextTokenNum);
     setCounterToken(`C-${nextTokenNum}`);
@@ -433,6 +436,8 @@ export default function SalesTracker({
       const itemGross = entry.price * entry.qty;
       const itemDiscShare = totalGross > 0 ? Math.round((itemGross / totalGross) * onlineDiscountValue) : 0;
       const itemNet = Math.max(0, itemGross - itemDiscShare);
+      // Include packaging fee on first item of order so total batch revenue strictly equals onlineFinalBill
+      const packagingToAdd = idx === 0 && onlinePackaging > 0 ? Number(onlinePackaging) : 0;
 
       return {
         id: `sale-online-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 4)}`,
@@ -442,7 +447,7 @@ export default function SalesTracker({
         quantitySold: entry.qty,
         sellingPrice: entry.price,
         costPrice: entry.item.costPrice || 0,
-        totalRevenue: itemNet,
+        totalRevenue: itemNet + packagingToAdd,
         totalCost: (entry.item.costPrice || 0) * entry.qty,
         paymentMethod: onlinePlatform, // 'Swiggy' or 'Zomato'
         platformOrderId: token,
@@ -1377,6 +1382,39 @@ export default function SalesTracker({
                         ₹{counterFinalBill}
                       </span>
                     </div>
+
+                    {/* 💵 Cash Tendered & Change Return Helper */}
+                    {counterPaymentMode === 'Cash' && counterTotalUnits > 0 && (
+                      <div className="mt-2 pt-2 border-t border-stone-100 bg-emerald-50/70 -mx-3.5 -mb-3.5 p-3 rounded-b-2xl space-y-1.5 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-emerald-900 flex items-center gap-1">
+                            <span>💵 Cash Received (Grahak ne diya):</span>
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-emerald-700 font-bold">₹</span>
+                            <input
+                              type="number"
+                              min="0"
+                              placeholder={String(counterFinalBill)}
+                              value={cashTendered}
+                              onChange={(e) => setCashTendered(e.target.value)}
+                              className="w-20 px-2 py-0.5 text-right font-black text-emerald-950 bg-white border border-emerald-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 text-xs"
+                            />
+                          </div>
+                        </div>
+
+                        {Number(cashTendered) > 0 && (
+                          <div className="flex items-center justify-between pt-1 border-t border-emerald-200/60 font-bold">
+                            <span className={Number(cashTendered) >= counterFinalBill ? 'text-emerald-800' : 'text-rose-700'}>
+                              {Number(cashTendered) >= counterFinalBill ? '🤝 Change Return (Khule Paise Wapas):' : '⚠️ Short Cash (Grahak se baaki):'}
+                            </span>
+                            <span className={`text-sm font-black ${Number(cashTendered) >= counterFinalBill ? 'text-emerald-700' : 'text-rose-600'}`}>
+                              ₹{Math.abs(Number(cashTendered) - counterFinalBill)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Punch Button */}

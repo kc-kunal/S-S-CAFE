@@ -51,18 +51,18 @@ export default function LandingPage({
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-indigo-500 selection:text-white overflow-x-hidden">
-      
+
       {/* 🌟 1. STICKY TOP NAVIGATION BAR (Ultra-Clean Glassmorphism) */}
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-200/80 transition-all shadow-xs">
         {/* Announcement Bar */}
-        <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 text-white px-3 py-1 text-center text-[11px] sm:text-xs font-semibold flex items-center justify-center gap-2">
+        {/* <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 text-white px-3 py-1 text-center text-[11px] sm:text-xs font-semibold flex items-center justify-center gap-2">
           <Flame className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
           <span>Naya Update: Swiggy & Zomato Automatic Bank Reconciliation Engine 2026 Live!</span>
           <span className="hidden md:inline bg-white/20 px-2 py-0.2 rounded-full text-[10px] uppercase font-bold">14-Day Free</span>
-        </div>
+        </div> */}
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-4">
-          
+
           {/* Brand Logo */}
           <a href="#" className="cursor-pointer">
             <BrandLogo size="md" showText={true} textLight={false} />
@@ -119,13 +119,13 @@ export default function LandingPage({
 
       {/* 🚀 2. HERO SECTION WITH 3D INTERACTIVE POS MOCKUP */}
       <section className="relative pt-12 pb-20 sm:pt-16 sm:pb-28 overflow-hidden bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-100/60 via-slate-50/80 to-white">
-        
+
         {/* Glow Spheres */}
         <div className="absolute top-12 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-gradient-to-tr from-indigo-400/15 via-purple-400/10 to-blue-400/15 rounded-full blur-[110px] pointer-events-none" />
         <div className="absolute top-1/4 right-0 w-[300px] h-[300px] bg-emerald-400/10 rounded-full blur-[90px] pointer-events-none" />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-          
+
           {/* Eyebrow Pill */}
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white border border-indigo-200 text-indigo-700 text-xs font-bold mb-6 shadow-xs hover:border-indigo-400 transition-colors">
             <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
@@ -190,13 +190,13 @@ export default function LandingPage({
 
           {/* 🌟 3D INTERACTIVE POS TERMINAL PREVIEW MOCKUP */}
           <div id="demo-preview" className="mt-12 max-w-5xl mx-auto relative">
-            
+
             {/* Glowing Backdrop Outline */}
             <div className="absolute -inset-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-blue-500 rounded-3xl blur-lg opacity-30 animate-pulse pointer-events-none" />
 
             {/* Window Container */}
             <div className="relative bg-white border border-slate-200/90 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden text-left">
-              
+
               {/* Window Title Bar */}
               <div className="bg-slate-900 px-4 py-3 flex items-center justify-between text-xs text-slate-300 border-b border-slate-800">
                 <div className="flex items-center gap-2">
@@ -223,10 +223,10 @@ export default function LandingPage({
 
               {/* Terminal Inner Content */}
               <div className="p-4 sm:p-6 bg-slate-50/60 grid grid-cols-1 lg:grid-cols-12 gap-4">
-                
+
                 {/* Left 7 Cols: Quick Category & Order Items */}
                 <div className="lg:col-span-7 space-y-4">
-                  
+
                   {/* Category Pills */}
                   <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs font-bold">
                     <span className="px-3 py-1.5 bg-indigo-600 text-white rounded-xl shadow-xs">🍕 Pizzas</span>
@@ -399,7 +399,7 @@ export default function LandingPage({
       {/* 📦 3. INTERACTIVE FEATURE PLAYGROUND (Tabbed Live Showcase) */}
       <section id="features" className="py-20 bg-white border-y border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          
+
           <div className="text-center max-w-3xl mx-auto mb-12">
             <span className="text-xs font-bold uppercase tracking-widest text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-200">
               Interactive Feature Tour
@@ -416,11 +416,10 @@ export default function LandingPage({
               <button
                 type="button"
                 onClick={() => setActiveFeatureTab('counter')}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition-all ${
-                  activeFeatureTab === 'counter'
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition-all ${activeFeatureTab === 'counter'
                     ? 'bg-white text-indigo-600 shadow-sm border border-slate-200'
                     : 'text-slate-600 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 <ShoppingBag className="w-4 h-4" />
                 <span>Counter POS</span>
@@ -429,11 +428,10 @@ export default function LandingPage({
               <button
                 type="button"
                 onClick={() => setActiveFeatureTab('aggregator')}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition-all ${
-                  activeFeatureTab === 'aggregator'
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition-all ${activeFeatureTab === 'aggregator'
                     ? 'bg-white text-rose-600 shadow-sm border border-slate-200'
                     : 'text-slate-600 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 <Bike className="w-4 h-4" />
                 <span>Swiggy & Zomato</span>
@@ -442,11 +440,10 @@ export default function LandingPage({
               <button
                 type="button"
                 onClick={() => setActiveFeatureTab('inventory')}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition-all ${
-                  activeFeatureTab === 'inventory'
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition-all ${activeFeatureTab === 'inventory'
                     ? 'bg-white text-emerald-600 shadow-sm border border-slate-200'
                     : 'text-slate-600 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 <Boxes className="w-4 h-4" />
                 <span>Recipe Inventory</span>
@@ -455,11 +452,10 @@ export default function LandingPage({
               <button
                 type="button"
                 onClick={() => setActiveFeatureTab('qr')}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition-all ${
-                  activeFeatureTab === 'qr'
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition-all ${activeFeatureTab === 'qr'
                     ? 'bg-white text-amber-600 shadow-sm border border-slate-200'
                     : 'text-slate-600 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 <UtensilsCrossed className="w-4 h-4" />
                 <span>QR Table Orders</span>
@@ -468,11 +464,10 @@ export default function LandingPage({
               <button
                 type="button"
                 onClick={() => setActiveFeatureTab('pnl')}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition-all ${
-                  activeFeatureTab === 'pnl'
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition-all ${activeFeatureTab === 'pnl'
                     ? 'bg-white text-purple-600 shadow-sm border border-slate-200'
                     : 'text-slate-600 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 <TrendingUp className="w-4 h-4" />
                 <span>Real Net P&L</span>
@@ -657,7 +652,7 @@ export default function LandingPage({
       {/* 💰 4. INTERACTIVE ROI & SAVINGS CALCULATOR */}
       <section id="calculator" className="py-20 bg-slate-50/70 relative">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          
+
           <span className="text-xs font-bold uppercase tracking-widest text-emerald-700 bg-emerald-100 px-3 py-1 rounded-full border border-emerald-300">
             Smart Savings Calculator
           </span>
@@ -669,7 +664,7 @@ export default function LandingPage({
           </p>
 
           <div className="mt-10 bg-white border border-slate-200 rounded-3xl p-6 sm:p-10 shadow-sm text-left">
-            
+
             {/* Slider */}
             <div>
               <div className="flex items-center justify-between text-sm font-bold text-slate-900 mb-2">
@@ -694,7 +689,7 @@ export default function LandingPage({
 
             {/* Calculated Results Grid */}
             <div className="mt-8 pt-8 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-              
+
               <div className="bg-indigo-50/60 border border-indigo-100 p-4 rounded-2xl">
                 <Clock className="w-5 h-5 text-indigo-600 mx-auto mb-1" />
                 <p className="text-2xl font-extrabold text-indigo-700">~{hoursSaved} Hours</p>
@@ -735,7 +730,7 @@ export default function LandingPage({
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-8 sm:p-12 shadow-xl relative overflow-hidden text-center">
             <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none" />
-            
+
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 text-xs font-bold mb-4">
               <Eye className="w-3.5 h-3.5" />
               <span>Interactive Live Playground</span>
@@ -766,7 +761,7 @@ export default function LandingPage({
       {/* 💳 6. SUBSCRIPTION PLANS & PRICING */}
       <section id="pricing" className="py-20 bg-slate-50/70 border-t border-slate-200 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          
+
           <div className="text-center max-w-3xl mx-auto mb-12">
             <span className="text-xs font-bold uppercase tracking-widest text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
               Affordable & Simple Pricing
@@ -783,18 +778,16 @@ export default function LandingPage({
               <button
                 type="button"
                 onClick={() => setBillingCycle('monthly')}
-                className={`px-4 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all ${
-                  billingCycle === 'monthly' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
-                }`}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all ${billingCycle === 'monthly' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                  }`}
               >
                 Monthly Billing
               </button>
               <button
                 type="button"
                 onClick={() => setBillingCycle('yearly')}
-                className={`px-4 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all flex items-center gap-1.5 ${
-                  billingCycle === 'yearly' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
-                }`}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all flex items-center gap-1.5 ${billingCycle === 'yearly' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                  }`}
               >
                 <span>Annual Billing</span>
                 <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded-full font-extrabold">
@@ -812,7 +805,7 @@ export default function LandingPage({
               <div>
                 <h3 className="text-lg font-bold text-slate-900">Starter Kiosk Plan</h3>
                 <p className="text-xs text-slate-500 mt-1">Single counter chai/coffee outlets aur street stalls ke liye.</p>
-                
+
                 <div className="mt-5 flex items-baseline gap-1">
                   <span className="text-3xl font-extrabold text-slate-900">
                     {billingCycle === 'monthly' ? '₹499' : '₹399'}
@@ -849,7 +842,7 @@ export default function LandingPage({
               <div>
                 <h3 className="text-xl font-bold text-slate-900">Pro Cafe Growth Plan</h3>
                 <p className="text-xs text-slate-500 mt-1">Busy cafes, restaurants aur cloud kitchens ke liye best.</p>
-                
+
                 <div className="mt-5 flex items-baseline gap-1">
                   <span className="text-4xl font-extrabold text-indigo-600">
                     {billingCycle === 'monthly' ? '₹999' : '₹799'}
@@ -882,7 +875,7 @@ export default function LandingPage({
               <div>
                 <h3 className="text-lg font-bold text-slate-900">Enterprise Multi-Outlet</h3>
                 <p className="text-xs text-slate-500 mt-1">Multi-branch cafe chains aur franchise businesses ke liye.</p>
-                
+
                 <div className="mt-5 flex items-baseline gap-1">
                   <span className="text-3xl font-extrabold text-slate-900">
                     {billingCycle === 'monthly' ? '₹1,999' : '₹1,599'}
@@ -917,7 +910,7 @@ export default function LandingPage({
       {/* 💬 7. REAL TESTIMONIALS FROM CAFE OWNERS */}
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          
+
           <div className="text-center max-w-3xl mx-auto mb-14">
             <span className="text-xs font-bold uppercase tracking-widest text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-200">
               Trusted by 500+ Outlets
