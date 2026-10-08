@@ -18,14 +18,25 @@ import {
   KeyRound
 } from 'lucide-react';
 import { registerCafeOwner, loginCafeOwner, sendResetPassword } from '../utils/auth';
+import BrandLogo from './BrandLogo';
 
 export default function AuthModal({
   isOpen,
   onClose,
   onAuthSuccess,
-  isMandatory = false
+  isMandatory = false,
+  initialTab = 'login',
+  selectedPlan = ''
 }) {
-  const [activeTab, setActiveTab] = useState('login'); // 'login', 'signup', 'forgot'
+  const [activeTab, setActiveTab] = useState(initialTab || 'login');
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setActiveTab(initialTab || 'login');
+      setErrorMsg('');
+      setSuccessMsg('');
+    }
+  }, [isOpen, initialTab]);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -194,21 +205,14 @@ export default function AuthModal({
             </button>
           )}
 
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-lg">
-              <Coffee className="w-6 h-6 text-amber-200" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold tracking-tight font-serif-title">S&S Cafe Multi-Tenant POS</h2>
-                <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-400/20 text-amber-200 px-2 py-0.5 rounded-full border border-amber-300/30">
-                  SaaS
-                </span>
+          <div className="flex flex-col gap-2">
+            <BrandLogo size="lg" showText={true} textLight={true} />
+            {selectedPlan && activeTab === 'signup' && (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-bold mt-1 w-fit">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Selected Plan: {selectedPlan} (14-Day Free Trial)</span>
               </div>
-              <p className="text-xs text-amber-100/80 mt-0.5">
-                Multi-Cafe Cloud Management & Live Real-Time Multi-Device Sync
-              </p>
-            </div>
+            )}
           </div>
 
           {/* Navigation Tabs */}

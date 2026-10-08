@@ -15,6 +15,7 @@ import DiningManager from './components/DiningManager';
 import ExpenseTracker from './components/ExpenseTracker';
 import AuthModal from './components/AuthModal';
 import CafeProfileModal from './components/CafeProfileModal';
+import LandingPage from './components/LandingPage';
 import {
   subscribeToAuthChanges,
   getLocalActiveCafe,
@@ -77,6 +78,7 @@ export default function App() {
 
   // Multi-Tenant Cafe & User Auth State
   const [currentUser, setCurrentUser] = useState(null);
+  const [isDemoMode, setIsDemoMode] = useState(false);
   const [currentCafe, setCurrentCafe] = useState(getLocalActiveCafe() || {
     cafeId: 'default',
     cafeName: 'S&S Cafe',
@@ -86,6 +88,8 @@ export default function App() {
   });
   const [userCafes, setUserCafes] = useState([]);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalTab, setAuthModalTab] = useState('login'); // 'login' | 'signup'
+  const [authModalPlan, setAuthModalPlan] = useState('');
   const [isCafeProfileModalOpen, setIsCafeProfileModalOpen] = useState(false);
 
   // Cloud Database Sync State
@@ -220,22 +224,16 @@ export default function App() {
   useEffect(() => {
     const unsubAuth = subscribeToAuthChanges(({ user, cafe, cafes }) => {
       setCurrentUser(user);
-      if (cafe) {
+      if (user && cafe) {
+        setIsDemoMode(false);
         setCurrentCafe(cafe);
         setUserCafes(cafes);
         loadCafeData(cafe.cafeId);
-      } else {
+      } else if (!user) {
         const urlCafe = getInitialCafeParam();
-        const activeId = urlCafe || 'default';
-        const fallbackCafe = getLocalActiveCafe() || {
-          cafeId: activeId,
-          cafeName: 'S&S Cafe',
-          ownerName: 'Admin',
-          city: 'Indore',
-          role: 'owner'
-        };
-        setCurrentCafe(fallbackCafe);
-        loadCafeData(activeId);
+        if (urlCafe) {
+          loadCafeData(urlCafe);
+        }
       }
     });
 
@@ -442,15 +440,7 @@ export default function App() {
   const handleLogout = async () => {
     await logoutCafeOwner();
     setCurrentUser(null);
-    const fallback = {
-      cafeId: 'default',
-      cafeName: 'S&S Cafe',
-      ownerName: 'Admin',
-      city: 'Indore',
-      role: 'owner'
-    };
-    setCurrentCafe(fallback);
-    loadCafeData('default');
+    setIsDemoMode(false);
     showToast('Logged out successfully');
   };
 
@@ -991,6 +981,56 @@ export default function App() {
     );
   }
 
+  // 🚀 If NOT logged in and NOT in demo mode (and not in customer QR mode):
+  // Show the Grand SaaS Landing / Home Page!
+  if (!currentUser && !isDemoMode) {
+    return (
+      <>
+        {toast && (
+          <div className="fixed bottom-6 right-6 z-50 flex items-center space-x-2.5 bg-stone-950 text-amber-100 px-5 py-3.5 rounded-2xl shadow-2xl border border-stone-800 animate-in fade-in">
+            <CheckCircle2 className="w-5 h-5 text-amber-500" />
+            <span className="text-sm font-semibold">{toast}</span>
+          </div>
+        )}
+
+        <LandingPage
+          onOpenLogin={() => {
+            setAuthModalTab('login');
+            setAuthModalPlan('');
+            setIsAuthModalOpen(true);
+          }}
+          onOpenSignup={(planName = '') => {
+            setAuthModalTab('signup');
+            setAuthModalPlan(planName || 'Pro Growth');
+            setIsAuthModalOpen(true);
+          }}
+          onLaunchDemo={() => {
+            setIsDemoMode(true);
+            const demoCafe = {
+              cafeId: 'default',
+              cafeName: 'CafePulse Demo Cafe',
+              ownerName: 'Demo Manager',
+              city: 'Indore',
+              role: 'demo'
+            };
+            setCurrentCafe(demoCafe);
+            loadCafeData('default');
+            showToast('🎉 Interactive Live Demo Started! Explore orders, inventory & reports.');
+          }}
+        />
+
+        {/* 🔐 Auth Modal can open on top of Landing Page */}
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          initialTab={authModalTab}
+          selectedPlan={authModalPlan}
+          onClose={() => setIsAuthModalOpen(false)}
+          onAuthSuccess={handleAuthSuccess}
+        />
+      </>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-amber-50/20 text-stone-800 font-sans">
 
@@ -1011,8 +1051,14 @@ export default function App() {
         onOpenExportModal={() => setIsExportModalOpen(true)}
         currentCafe={currentCafe}
         currentUser={currentUser}
-        onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        isDemoMode={isDemoMode}
+        onOpenAuthModal={(tab = 'signup') => {
+          setAuthModalTab(tab);
+          setIsAuthModalOpen(true);
+        }}
         onOpenCafeProfileModal={() => setIsCafeProfileModalOpen(true)}
+        onExitDemo={() => setIsDemoMode(false)}
+        onLogout={handleLogout}
       />
 
       {/* Main Container */}
@@ -1328,6 +1374,8 @@ export default function App() {
       {/* 🔐 Multi-Tenant Cafe Authentication Modal */}
       <AuthModal
         isOpen={isAuthModalOpen}
+        initialTab={authModalTab}
+        selectedPlan={authModalPlan}
         onClose={() => setIsAuthModalOpen(false)}
         onAuthSuccess={handleAuthSuccess}
       />
