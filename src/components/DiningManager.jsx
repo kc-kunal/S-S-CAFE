@@ -17,12 +17,15 @@ import {
   Flame, 
   Send,
   Sparkles,
-  Smartphone
+  Smartphone,
+  Phone
 } from 'lucide-react';
 import { playOrderChime } from '../utils/audioAlert';
+import { generateCustomerEBillLink } from '../utils/whatsappAlert';
 
 export default function DiningManager({
   diningOrders = [],
+  currentCafe,
   onUpdateOrderStatus,
   onSettleOrderToSales,
   onDeleteOrder,
@@ -43,6 +46,7 @@ export default function DiningManager({
   // Settlement dialog state
   const [settlingOrder, setSettlingOrder] = useState(null);
   const [settlePaymentMode, setSettlePaymentMode] = useState('Cash'); // 'Cash' or 'Online'
+  const [settleCustomerPhone, setSettleCustomerPhone] = useState('');
 
   // Generate QR codes for all tables
   useEffect(() => {
@@ -108,12 +112,40 @@ export default function DiningManager({
   }, [diningOrders]);
 
   // Settle order into POS Sales
-  const handleConfirmSettle = () => {
+  const handleConfirmSettle = (sendWhatsApp = false) => {
     if (!settlingOrder) return;
     if (onSettleOrderToSales) {
       onSettleOrderToSales(settlingOrder, settlePaymentMode);
     }
+
+    if (sendWhatsApp) {
+      let phone = settleCustomerPhone.trim() || settlingOrder.customerPhone || '';
+      if (!phone) {
+        phone = window.prompt('Customer ka 10-digit WhatsApp number darj karein:', '');
+      }
+      if (phone) {
+        const cleanPhone = phone.replace(/\D/g, '');
+        const url = generateCustomerEBillLink({
+          cafeName: currentCafe?.cafeName || 'S&S Cafe',
+          cafeCity: currentCafe?.city || '',
+          cafePhone: currentCafe?.phone || '',
+          tokenOrBillNo: `Table #${settlingOrder.tableNumber}`,
+          date: settlingOrder.date,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          items: settlingOrder.items || [],
+          subtotal: settlingOrder.totalAmount,
+          discount: 0,
+          totalAmount: settlingOrder.totalAmount,
+          paymentMethod: settlePaymentMode,
+          customerPhone: cleanPhone,
+          customerName: settlingOrder.customerName || ''
+        });
+        window.open(url, '_blank');
+      }
+    }
+
     setSettlingOrder(null);
+    setSettleCustomerPhone('');
   };
 
   // Print all QR cards
@@ -594,17 +626,39 @@ export default function DiningManager({
               </div>
             </div>
 
+            {/* Optional Customer WhatsApp Phone */}
+            <div>
+              <label className="text-xs font-bold uppercase tracking-wider text-stone-600 block mb-1.5 flex items-center gap-1">
+                <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Customer WhatsApp No. (E-Bill ke liye)</span>
+              </label>
+              <div className="flex items-center gap-1.5 bg-stone-50 border border-stone-200 rounded-xl px-3 py-2">
+                <span className="text-xs font-bold text-stone-400">+91</span>
+                <input
+                  type="tel"
+                  maxLength="10"
+                  placeholder="10-digit mobile number"
+                  value={settleCustomerPhone}
+                  onChange={(e) => setSettleCustomerPhone(e.target.value.replace(/\D/g, ''))}
+                  className="w-full bg-transparent text-xs font-bold text-stone-900 focus:outline-none"
+                />
+              </div>
+            </div>
+
             <div className="bg-stone-50 p-3 rounded-2xl border border-stone-200 text-xs text-stone-600 space-y-1">
               <div className="font-bold text-stone-800">What happens next:</div>
               <div>• Sale is committed into Daily Sales & P&L.</div>
               <div>• Raw material stock is deducted automatically via recipe BOM.</div>
-              <div>• Order is marked as completed.</div>
+              <div>• Order is marked as completed & receipt sent on WhatsApp.</div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2">
               <button
                 type="button"
-                onClick={() => setSettlingOrder(null)}
+                onClick={() => {
+                  setSettlingOrder(null);
+                  setSettleCustomerPhone('');
+                }}
                 className="px-4 py-2 rounded-xl border border-stone-200 text-stone-600 hover:bg-stone-50 text-xs font-bold cursor-pointer"
               >
                 Cancel
@@ -612,10 +666,20 @@ export default function DiningManager({
 
               <button
                 type="button"
-                onClick={handleConfirmSettle}
-                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md cursor-pointer"
+                onClick={() => handleConfirmSettle(false)}
+                className="px-4 py-2.5 bg-stone-800 hover:bg-stone-700 text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer"
               >
-                Confirm & Punch Bill (₹{settlingOrder.totalAmount})
+                Confirm Settle
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleConfirmSettle(true)}
+                className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold rounded-xl shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
+                title="Settle bill aur Customer ke WhatsApp par E-Bill bhejein"
+              >
+                <Phone className="w-3.5 h-3.5 text-amber-300" />
+                <span>📱 Settle & WhatsApp Bill</span>
               </button>
             </div>
 

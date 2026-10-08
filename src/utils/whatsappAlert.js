@@ -268,3 +268,57 @@ export const generateCustomerWhatsAppOrderLink = (order, cafePhone = '') => {
   const encoded = encodeURIComponent(text);
   return phone ? `https://wa.me/${phone}?text=${encoded}` : `https://wa.me/?text=${encoded}`;
 };
+
+/**
+ * Generate 1-Click WhatsApp Digital Tax/E-Bill Invoice Link for Customers
+ * 100% Free, Zero Meta API Charges, Zero Paper Receipt Costs!
+ */
+export const generateCustomerEBillLink = ({
+  cafeName = 'S&S Cafe',
+  cafeCity = '',
+  cafePhone = '',
+  tokenOrBillNo = '',
+  date = '',
+  time = '',
+  items = [],
+  subtotal = 0,
+  discount = 0,
+  totalAmount = 0,
+  paymentMethod = 'Cash',
+  customerPhone = '',
+  customerName = ''
+}) => {
+  const phone = formatPhoneNumber(customerPhone);
+  const itemsText = items.map(i => {
+    const qty = i.qty || i.quantitySold || i.quantity || 1;
+    const name = i.name || i.itemName || 'Dish';
+    const price = i.price || i.sellingPrice || 0;
+    return `• ${qty}x ${name}  ₹${price * qty}`;
+  }).join('\n');
+
+  const now = new Date();
+  const dateFormatted = date || now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  const timeFormatted = time || now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+  const billMessage =
+    `🧾 *${cafeName.toUpperCase()} — DIGITAL E-BILL*\n` +
+    (cafeCity ? `📍 ${cafeCity}\n` : '') +
+    (cafePhone ? `📞 Contact: ${cafePhone}\n` : '') +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    (customerName ? `👤 *Customer:* ${customerName}\n` : '') +
+    `🔖 *Token / Bill:* ${tokenOrBillNo || '#BILL'}\n` +
+    `📅 *Date:* ${dateFormatted} • ${timeFormatted}\n` +
+    `💳 *Payment Mode:* ${paymentMethod} (PAID)\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    `*ITEMS ORDERED:*\n` +
+    `${itemsText}\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    (discount > 0 ? `Subtotal: ₹${subtotal}\n` + `Discount: -₹${discount}\n` : '') +
+    `💰 *TOTAL PAID:* *₹${totalAmount}*\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    `🙏 *Thank you for dining with us!*\n` +
+    `Save this digital receipt for your records. Visit again soon! ✨`;
+
+  const encoded = encodeURIComponent(billMessage);
+  return phone ? `https://wa.me/${phone}?text=${encoded}` : `https://wa.me/?text=${encoded}`;
+};

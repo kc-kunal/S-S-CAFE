@@ -22,9 +22,13 @@ import {
   RotateCcw,
   Receipt,
   ArrowRight,
-  Check
+  Check,
+  Phone,
+  Send,
+  MessageSquare
 } from 'lucide-react';
 import { checkItemStock, calculateAggregatorLedger } from '../utils/storage';
+import { generateCustomerEBillLink } from '../utils/whatsappAlert';
 import OnlineOrderPunchModal from './OnlineOrderPunchModal';
 import AggregatorSettlementModal from './AggregatorSettlementModal';
 
@@ -33,6 +37,7 @@ export default function SalesTracker({
   salesLogs = [], 
   inventoryItems = [], 
   settlements = [],
+  currentCafe,
   onAddSale, 
   onAddBatchSales,
   onUpdateSale, 
@@ -63,6 +68,7 @@ export default function SalesTracker({
   const [counterDiscount, setCounterDiscount] = useState(0);
   const [counterCart, setCounterCart] = useState({}); // { [itemId]: { item, qty, price } }
   const [cashTendered, setCashTendered] = useState(''); // Cash Given by Customer for Change Return
+  const [customerPhone, setCustomerPhone] = useState(''); // Customer Mobile for WhatsApp E-Bill
 
   // 🛵 Online Aggregator (Swiggy / Zomato) State
   const [onlinePlatform, setOnlinePlatform] = useState('Swiggy'); // 'Swiggy' or 'Zomato'
@@ -265,7 +271,38 @@ export default function SalesTracker({
     return Math.max(0, counterSubtotal - Number(counterDiscount || 0));
   }, [counterSubtotal, counterDiscount]);
 
-  const handlePunchCounterOrder = () => {
+  const handleSendWhatsAppBill = (orderOrSession) => {
+    let phone = orderOrSession.customerPhone || customerPhone || '';
+    if (!phone) {
+      phone = window.prompt('📱 Customer ka 10-digit WhatsApp number darj karein:', '');
+      if (!phone) return;
+    }
+    const cleanPhone = phone.replace(/\D/g, '');
+    const items = orderOrSession.items || (orderOrSession.itemName ? [{
+      name: orderOrSession.itemName,
+      qty: Number(orderOrSession.quantitySold) || 1,
+      price: Number(orderOrSession.sellingPrice) || Number(orderOrSession.totalRevenue) || 0
+    }] : []);
+
+    const url = generateCustomerEBillLink({
+      cafeName: currentCafe?.cafeName || 'S&S Cafe',
+      cafeCity: currentCafe?.city || '',
+      cafePhone: currentCafe?.phone || '',
+      tokenOrBillNo: orderOrSession.token || orderOrSession.platformOrderId || '#BILL',
+      date: orderOrSession.date || saleDate,
+      time: orderOrSession.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      items,
+      subtotal: orderOrSession.subtotal || orderOrSession.bill || orderOrSession.totalRevenue || 0,
+      discount: orderOrSession.discount || orderOrSession.discountAmount || 0,
+      totalAmount: orderOrSession.bill || orderOrSession.totalRevenue || 0,
+      paymentMethod: orderOrSession.channel || orderOrSession.paymentMethod || 'Cash',
+      customerPhone: cleanPhone
+    });
+
+    window.open(url, '_blank');
+  };
+
+  const handlePunchCounterOrder = (sendWhatsApp = false) => {
     const itemsInCart = Object.values(counterCart);
     if (itemsInCart.length === 0) {
       showWarning('Kripya kam se kam 1 item cart me add karein!');
@@ -276,6 +313,8 @@ export default function SalesTracker({
     const token = rawToken.startsWith('#') ? rawToken : `#${rawToken}`;
     const totalGross = counterSubtotal;
     const discTotal = Number(counterDiscount || 0);
+    const orderFinalBill = counterFinalBill;
+    const orderCustomerPhone = customerPhone.trim();
 
     const salesBatch = itemsInCart.map((entry, idx) => {
       const itemGross = entry.price * entry.qty;
@@ -294,6 +333,7 @@ export default function SalesTracker({
         totalCost: (entry.item.costPrice || 0) * entry.qty,
         paymentMethod: counterPaymentMode, // 'Cash' or 'Online' (Counter UPI)
         platformOrderId: token,
+        customerPhone: orderCustomerPhone || undefined,
         discountAmount: itemDiscShare > 0 ? itemDiscShare : undefined,
         notes: counterNotes.trim() || undefined,
         date: saleDate,
@@ -308,25 +348,35 @@ export default function SalesTracker({
       salesBatch.forEach(s => onAddSale(s));
     }
 
+    const sessionOrderData = {
+      id: `session-${Date.now()}`,
+      token,
+      channel: counterPaymentMode === 'Cash' ? 'Cash' : 'Counter UPI',
+      itemsCount: counterTotalUnits,
+      summary: itemsInCart.map(e => `${e.qty}x ${e.item.name}`).join(', '),
+      items: itemsInCart,
+      subtotal: totalGross,
+      discount: discTotal,
+      bill: orderFinalBill,
+      customerPhone: orderCustomerPhone,
+      date: saleDate,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
     // Add to session log tray
-    setSessionPunchedOrders(prev => [
-      {
-        id: `session-${Date.now()}`,
-        token,
-        channel: counterPaymentMode === 'Cash' ? 'Cash' : 'Counter UPI',
-        itemsCount: counterTotalUnits,
-        summary: itemsInCart.map(e => `${e.qty}x ${e.item.name}`).join(', '),
-        bill: counterFinalBill,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      },
-      ...prev
-    ]);
+    setSessionPunchedOrders(prev => [sessionOrderData, ...prev]);
+
+    // If requested, open WhatsApp with digital E-bill
+    if (sendWhatsApp) {
+      handleSendWhatsAppBill(sessionOrderData);
+    }
 
     // Reset Cart & advance Token
     setCounterCart({});
     setCounterNotes('');
     setCounterDiscount(0);
     setCashTendered('');
+    setCustomerPhone('');
     const nextTokenNum = counterTokenNum + 1;
     setCounterTokenNum(nextTokenNum);
     setCounterToken(`C-${nextTokenNum}`);
@@ -1417,20 +1467,54 @@ export default function SalesTracker({
                     )}
                   </div>
 
-                  {/* Punch Button */}
-                  <button
-                    type="button"
-                    onClick={handlePunchCounterOrder}
-                    disabled={counterTotalUnits === 0}
-                    className={`w-full py-3.5 px-4 rounded-2xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer ${
-                      counterTotalUnits === 0
-                        ? 'bg-stone-200 text-stone-400 border border-stone-300 cursor-not-allowed shadow-none'
-                        : `${currentTheme.punchBtn} active:scale-98`
-                    }`}
-                  >
-                    <Zap className="w-4 h-4 fill-white" />
-                    <span>⚡ Punch Counter Order ({counterTotalUnits} Items • ₹{counterFinalBill})</span>
-                  </button>
+                  {/* Optional Customer WhatsApp Phone */}
+                  {counterTotalUnits > 0 && (
+                    <div className="flex items-center justify-between text-xs bg-white px-3 py-2 rounded-xl border border-stone-200">
+                      <span className="font-bold text-stone-600 flex items-center gap-1.5">
+                        <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Customer WhatsApp (Optional):</span>
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[11px] text-stone-400 font-bold">+91</span>
+                        <input
+                          type="tel"
+                          maxLength="10"
+                          value={customerPhone}
+                          onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, ''))}
+                          placeholder="10-digit mobile"
+                          className="w-24 px-2 py-0.5 text-right font-bold text-stone-900 border border-stone-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 text-xs placeholder:text-stone-300"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Punch Buttons */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handlePunchCounterOrder(false)}
+                      disabled={counterTotalUnits === 0}
+                      className={`py-3 px-3 rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-md cursor-pointer ${
+                        counterTotalUnits === 0
+                          ? 'bg-stone-200 text-stone-400 border border-stone-300 cursor-not-allowed shadow-none'
+                          : `${currentTheme.punchBtn} active:scale-98`
+                      }`}
+                    >
+                      <Zap className="w-4 h-4 fill-white" />
+                      <span>⚡ Punch Order (₹{counterFinalBill})</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handlePunchCounterOrder(true)}
+                      disabled={counterTotalUnits === 0}
+                      className="py-3 px-3 bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-700 hover:from-emerald-500 hover:to-teal-600 active:from-emerald-800 text-white rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-md shadow-emerald-700/25 active:scale-98 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                      title="Punch Order aur Customer ke WhatsApp par E-Bill bhejein"
+                    >
+                      <Phone className="w-3.5 h-3.5 text-amber-300" />
+                      <span>📱 Punch & WhatsApp Bill</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -1685,6 +1769,15 @@ export default function SalesTracker({
                     <span className="text-stone-400">({ord.channel})</span>
                     <span className="text-white font-bold">₹{ord.bill}</span>
                     <span className="text-stone-300 text-[10px]">✓ {ord.itemsCount} items</span>
+                    <button
+                      type="button"
+                      onClick={() => handleSendWhatsAppBill(ord)}
+                      className="px-1.5 py-0.5 bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 rounded-md text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors border border-emerald-500/30"
+                      title="Customer WhatsApp par Digital Bill Bhejein"
+                    >
+                      <Phone className="w-2.5 h-2.5" />
+                      <span>WhatsApp Bill</span>
+                    </button>
                     <span className="text-stone-500 text-[10px]">{ord.time}</span>
                   </div>
                 );
@@ -1821,13 +1914,23 @@ export default function SalesTracker({
                         <td className="py-3 px-4 text-right text-stone-600 font-medium">₹{sale.sellingPrice}</td>
                         <td className="py-3 px-4 text-right font-extrabold text-emerald-700">₹{sale.totalRevenue}</td>
                         <td className="py-3 px-4 text-center">
-                          <button
-                            onClick={() => onDeleteSale(sale.id)}
-                            className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                            title="Delete sale log entry"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => handleSendWhatsAppBill(sale)}
+                              className="p-1.5 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                              title="Customer ke WhatsApp par E-Bill bhejein"
+                            >
+                              <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                            </button>
+                            <button
+                              onClick={() => onDeleteSale(sale.id)}
+                              className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                              title="Delete sale log entry"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );

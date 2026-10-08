@@ -1236,6 +1236,7 @@ export default function App() {
             salesLogs={salesLogs}
             inventoryItems={inventoryItems}
             settlements={settlements}
+            currentCafe={currentCafe}
             onAddSale={handleAddSale}
             onAddBatchSales={handleAddBatchSales}
             onUpdateSale={handleUpdateSale}
@@ -1252,6 +1253,7 @@ export default function App() {
         {activeTab === 'dining' && (
           <DiningManager
             diningOrders={diningOrders}
+            currentCafe={currentCafe}
             onUpdateOrderStatus={handleUpdateDiningOrderStatus}
             onSettleOrderToSales={handleSettleDiningOrderToSales}
             onDeleteOrder={handleDeleteDiningOrder}

@@ -16,7 +16,7 @@ import {
   UtensilsCrossed
 } from 'lucide-react';
 import { checkItemStock } from '../utils/storage';
-import { generateCustomerWhatsAppOrderLink } from '../utils/whatsappAlert';
+import { generateCustomerWhatsAppOrderLink, generateCustomerEBillLink } from '../utils/whatsappAlert';
 
 export default function CustomerMenuOrderView({
   tableNumber = '1',
@@ -198,13 +198,22 @@ export default function CustomerMenuOrderView({
           {/* Action Buttons */}
           <div className="space-y-2.5 pt-2">
             <a
-              href={waLink}
+              href={generateCustomerEBillLink({
+                cafeName: cafeName || 'S&S Cafe',
+                tokenOrBillNo: `Table #${orderPlaced.tableNumber}`,
+                date: orderPlaced.date,
+                items: orderPlaced.items,
+                subtotal: orderPlaced.totalAmount,
+                totalAmount: orderPlaced.totalAmount,
+                paymentMethod: 'Dine-In',
+                customerName: orderPlaced.customerName || ''
+              })}
               target="_blank"
               rel="noreferrer"
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-950/40 transition-all"
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-950/40 transition-all cursor-pointer"
             >
               <Send className="w-4 h-4" />
-              <span>Send Order Confirmation on WhatsApp</span>
+              <span>📱 Send Digital Bill on My WhatsApp</span>
             </a>
 
             <button
