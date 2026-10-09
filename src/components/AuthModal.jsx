@@ -104,6 +104,7 @@ export default function AuthModal({
     if (activeTab === 'signup') {
       const res = registerLocalCafeOwner({
         email: email || 'owner@mycafe.com',
+        password: password || '123456',
         cafeName: cafeName || 'My Cafe',
         ownerName: ownerName || 'Cafe Owner',
         phone,
@@ -115,7 +116,7 @@ export default function AuthModal({
         onClose();
       }, 700);
     } else {
-      const res = loginLocalCafeOwner(email || 'owner@mycafe.com');
+      const res = loginLocalCafeOwner(email || 'owner@mycafe.com', password || '123456');
       setSuccessMsg('🎉 Login successful (Local Cafe Mode).');
       setTimeout(() => {
         onAuthSuccess(res);

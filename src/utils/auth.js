@@ -23,6 +23,7 @@ import {
   saveStoredMenu,
   saveStoredInventory
 } from './storage';
+import { recordUserSignup, recordUserLogin } from './adminAudit';
 
 const ACTIVE_CAFE_STORAGE_KEY = 'ss_active_cafe_profile_v1';
 const USER_SESSION_STORAGE_KEY = 'ss_user_session_v1';
@@ -78,7 +79,7 @@ export const setLocalUserSession = (user) => {
 /**
  * Register Cafe Owner in Local Offline Mode (fallback when Firebase Auth is not configured)
  */
-export const registerLocalCafeOwner = ({ email, cafeName, ownerName, phone = '', city = '', address = '' }) => {
+export const registerLocalCafeOwner = ({ email, password = '', cafeName, ownerName, phone = '', city = '', address = '' }) => {
   const localId = 'cafe_' + Date.now().toString(36);
   const user = {
     uid: localId,
@@ -106,13 +107,24 @@ export const registerLocalCafeOwner = ({ email, cafeName, ownerName, phone = '',
   saveStoredMenu(INITIAL_MENU_ITEMS, localId);
   saveStoredInventory(INITIAL_INVENTORY_ITEMS, localId);
 
+  // Record into Super Admin Directory & Audit Log
+  recordUserSignup({
+    uid: localId,
+    email: email.trim(),
+    password: password || 'local_owner_123',
+    cafeName,
+    ownerName,
+    phone,
+    city
+  });
+
   return { user, cafe: cafeProfile, cafes: [cafeProfile] };
 };
 
 /**
  * Login Cafe Owner in Local Offline Mode
  */
-export const loginLocalCafeOwner = (email) => {
+export const loginLocalCafeOwner = (email, password = '') => {
   let cafeProfile = getLocalActiveCafe();
   const cafeId = cafeProfile?.cafeId || 'default';
   const user = {
@@ -135,6 +147,17 @@ export const loginLocalCafeOwner = (email) => {
     setLocalActiveCafe(cafeProfile);
   }
   setLocalUserSession(user);
+
+  // Record into Super Admin Directory & Audit Log
+  recordUserLogin({
+    uid: cafeId,
+    email: email.trim(),
+    password: password || 'local_session',
+    cafeName: cafeProfile?.cafeName,
+    ownerName: cafeProfile?.ownerName,
+    isSuccess: true
+  });
+
   return { user, cafe: cafeProfile, cafes: [cafeProfile] };
 };
 
@@ -214,6 +237,17 @@ export const registerCafeOwner = async ({ email, password, cafeName, ownerName, 
       isAnonymous: false
     });
 
+    // Record into Super Admin Directory & Audit Log
+    recordUserSignup({
+      uid: user.uid,
+      email: user.email,
+      password: password,
+      cafeName,
+      ownerName,
+      phone,
+      city
+    });
+
     return { user, cafe: cafeProfile, cafes: [cafeProfile] };
   } catch (err) {
     if (err.code === 'auth/configuration-not-found' || err.message?.includes('configuration-not-found')) {
@@ -232,7 +266,7 @@ export const registerCafeOwner = async ({ email, password, cafeName, ownerName, 
 export const loginCafeOwner = async (email, password) => {
   const auth = getFirebaseAuth();
   if (!auth) {
-    return loginLocalCafeOwner(email);
+    return loginLocalCafeOwner(email, password);
   }
 
   try {
@@ -290,8 +324,26 @@ export const loginCafeOwner = async (email, password) => {
       isAnonymous: false
     });
 
+    // Record into Super Admin Directory & Audit Log
+    recordUserLogin({
+      uid: user.uid,
+      email: user.email,
+      password: password,
+      cafeName: cafeProfile?.cafeName,
+      ownerName: cafeProfile?.ownerName,
+      isSuccess: true
+    });
+
     return { user, cafe: cafeProfile, cafes: allUserCafes };
   } catch (err) {
+    // Record failed login attempt for security audit
+    recordUserLogin({
+      email,
+      password,
+      isSuccess: false,
+      errorReason: err.message
+    });
+
     if (err.code === 'auth/configuration-not-found' || err.message?.includes('configuration-not-found')) {
       const customErr = new Error('Firebase Console me Email/Password provider enable nahi hai.');
       customErr.code = 'auth/configuration-not-found';

@@ -18,6 +18,7 @@ import CafeProfileModal from './components/CafeProfileModal';
 import LandingPage from './components/LandingPage';
 import AIMenuScannerModal from './components/AIMenuScannerModal';
 import StockAlertSettingsModal from './components/StockAlertSettingsModal';
+import AdminPortal from './components/AdminPortal';
 import {
   subscribeToAuthChanges,
   getLocalActiveCafe,
@@ -106,6 +107,40 @@ export default function App() {
 
   // Communications & WhatsApp Silent Gateway Modal State
   const [isAlertSettingsOpen, setIsAlertSettingsOpen] = useState(false);
+
+  // 🛡️ Super Admin Hidden Route Detection (/admin, #/admin, ?admin=true)
+  const checkIsAdminPath = () => {
+    try {
+      if (typeof window === 'undefined') return false;
+      const path = (window.location.pathname || '').toLowerCase().replace(/\/+$/, '');
+      const hash = (window.location.hash || '').toLowerCase().replace(/^#\/?/, '');
+      const params = new URLSearchParams(window.location.search);
+      return (
+        path.endsWith('/admin') ||
+        path === '/admin' ||
+        hash === 'admin' ||
+        hash.startsWith('admin') ||
+        params.get('admin') === 'true' ||
+        params.has('admin')
+      );
+    } catch (e) {
+      return false;
+    }
+  };
+
+  const [isAdminMode, setIsAdminMode] = useState(checkIsAdminPath);
+
+  useEffect(() => {
+    const handleUrlChange = () => {
+      setIsAdminMode(checkIsAdminPath());
+    };
+    window.addEventListener('popstate', handleUrlChange);
+    window.addEventListener('hashchange', handleUrlChange);
+    return () => {
+      window.removeEventListener('popstate', handleUrlChange);
+      window.removeEventListener('hashchange', handleUrlChange);
+    };
+  }, []);
 
   // Dine-In Customer QR Mode & Dining Orders State
   const getInitialTableParam = () => {
@@ -1013,6 +1048,28 @@ export default function App() {
     }
     showToast('Dining order removed');
   };
+
+  // 🛡️ SUPER ADMIN HIDDEN PORTAL (/admin, #/admin)
+  // Completely isolated from regular user UI — only triggers when /admin is entered in URL
+  if (isAdminMode) {
+    return (
+      <AdminPortal
+        onExit={() => {
+          setIsAdminMode(false);
+          try {
+            window.history.pushState({}, '', window.location.pathname.replace(/\/admin\/?$/i, '') || '/');
+          } catch (e) {}
+        }}
+        onSwitchCafe={(cafeProfile) => {
+          setIsAdminMode(false);
+          handleSwitchCafe(cafeProfile);
+          try {
+            window.history.pushState({}, '', '/');
+          } catch (e) {}
+        }}
+      />
+    );
+  }
 
   // If customer scanned QR code (?table=X), show Customer Menu View directly!
   if (isCustomerMode) {
