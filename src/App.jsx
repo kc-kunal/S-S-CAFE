@@ -377,8 +377,11 @@ export default function App() {
           const prevIds = new Set(prevOrders.map(o => o.id));
           const hasNewIncoming = newOrders.some(o => !prevIds.has(o.id) && o.status === 'pending');
           if (hasNewIncoming) {
-            playOrderChime();
-            const newest = newOrders.find(o => !prevIds.has(o.id));
+            const newest = newOrders.find(o => !prevIds.has(o.id) && o.status === 'pending') || newOrders.find(o => !prevIds.has(o.id));
+            playOrderChime({
+              tableNumber: newest?.tableNumber || '',
+              totalAmount: newest?.totalAmount || ''
+            });
             showToast(`🔔 Naya Dine-In Order: Table #${newest ? newest.tableNumber : ''} (₹${newest ? newest.totalAmount : ''})`);
           }
           return newOrders;
@@ -1062,8 +1065,11 @@ export default function App() {
     // Silent instant Telegram Bot Notification to Cafe Owner
     sendTelegramNewOrderAlert(newOrder).catch(err => console.error('Telegram alert error:', err));
 
-    // Play chime
-    playOrderChime();
+    // Play Meesho chime + voice alert ("Dine-in ka order aaya hai, check karein")
+    playOrderChime({
+      tableNumber: newOrder.tableNumber,
+      totalAmount: newOrder.totalAmount
+    });
     showToast(`Order Placed for Table #${newOrder.tableNumber}!`);
   };
 

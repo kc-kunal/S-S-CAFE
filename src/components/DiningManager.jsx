@@ -18,9 +18,19 @@ import {
   Send,
   Sparkles,
   Smartphone,
-  Phone
+  Phone,
+  Volume2,
+  VolumeX,
+  Settings2,
+  Megaphone
 } from 'lucide-react';
-import { playOrderChime } from '../utils/audioAlert';
+import { 
+  playOrderChime, 
+  playDineInOrderAlert, 
+  getDineInAlertSettings, 
+  saveDineInAlertSettings, 
+  testDineInAlert 
+} from '../utils/audioAlert';
 import { generateCustomerEBillLink, sendBackgroundWhatsAppEBill } from '../utils/whatsappAlert';
 
 export default function DiningManager({
@@ -36,7 +46,8 @@ export default function DiningManager({
 }) {
   const [activeSubTab, setActiveSubTab] = useState('orders'); // 'orders' or 'qrcodes'
   const [statusFilter, setStatusFilter] = useState('active'); // 'active', 'pending', 'preparing', 'served', 'billed', 'all'
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [alertSettings, setAlertSettings] = useState(() => getDineInAlertSettings());
+  const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
 
   // QR Code generator settings
   const [tableCount, setTableCount] = useState(8);
@@ -113,6 +124,29 @@ export default function DiningManager({
   const activeTotalCount = useMemo(() => {
     return diningOrders.filter(o => o.status === 'pending' || o.status === 'preparing' || o.status === 'served').length;
   }, [diningOrders]);
+
+  // Meesho Order Alert controls
+  const handleToggleSound = () => {
+    const nextEnabled = !alertSettings.enabled;
+    const updated = saveDineInAlertSettings({ enabled: nextEnabled });
+    setAlertSettings(updated);
+    if (nextEnabled) {
+      testDineInAlert('1');
+      if (showToast) showToast('🔊 Meesho Voice Alert: ON ("Dine-in ka order aaya hai, check karein")');
+    } else {
+      if (showToast) showToast('🔇 Order Alert Muted');
+    }
+  };
+
+  const handleTestAlert = () => {
+    testDineInAlert('1');
+    if (showToast) showToast('🗣️ Testing Meesho Alert: "Dine-in ka order aaya hai, Table #1, check karein"');
+  };
+
+  const handleUpdateAlertSettings = (partial) => {
+    const updated = saveDineInAlertSettings(partial);
+    setAlertSettings(updated);
+  };
 
   // Settle order into POS Sales
   // Settle order into POS Sales
@@ -199,31 +233,49 @@ export default function DiningManager({
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
-          {/* Sound Alert Toggle */}
+          {/* Sound Alert Toggle (Meesho / Soundbox style) */}
           <button
-            onClick={() => {
-              const next = !soundEnabled;
-              setSoundEnabled(next);
-              if (next) playOrderChime();
-            }}
+            type="button"
+            onClick={handleToggleSound}
             className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-              soundEnabled
-                ? 'bg-amber-50 text-amber-900 border-amber-300'
-                : 'bg-stone-100 text-stone-500 border-stone-200'
+              alertSettings.enabled
+                ? 'bg-amber-500/10 text-amber-900 border-amber-300 hover:bg-amber-500/20'
+                : 'bg-stone-100 text-stone-500 border-stone-200 hover:bg-stone-200'
             }`}
-            title="Toggle Kitchen Bell Sound for Incoming Orders"
+            title="Toggle Meesho Voice & Tone Alert"
           >
-            {soundEnabled ? <Bell className="w-4 h-4 text-amber-600" /> : <BellOff className="w-4 h-4 text-stone-400" />}
-            <span>{soundEnabled ? 'Bell Alert: ON' : 'Bell: Muted'}</span>
+            {alertSettings.enabled ? (
+              <>
+                <Volume2 className="w-4 h-4 text-amber-600 animate-pulse" />
+                <span>Meesho Voice Alert: ON</span>
+              </>
+            ) : (
+              <>
+                <VolumeX className="w-4 h-4 text-stone-400" />
+                <span>Alert: Muted</span>
+              </>
+            )}
           </button>
 
-          {/* Test Chime Button */}
+          {/* Test Meesho Alert Button */}
           <button
-            onClick={playOrderChime}
-            className="px-2.5 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
-            title="Test Audio Chime Sound"
+            type="button"
+            onClick={handleTestAlert}
+            className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer active:scale-95"
+            title="Test Tone + Voice ('Dine-in ka order aaya hai, check karein')"
           >
-            🔔 Test Sound
+            <Megaphone className="w-3.5 h-3.5 text-amber-200" />
+            <span>🗣️ Test Meesho Alert</span>
+          </button>
+
+          {/* Alert Settings Gear */}
+          <button
+            type="button"
+            onClick={() => setIsAlertModalOpen(true)}
+            className="p-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl transition-colors cursor-pointer border border-stone-200"
+            title="Configure Meesho Tone & Voice Announcement"
+          >
+            <Settings2 className="w-4 h-4 text-stone-600" />
           </button>
 
           {/* Customer View Preview Button */}
@@ -743,6 +795,168 @@ export default function DiningManager({
               >
                 <Phone className="w-3.5 h-3.5 text-amber-300" />
                 <span>📱 Settle & WhatsApp Bill</span>
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* 🗣️ Meesho / Soundbox Voice Alert Settings Modal */}
+      {isAlertModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-stone-950/70 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white border border-stone-200 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden my-auto animate-scaleUp">
+            
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-stone-900 via-amber-950 to-stone-900 p-5 text-white flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-400/30 flex items-center justify-center shadow-inner">
+                  <Megaphone className="w-5 h-5 text-amber-300" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
+                    <span>Meesho Order Alert Settings</span>
+                    <span className="text-[10px] bg-amber-500/30 text-amber-200 px-2 py-0.5 rounded-full uppercase tracking-wider font-semibold border border-amber-400/20">
+                      Voice + Chime
+                    </span>
+                  </h3>
+                  <p className="text-xs text-stone-300 mt-0.5">
+                    "Dine-in ka order aaya hai, check karein" soundbox alert
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAlertModalOpen(false)}
+                className="p-1.5 text-stone-400 hover:text-white bg-white/10 hover:bg-white/20 rounded-full transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 sm:p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+              
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900 flex items-start gap-2.5">
+                <Sparkles className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <p>
+                  Jab bhi customer table par QR code scan karke order punch karega, ye app Meesho/Soundbox jaisa <strong>upbeat tone bajayega</strong> aur clear <strong>Hindi voice me bol kar alert karega</strong>.
+                </p>
+              </div>
+
+              {/* Master Alert Switch */}
+              <div className="flex items-center justify-between p-3.5 bg-stone-50 border border-stone-200 rounded-2xl">
+                <div>
+                  <p className="text-xs font-bold text-stone-900">Master Sound Alert</p>
+                  <p className="text-[11px] text-stone-500">Incoming order aane par sound bajana hai ya nahi</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleUpdateAlertSettings({ enabled: !alertSettings.enabled })}
+                  className={`w-12 h-6.5 flex items-center rounded-full p-1 cursor-pointer transition-colors ${
+                    alertSettings.enabled ? 'bg-amber-600 justify-end' : 'bg-stone-300 justify-start'
+                  }`}
+                >
+                  <div className="w-5 h-5 rounded-full bg-white shadow-md transform transition-transform" />
+                </button>
+              </div>
+
+              {/* Spoken Voice Announcement Switch */}
+              <div className="flex items-center justify-between p-3.5 bg-stone-50 border border-stone-200 rounded-2xl">
+                <div>
+                  <p className="text-xs font-bold text-stone-900">Hindi Voice Announcement</p>
+                  <p className="text-[11px] text-stone-500">
+                    Bolega: <em>"Dine-in ka order aaya hai, check karein"</em>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleUpdateAlertSettings({ voiceEnabled: !alertSettings.voiceEnabled })}
+                  className={`w-12 h-6.5 flex items-center rounded-full p-1 cursor-pointer transition-colors ${
+                    alertSettings.voiceEnabled ? 'bg-amber-600 justify-end' : 'bg-stone-300 justify-start'
+                  }`}
+                >
+                  <div className="w-5 h-5 rounded-full bg-white shadow-md transform transition-transform" />
+                </button>
+              </div>
+
+              {/* Table Number in Voice Switch */}
+              <div className="flex items-center justify-between p-3.5 bg-stone-50 border border-stone-200 rounded-2xl">
+                <div>
+                  <p className="text-xs font-bold text-stone-900">Announce Table Number</p>
+                  <p className="text-[11px] text-stone-500">
+                    Bol kar bataye: <em>"Table number 3 ka dine-in order..."</em>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleUpdateAlertSettings({ announceTable: !alertSettings.announceTable })}
+                  className={`w-12 h-6.5 flex items-center rounded-full p-1 cursor-pointer transition-colors ${
+                    alertSettings.announceTable ? 'bg-amber-600 justify-end' : 'bg-stone-300 justify-start'
+                  }`}
+                >
+                  <div className="w-5 h-5 rounded-full bg-white shadow-md transform transition-transform" />
+                </button>
+              </div>
+
+              {/* Tone Style Chooser */}
+              <div className="space-y-2 pt-1">
+                <label className="text-xs font-bold text-stone-800 block">Alert Tone Style</label>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateAlertSettings({ soundType: 'meesho' })}
+                    className={`p-3 rounded-2xl border text-left cursor-pointer transition-all ${
+                      alertSettings.soundType === 'meesho'
+                        ? 'bg-amber-500/10 border-amber-500 shadow-xs ring-1 ring-amber-500'
+                        : 'bg-white border-stone-200 hover:bg-stone-50'
+                    }`}
+                  >
+                    <p className="text-xs font-bold text-stone-900">🎵 Meesho Upbeat</p>
+                    <p className="text-[10px] text-stone-500 mt-0.5">High-energy merchant fanfare jingle</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateAlertSettings({ soundType: 'classic' })}
+                    className={`p-3 rounded-2xl border text-left cursor-pointer transition-all ${
+                      alertSettings.soundType === 'classic'
+                        ? 'bg-amber-500/10 border-amber-500 shadow-xs ring-1 ring-amber-500'
+                        : 'bg-white border-stone-200 hover:bg-stone-50'
+                    }`}
+                  >
+                    <p className="text-xs font-bold text-stone-900">🔔 Classic Cafe Bell</p>
+                    <p className="text-[10px] text-stone-500 mt-0.5">Gentle 3-tone service chime</p>
+                  </button>
+                </div>
+              </div>
+
+              {/* Live Test Bar */}
+              <div className="p-3.5 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="text-left w-full sm:w-auto">
+                  <span className="text-xs font-bold text-stone-900 block">Live Sound & Voice Test</span>
+                  <span className="text-[11px] text-stone-600 block">Apne device ke speakers par abhi suniye</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleTestAlert}
+                  className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white rounded-xl text-xs font-black shadow-md cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-1.5 shrink-0"
+                >
+                  <Megaphone className="w-3.5 h-3.5" />
+                  <span>🗣️ Test Alert Now</span>
+                </button>
+              </div>
+
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-stone-50 border-t border-stone-200 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsAlertModalOpen(false)}
+                className="px-5 py-2 bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-bold rounded-xl cursor-pointer shadow-xs transition-colors"
+              >
+                Done
               </button>
             </div>
 
