@@ -61,10 +61,11 @@ import {
   deleteSingleInventory,
   deleteSingleMenuItem,
   fetchAllCloudData,
-  subscribeToCloudData
+  subscribeToCloudData,
+  wipeCloudTenantCollections
 } from './utils/cloudSync';
 import AggregatorSettlementModal from './components/AggregatorSettlementModal';
-import { PieChart, ShoppingBag, PackageCheck, Coffee, CheckCircle2, Plus, Boxes, Receipt, UtensilsCrossed, Bike, Sparkles } from 'lucide-react';
+import { PieChart, ShoppingBag, PackageCheck, Coffee, CheckCircle2, Plus, Boxes, Receipt, UtensilsCrossed, Bike, Sparkles, Trash2 } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('sales'); // 'sales', 'inventory', 'dashboard', 'procurement', 'menu'
@@ -501,6 +502,60 @@ export default function App() {
     setCurrentUser(null);
     setIsDemoMode(false);
     showToast('Logged out successfully');
+  };
+
+  // 🧹 1-Click Clean Slate / Reset All Demo Data (for Production Cafe Testing)
+  const handleResetToCleanSlate = async (options = {}) => {
+    const {
+      clearMenu = true,
+      clearInventory = true,
+      clearPurchases = true,
+      clearWastage = true,
+      clearSales = false,
+      clearExpenses = false
+    } = options;
+
+    const activeId = currentCafe?.cafeId || 'default';
+
+    if (clearMenu) {
+      saveStoredMenu([], activeId);
+      setMenuItems([]);
+    }
+    if (clearInventory) {
+      saveStoredInventory([], activeId);
+      setInventoryItems([]);
+    }
+    if (clearPurchases) {
+      saveStoredProcurement([], activeId);
+      setProcurementLogs([]);
+    }
+    if (clearWastage) {
+      saveStoredWastage([], activeId);
+      setWastageLogs([]);
+    }
+    if (clearSales) {
+      saveStoredSales([], activeId);
+      setSalesLogs([]);
+    }
+    if (clearExpenses) {
+      saveStoredExpenses([], activeId);
+      setExpenses([]);
+    }
+
+    try {
+      await wipeCloudTenantCollections(activeId, {
+        clearMenu,
+        clearInventory,
+        clearProcurement: clearPurchases,
+        clearWastage,
+        clearSales,
+        clearExpenses
+      });
+    } catch (e) {
+      console.warn('Could not wipe cloud tenant data:', e);
+    }
+
+    showToast('✨ Clean Slate Activated! Saara demo stock aur recipes hat gaye. Ab aap apna original menu aur stock daal sakte hain.');
   };
 
   // 🗑️ Raw Material Spoilage / Wastage Handlers (Auto Stock Deduction)
@@ -1397,6 +1452,15 @@ export default function App() {
                 </button>
                 <button
                   type="button"
+                  onClick={() => setIsCafeProfileModalOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-semibold rounded-xl cursor-pointer transition-colors"
+                  title="Wipe demo items & start blank slate for production testing"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Clear Demo Data</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => { setEditingItem(null); setIsModalOpen(true); }}
                   className="flex sm:hidden items-center gap-1.5 px-3 py-1.5 bg-slate-900 text-white text-xs font-bold rounded-xl cursor-pointer"
                 >
@@ -1535,8 +1599,11 @@ export default function App() {
         currentCafe={currentCafe}
         currentUser={currentUser}
         allCafes={userCafes}
+        menuCount={menuItems.length}
+        inventoryCount={inventoryItems.length}
         onSwitchCafe={handleSwitchCafe}
         onLogout={handleLogout}
+        onResetToCleanSlate={handleResetToCleanSlate}
         onUpdateCafe={(updated) => {
           setCurrentCafe(updated);
           showToast(`Cafe details updated: ${updated.cafeName}`);

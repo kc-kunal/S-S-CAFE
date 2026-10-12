@@ -12,7 +12,10 @@ import {
   Sparkles,
   QrCode,
   ChevronRight,
-  ShieldCheck
+  ShieldCheck,
+  Trash2,
+  AlertTriangle,
+  Lock
 } from 'lucide-react';
 import { updateCafeDetails, createAdditionalCafeOutlet } from '../utils/auth';
 
@@ -22,9 +25,12 @@ export default function CafeProfileModal({
   currentCafe,
   currentUser,
   allCafes = [],
+  menuCount = 0,
+  inventoryCount = 0,
   onSwitchCafe,
   onLogout,
-  onUpdateCafe
+  onUpdateCafe,
+  onResetToCleanSlate
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [isAddingOutlet, setIsAddingOutlet] = useState(false);
@@ -32,6 +38,17 @@ export default function CafeProfileModal({
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState('');
+
+  // Clean Slate State
+  const [isConfirmingCleanSlate, setIsConfirmingCleanSlate] = useState(false);
+  const [cleanLoading, setCleanLoading] = useState(false);
+  const [cleanOptions, setCleanOptions] = useState({
+    clearMenu: true,
+    clearInventory: true,
+    clearPurchases: true,
+    clearWastage: true,
+    clearSales: false
+  });
 
   // Edit fields
   const [editName, setEditName] = useState(currentCafe?.cafeName || '');
@@ -282,6 +299,142 @@ export default function CafeProfileModal({
             </form>
           )}
 
+          {/* 🧹 Production Clean Slate / Clear Demo Data Card */}
+          <div className="bg-gradient-to-br from-amber-50/70 via-orange-50/50 to-amber-50/40 border border-amber-200 rounded-2xl p-4 space-y-3 shadow-xs">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-800 shrink-0 mt-0.5">
+                  <Trash2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="text-xs font-bold text-slate-900">
+                      Production Clean Slate (Remove Demo Data)
+                    </h4>
+                    <span className="text-[10px] bg-amber-200/90 text-amber-900 font-bold px-2 py-0.5 rounded-full">
+                      Real Cafe Testing
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 mt-0.5 leading-relaxed">
+                    Agar aap apne dost ke cafe ke liye real testing kar rahe hain, toh sample demo stock aur starter recipes yahan se 1-click me remove karke blank slate shuru karein.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Stats: Menu items & Inventory items count */}
+            <div className="grid grid-cols-2 gap-2 bg-white/90 border border-amber-200/70 rounded-xl p-2.5 text-xs text-slate-700">
+              <div className="flex items-center justify-between px-2">
+                <span className="text-[11px] text-slate-500 font-medium">Menu Catalog:</span>
+                <span className="font-bold text-slate-900 font-mono">{menuCount} items</span>
+              </div>
+              <div className="flex items-center justify-between px-2 border-l border-amber-200/70">
+                <span className="text-[11px] text-slate-500 font-medium">Raw Materials:</span>
+                <span className="font-bold text-slate-900 font-mono">{inventoryCount} items</span>
+              </div>
+            </div>
+
+            {!isConfirmingCleanSlate ? (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 border-t border-amber-200/50">
+                <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span>Aapka account data 100% isolated aur private hai</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsConfirmingCleanSlate(true)}
+                  className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer transition-colors flex items-center justify-center gap-1.5 shrink-0"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Clean Slate Shuru Karein</span>
+                </button>
+              </div>
+            ) : (
+              <div className="bg-white border border-amber-300 rounded-xl p-3.5 space-y-3 animate-fadeIn">
+                <div className="flex items-center gap-2 text-xs font-bold text-amber-900">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>Kripya select karein kya kya remove karna hai:</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-slate-700">
+                  <label className="flex items-center gap-2 cursor-pointer bg-slate-50 hover:bg-slate-100 p-2 rounded-lg border border-slate-200 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={cleanOptions.clearMenu}
+                      onChange={(e) => setCleanOptions(prev => ({ ...prev, clearMenu: e.target.checked }))}
+                      className="rounded text-amber-600 focus:ring-amber-500"
+                    />
+                    <span className="font-semibold">Demo Menu & Recipes</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer bg-slate-50 hover:bg-slate-100 p-2 rounded-lg border border-slate-200 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={cleanOptions.clearInventory}
+                      onChange={(e) => setCleanOptions(prev => ({ ...prev, clearInventory: e.target.checked }))}
+                      className="rounded text-amber-600 focus:ring-amber-500"
+                    />
+                    <span className="font-semibold">Demo Stock / Raw Materials</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer bg-slate-50 hover:bg-slate-100 p-2 rounded-lg border border-slate-200 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={cleanOptions.clearPurchases}
+                      onChange={(e) => setCleanOptions(prev => ({ ...prev, clearPurchases: e.target.checked }))}
+                      className="rounded text-amber-600 focus:ring-amber-500"
+                    />
+                    <span className="font-semibold">Demo Purchases & Wastage</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer bg-slate-50 hover:bg-slate-100 p-2 rounded-lg border border-slate-200 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={cleanOptions.clearSales}
+                      onChange={(e) => setCleanOptions(prev => ({ ...prev, clearSales: e.target.checked }))}
+                      className="rounded text-amber-600 focus:ring-amber-500"
+                    />
+                    <span className="font-semibold">Clear Sales History Too</span>
+                  </label>
+                </div>
+
+                <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    disabled={cleanLoading}
+                    onClick={async () => {
+                      setCleanLoading(true);
+                      try {
+                        if (onResetToCleanSlate) {
+                          await onResetToCleanSlate(cleanOptions);
+                        }
+                        setIsConfirmingCleanSlate(false);
+                        setFeedback('🎉 Clean Slate successful! Saara demo stock aur recipes hat gaye. Ab aap apna original menu aur stock daal sakte hain.');
+                      } catch (err) {
+                        setFeedback('❌ Error resetting demo data: ' + (err?.message || 'Error'));
+                      } finally {
+                        setCleanLoading(false);
+                      }
+                    }}
+                    className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    {cleanLoading ? (
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Trash2 className="w-3.5 h-3.5" />
+                    )}
+                    <span>{cleanLoading ? 'Wiping Demo Items...' : 'Haan, Demo Data Hata Kar Blank Slate Karein'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={cleanLoading}
+                    onClick={() => setIsConfirmingCleanSlate(false)}
+                    className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Outlets & Multi-Cafe Switcher */}
           <div>
             <div className="flex items-center justify-between mb-3">
@@ -399,6 +552,24 @@ export default function CafeProfileModal({
                   </button>
                 );
               })}
+            </div>
+          </div>
+
+          {/* 🛡️ Data Privacy & Free Trial Guarantee Banner */}
+          <div className="bg-emerald-50/70 border border-emerald-200/90 rounded-2xl p-3.5 flex items-start gap-3 shadow-xs">
+            <div className="w-8 h-8 rounded-xl bg-emerald-100 border border-emerald-200 flex items-center justify-center text-emerald-700 shrink-0 mt-0.5">
+              <Lock className="w-4 h-4" />
+            </div>
+            <div className="text-xs space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-emerald-950">Data Security & Free Trial Guarantee</span>
+                <span className="text-[10px] bg-emerald-200/90 text-emerald-900 font-bold px-2 py-0.5 rounded-full">
+                  100% Private
+                </span>
+              </div>
+              <p className="text-[11px] text-emerald-900/85 leading-relaxed">
+                Aapke account (<span className="font-semibold text-emerald-950 font-mono">{currentUser?.email || currentCafe?.ownerEmail || 'kc9998008@gmail.com'}</span>) ka data kisi dusre cafe ya user ke paas <strong>kabhi nahi jata</strong>. Multi-tenant architecture me har cafe ka storage aur cloud database completely isolated hota hai. Free trial me data <strong>kahi delete ya expire nahi hota</strong>, hamesha safe rehta hai.
+              </p>
             </div>
           </div>
 

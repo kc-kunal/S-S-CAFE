@@ -108,7 +108,8 @@ export default function AuthModal({
         cafeName: cafeName || 'My Cafe',
         ownerName: ownerName || 'Cafe Owner',
         phone,
-        city
+        city,
+        seedStarterData
       });
       setSuccessMsg(`🎉 "${res.cafe.cafeName}" Local mode me successfully create ho gaya!`);
       setTimeout(() => {
@@ -187,7 +188,8 @@ export default function AuthModal({
         cafeName,
         ownerName,
         phone,
-        city
+        city,
+        seedStarterData
       });
 
       setSuccessMsg(`🎉 Badhai ho! "${cafeName}" successfully create ho gaya.`);

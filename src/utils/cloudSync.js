@@ -411,3 +411,46 @@ export const exportCafeDataToJson = (data) => {
   downloadAnchor.remove();
   return true;
 };
+
+// ==========================================
+// 7. Wipe Tenant Data for Clean Slate (Production Mode)
+// ==========================================
+export const wipeCloudTenantCollections = async (cafeId = getCurrentCafeId(), options = {}) => {
+  const db = getFirebaseDb();
+  if (!db || !cafeId || cafeId === 'default') return false;
+
+  const {
+    clearMenu = true,
+    clearInventory = true,
+    clearProcurement = true,
+    clearWastage = true,
+    clearSales = false,
+    clearExpenses = false,
+    clearDiningOrders = true
+  } = options;
+
+  const targetCollections = [];
+  if (clearMenu) targetCollections.push(COLLECTIONS.MENU);
+  if (clearInventory) targetCollections.push(COLLECTIONS.INVENTORY);
+  if (clearProcurement) targetCollections.push(COLLECTIONS.PROCUREMENT);
+  if (clearWastage) targetCollections.push(COLLECTIONS.WASTAGE);
+  if (clearSales) targetCollections.push(COLLECTIONS.SALES);
+  if (clearExpenses) targetCollections.push(COLLECTIONS.EXPENSES);
+  if (clearDiningOrders) targetCollections.push(COLLECTIONS.DINING_ORDERS);
+
+  for (const colKey of targetCollections) {
+    try {
+      const colRef = getScopedCollectionRef(db, colKey, cafeId);
+      const snap = await getDocs(colRef);
+      if (!snap.empty) {
+        const batch = writeBatch(db);
+        snap.docs.forEach((d) => batch.delete(d.ref));
+        await batch.commit();
+      }
+    } catch (e) {
+      console.warn(`Could not clear cloud collection ${colKey}:`, e);
+    }
+  }
+  return true;
+};
+

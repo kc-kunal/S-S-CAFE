@@ -20,8 +20,12 @@ import { getFirebaseAuth, getFirebaseDb } from './firebase';
 import {
   INITIAL_MENU_ITEMS,
   INITIAL_INVENTORY_ITEMS,
+  INITIAL_PROCUREMENT_LOGS,
+  INITIAL_WASTAGE_LOGS,
   saveStoredMenu,
-  saveStoredInventory
+  saveStoredInventory,
+  saveStoredProcurement,
+  saveStoredWastage
 } from './storage';
 import { recordUserSignup, recordUserLogin } from './adminAudit';
 
@@ -79,7 +83,7 @@ export const setLocalUserSession = (user) => {
 /**
  * Register Cafe Owner in Local Offline Mode (fallback when Firebase Auth is not configured)
  */
-export const registerLocalCafeOwner = ({ email, password = '', cafeName, ownerName, phone = '', city = '', address = '' }) => {
+export const registerLocalCafeOwner = ({ email, password = '', cafeName, ownerName, phone = '', city = '', address = '', seedStarterData = true }) => {
   const localId = 'cafe_' + Date.now().toString(36);
   const user = {
     uid: localId,
@@ -104,8 +108,10 @@ export const registerLocalCafeOwner = ({ email, password = '', cafeName, ownerNa
 
   setLocalUserSession(user);
   setLocalActiveCafe(cafeProfile);
-  saveStoredMenu(INITIAL_MENU_ITEMS, localId);
-  saveStoredInventory(INITIAL_INVENTORY_ITEMS, localId);
+  saveStoredMenu(seedStarterData ? INITIAL_MENU_ITEMS : [], localId);
+  saveStoredInventory(seedStarterData ? INITIAL_INVENTORY_ITEMS : [], localId);
+  saveStoredProcurement(seedStarterData ? INITIAL_PROCUREMENT_LOGS : [], localId);
+  saveStoredWastage(seedStarterData ? INITIAL_WASTAGE_LOGS : [], localId);
 
   // Record into Super Admin Directory & Audit Log
   recordUserSignup({
@@ -164,14 +170,14 @@ export const loginLocalCafeOwner = (email, password = '') => {
 /**
  * Register a new Cafe Owner with Email/Password & initialize their Cafe Tenant
  */
-export const registerCafeOwner = async ({ email, password, cafeName, ownerName, phone = '', city = '', address = '', forceLocal = false }) => {
+export const registerCafeOwner = async ({ email, password, cafeName, ownerName, phone = '', city = '', address = '', forceLocal = false, seedStarterData = true }) => {
   if (forceLocal) {
-    return registerLocalCafeOwner({ email, cafeName, ownerName, phone, city, address });
+    return registerLocalCafeOwner({ email, password, cafeName, ownerName, phone, city, address, seedStarterData });
   }
 
   const auth = getFirebaseAuth();
   if (!auth) {
-    return registerLocalCafeOwner({ email, cafeName, ownerName, phone, city, address });
+    return registerLocalCafeOwner({ email, password, cafeName, ownerName, phone, city, address, seedStarterData });
   }
 
   try {
@@ -209,20 +215,22 @@ export const registerCafeOwner = async ({ email, password, cafeName, ownerName, 
         const cafeDocRef = doc(db, 'cafes', cafeId);
         await setDoc(cafeDocRef, cafeProfile);
 
-        // Seed Starter Menu & Inventory for the new cafe in Firestore
-        const batch = writeBatch(db);
+        if (seedStarterData) {
+          // Seed Starter Menu & Inventory for the new cafe in Firestore
+          const batch = writeBatch(db);
 
-        INITIAL_MENU_ITEMS.forEach(item => {
-          const itemRef = doc(db, 'cafes', cafeId, 'menu', item.id);
-          batch.set(itemRef, { ...item, _lastSynced: new Date().toISOString() });
-        });
+          INITIAL_MENU_ITEMS.forEach(item => {
+            const itemRef = doc(db, 'cafes', cafeId, 'menu', item.id);
+            batch.set(itemRef, { ...item, _lastSynced: new Date().toISOString() });
+          });
 
-        INITIAL_INVENTORY_ITEMS.forEach(inv => {
-          const invRef = doc(db, 'cafes', cafeId, 'inventory', inv.id);
-          batch.set(invRef, { ...inv, _lastSynced: new Date().toISOString() });
-        });
+          INITIAL_INVENTORY_ITEMS.forEach(inv => {
+            const invRef = doc(db, 'cafes', cafeId, 'inventory', inv.id);
+            batch.set(invRef, { ...inv, _lastSynced: new Date().toISOString() });
+          });
 
-        await batch.commit();
+          await batch.commit();
+        }
       } catch (err) {
         console.warn('Could not seed initial cafe data to Firestore, local storage used:', err);
       }
@@ -236,6 +244,10 @@ export const registerCafeOwner = async ({ email, password, cafeName, ownerName, 
       displayName: user.displayName || ownerName,
       isAnonymous: false
     });
+    saveStoredMenu(seedStarterData ? INITIAL_MENU_ITEMS : [], cafeId);
+    saveStoredInventory(seedStarterData ? INITIAL_INVENTORY_ITEMS : [], cafeId);
+    saveStoredProcurement(seedStarterData ? INITIAL_PROCUREMENT_LOGS : [], cafeId);
+    saveStoredWastage(seedStarterData ? INITIAL_WASTAGE_LOGS : [], cafeId);
 
     // Record into Super Admin Directory & Audit Log
     recordUserSignup({
