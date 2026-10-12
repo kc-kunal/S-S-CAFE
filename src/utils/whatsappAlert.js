@@ -15,11 +15,12 @@ const DEFAULT_CONFIG = {
   vendorPhone: import.meta.env.VITE_VENDOR_WHATSAPP_PHONE || '',
   reorderQuantity: 20,
   // Silent Background WhatsApp Gateway Settings (Zero Redirect)
-  whatsappProvider: import.meta.env.VITE_WHATSAPP_PROVIDER || 'ultramsg', // 'ultramsg' | 'greenapi' | 'meta' | 'webhook'
+  whatsappProvider: import.meta.env.VITE_WHATSAPP_PROVIDER || 'webhook', // 'webhook' | 'ultramsg' | 'greenapi' | 'meta'
   whatsappToken: import.meta.env.VITE_WHATSAPP_TOKEN || '',
   whatsappPhoneId: import.meta.env.VITE_WHATSAPP_PHONE_ID || '', // Meta phone number id
   whatsappInstanceId: import.meta.env.VITE_WHATSAPP_INSTANCE_ID || '', // UltraMsg or GreenAPI instance ID
-  whatsappWebhookUrl: import.meta.env.VITE_WHATSAPP_WEBHOOK_URL || '' // Custom webhook or local server
+  whatsappWebhookUrl: import.meta.env.VITE_WHATSAPP_WEBHOOK_URL || '', // Custom webhook or local server
+  whatsappWebhookSecret: import.meta.env.VITE_WHATSAPP_WEBHOOK_SECRET || '' // Optional auth bearer token
 };
 
 // Retrieve configuration with priority to .env variables
@@ -33,6 +34,7 @@ export const getAlertConfig = () => {
   const envWaPhoneId = import.meta.env.VITE_WHATSAPP_PHONE_ID || '';
   const envWaInstanceId = import.meta.env.VITE_WHATSAPP_INSTANCE_ID || '';
   const envWaWebhook = import.meta.env.VITE_WHATSAPP_WEBHOOK_URL || '';
+  const envWaSecret = import.meta.env.VITE_WHATSAPP_WEBHOOK_SECRET || '';
 
   try {
     const raw = localStorage.getItem(ALERT_CONFIG_KEY);
@@ -51,6 +53,7 @@ export const getAlertConfig = () => {
         whatsappPhoneId: envWaPhoneId || parsed.whatsappPhoneId || '',
         whatsappInstanceId: envWaInstanceId || parsed.whatsappInstanceId || '',
         whatsappWebhookUrl: envWaWebhook || parsed.whatsappWebhookUrl || '',
+        whatsappWebhookSecret: envWaSecret || parsed.whatsappWebhookSecret || '',
         isEnabled: true
       };
     }
@@ -68,6 +71,7 @@ export const getAlertConfig = () => {
     whatsappPhoneId: envWaPhoneId,
     whatsappInstanceId: envWaInstanceId,
     whatsappWebhookUrl: envWaWebhook,
+    whatsappWebhookSecret: envWaSecret,
     isEnabled: true
   };
 };
@@ -463,28 +467,82 @@ export const sendBackgroundWhatsAppEBill = async (billData) => {
       return { success: false, reason: data.error?.message || 'Meta Cloud API error' };
     }
 
-    // 4. Custom Webhook / Local Node Bridge
+    // 4. Custom Webhook / Automation Bridge (Make.com, Pabbly, Zapier, n8n, Google Apps Script, Node.js, Baileys)
     if (provider === 'webhook' || webhookUrl) {
       if (!webhookUrl) {
         return { success: false, notConfigured: true, reason: 'Custom Webhook URL missing hai' };
       }
+
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      const secret = (config.whatsappWebhookSecret || config.whatsappToken || '').trim();
+      if (secret) {
+        headers['Authorization'] = `Bearer ${secret}`;
+        headers['x-api-key'] = secret;
+      }
+
+      // Universal payload suitable for all webhook handlers
+      const payload = {
+        event: 'whatsapp_bill_sent',
+        // Phone numbers in multiple formats
+        phone: cleanPhone,                     // "919876543210"
+        to: `+${cleanPhone}`,                  // "+919876543210"
+        number: cleanPhone,
+        recipient: cleanPhone,
+        chatId: `${cleanPhone}@c.us`,          // Baileys / WPPConnect / Evolution format
+        rawPhone: rawPhone,
+
+        // Message text
+        message: messageText,
+        text: messageText,
+        body: messageText,
+        caption: messageText,
+
+        // Itemized invoice & financial metadata
+        billNo: billData.tokenOrBillNo || billData.billNo || '#BILL',
+        tokenOrBillNo: billData.tokenOrBillNo || billData.billNo || '#BILL',
+        customerName: billData.customerName || 'Customer',
+        totalAmount: Number(billData.totalAmount) || 0,
+        subtotal: Number(billData.subtotal || billData.totalAmount) || 0,
+        discount: Number(billData.discount) || 0,
+        paymentMethod: billData.paymentMethod || 'Cash',
+        date: billData.date || new Date().toISOString().split('T')[0],
+        time: billData.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        items: (billData.items || []).map(i => ({
+          name: i.name || i.itemName || 'Dish',
+          qty: i.qty || i.quantity || 1,
+          price: i.price || i.sellingPrice || 0,
+          amount: (i.qty || i.quantity || 1) * (i.price || i.sellingPrice || 0)
+        })),
+        cafeName: billData.cafeName || 'S&S Cafe',
+        cafePhone: billData.cafePhone || '',
+        cafeCity: billData.cafeCity || '',
+        timestamp: new Date().toISOString()
+      };
+
       const response = await fetch(webhookUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          to: cleanPhone,
-          phone: cleanPhone,
-          message: messageText,
-          text: messageText,
-          billData: billData
-        })
+        headers,
+        body: JSON.stringify(payload)
       });
+
       if (response.ok) {
-        return { success: true, provider: 'webhook' };
+        let respData = null;
+        try { respData = await response.json(); } catch (_) {}
+        return { 
+          success: true, 
+          provider: 'webhook', 
+          status: response.status,
+          data: respData,
+          payloadSent: payload 
+        };
       }
-      return { success: false, reason: `Webhook returned status ${response.status}` };
+      return { 
+        success: false, 
+        reason: `Webhook returned HTTP ${response.status} (${response.statusText || 'Error'})`,
+        status: response.status 
+      };
     }
 
     return { success: false, reason: `Unknown WhatsApp provider: ${provider}` };
@@ -518,4 +576,58 @@ export const sendTestWhatsAppMessage = async (customConfig, testPhone) => {
     customMessage: testMessage,
     customConfig: customConfig
   });
+};
+
+/**
+ * Test Custom Webhook Endpoint with live diagnostic details
+ */
+export const testCustomWebhookEndpoint = async (url, secret = '', testPhone = '9876543210') => {
+  if (!url || !url.trim()) {
+    return { success: false, reason: 'Kripya Custom Webhook Endpoint URL darj karein!' };
+  }
+  const cleanUrl = url.trim();
+  const startTime = Date.now();
+
+  const dummyBill = {
+    cafeName: 'S&S Cafe',
+    cafeCity: 'Indore',
+    cafePhone: '9876543210',
+    tokenOrBillNo: '#TEST-101',
+    customerPhone: testPhone || '9876543210',
+    customerName: 'Kunal (Test Customer)',
+    date: new Date().toISOString().split('T')[0],
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    items: [
+      { name: 'Cold Coffee with Ice Cream', qty: 1, price: 120 },
+      { name: 'Veg Grilled Sandwich', qty: 1, price: 90 }
+    ],
+    subtotal: 210,
+    discount: 10,
+    totalAmount: 200,
+    paymentMethod: 'UPI'
+  };
+
+  const customConfig = {
+    whatsappProvider: 'webhook',
+    whatsappWebhookUrl: cleanUrl,
+    whatsappWebhookSecret: (secret || '').trim()
+  };
+
+  try {
+    const res = await sendBackgroundWhatsAppEBill({
+      ...dummyBill,
+      customConfig
+    });
+    const duration = Date.now() - startTime;
+    return {
+      ...res,
+      durationMs: duration
+    };
+  } catch (err) {
+    return {
+      success: false,
+      reason: err.message || 'Network / CORS connection error',
+      durationMs: Date.now() - startTime
+    };
+  }
 };

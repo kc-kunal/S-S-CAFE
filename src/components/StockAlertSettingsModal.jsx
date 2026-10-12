@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { 
   X, Send, Check, AlertCircle, ExternalLink, ShieldCheck, Zap, Bot, 
-  Sparkles, Phone, MessageSquare, Globe, QrCode, Key, Radio, CheckCircle2 
+  Sparkles, Phone, MessageSquare, Globe, QrCode, Key, Radio, CheckCircle2,
+  Copy, Code, Terminal, ChevronDown, ChevronUp, Link as LinkIcon
 } from 'lucide-react';
 import { 
   getAlertConfig, 
   saveAlertConfig, 
   sendTelegramAlert, 
-  sendTestWhatsAppMessage 
+  sendTestWhatsAppMessage,
+  testCustomWebhookEndpoint
 } from '../utils/whatsappAlert';
 
 export default function StockAlertSettingsModal({ isOpen, onClose, showToast }) {
@@ -18,6 +20,11 @@ export default function StockAlertSettingsModal({ isOpen, onClose, showToast }) 
   const [testPhone, setTestPhone] = useState('');
   const [isTestingWa, setIsTestingWa] = useState(false);
   const [testWaResult, setTestWaResult] = useState(null);
+
+  // Custom Webhook UI state
+  const [webhookTab, setWebhookTab] = useState('make'); // 'make' | 'gas' | 'nodejs'
+  const [copiedScript, setCopiedScript] = useState(false);
+  const [showPayloadDetails, setShowPayloadDetails] = useState(false);
 
   // Telegram testing state
   const [isTestingTg, setIsTestingTg] = useState(false);
@@ -48,6 +55,7 @@ export default function StockAlertSettingsModal({ isOpen, onClose, showToast }) 
       whatsappPhoneId: config.whatsappPhoneId?.trim() || '',
       whatsappInstanceId: config.whatsappInstanceId?.trim() || '',
       whatsappWebhookUrl: config.whatsappWebhookUrl?.trim() || '',
+      whatsappWebhookSecret: config.whatsappWebhookSecret?.trim() || '',
       ownerPhone: config.ownerPhone?.trim() || '',
       vendorPhone: config.vendorPhone?.trim() || '',
       isEnabled: true
@@ -59,12 +67,52 @@ export default function StockAlertSettingsModal({ isOpen, onClose, showToast }) 
     onClose();
   };
 
+  const copySnippet = (text) => {
+    navigator.clipboard.writeText(text);
+    setCopiedScript(true);
+    setTimeout(() => setCopiedScript(false), 2500);
+  };
+
   const handleTestWhatsApp = async () => {
     if (!testPhone.trim()) {
       setTestWaResult({
         type: 'error',
         text: 'Kripya test ke liye apna 10-digit WhatsApp number darj karein!'
       });
+      return;
+    }
+
+    // Direct Webhook dispatch testing
+    if (config.whatsappProvider === 'webhook') {
+      if (!config.whatsappWebhookUrl?.trim()) {
+        setTestWaResult({
+          type: 'error',
+          text: 'Kripya pehle Custom Webhook Endpoint URL darj karein!'
+        });
+        return;
+      }
+
+      setIsTestingWa(true);
+      setTestWaResult(null);
+
+      const res = await testCustomWebhookEndpoint(
+        config.whatsappWebhookUrl.trim(),
+        config.whatsappWebhookSecret?.trim() || '',
+        testPhone.trim()
+      );
+      setIsTestingWa(false);
+
+      if (res.success) {
+        setTestWaResult({
+          type: 'success',
+          text: `✓ Webhook Received! HTTP ${res.status || 200} OK (${res.durationMs || 0}ms). Test digital bill payload successfully delivered to your Webhook!`
+        });
+      } else {
+        setTestWaResult({
+          type: 'error',
+          text: `✕ Webhook Error: ${res.reason || 'Could not connect'}. URL ya server verify karein.`
+        });
+      }
       return;
     }
 
@@ -234,10 +282,10 @@ export default function StockAlertSettingsModal({ isOpen, onClose, showToast }) 
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {[
-                    { id: 'ultramsg', title: 'UltraMsg', subtitle: '⚡ QR Scan (Best)', badge: 'Recommended' },
+                    { id: 'webhook', title: 'Custom Webhook', subtitle: '🔗 Free Webhook (Huk)', badge: '100% Free' },
+                    { id: 'ultramsg', title: 'UltraMsg', subtitle: '⚡ QR Scan (Best)', badge: 'Easy QR' },
                     { id: 'greenapi', title: 'Green-API', subtitle: '🟢 QR Scan', badge: 'Free Tier' },
-                    { id: 'meta', title: 'Meta Cloud', subtitle: '☁️ Official Graph', badge: '1K Free/Mo' },
-                    { id: 'webhook', title: 'Custom Webhook', subtitle: '🔗 Node / n8n', badge: 'Advanced' }
+                    { id: 'meta', title: 'Meta Cloud', subtitle: '☁️ Official Graph', badge: '1K Free/Mo' }
                   ].map((prov) => (
                     <button
                       key={prov.id}
@@ -399,24 +447,183 @@ export default function StockAlertSettingsModal({ isOpen, onClose, showToast }) 
                   </div>
                 )}
 
-                {/* CUSTOM WEBHOOK */}
+                {/* CUSTOM WEBHOOK (CUSTOM HUK SETUP) */}
                 {config.whatsappProvider === 'webhook' && (
-                  <div className="space-y-3">
+                  <div className="space-y-3.5">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
                         <Globe className="w-4 h-4 text-emerald-400" />
-                        <span>Custom Webhook / Local Server Bridge</span>
+                        <span>Custom Webhook (Huk) Setup — 100% Free & Zero Redirect</span>
+                      </span>
+                      <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
+                        Universal JSON Format
                       </span>
                     </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-stone-300 mb-1">Endpoint URL *</label>
-                      <input
-                        type="url"
-                        value={config.whatsappWebhookUrl || ''}
-                        onChange={(e) => setConfig({ ...config, whatsappWebhookUrl: e.target.value })}
-                        placeholder="e.g. http://localhost:3000/api/send-whatsapp or https://your-server.com/send"
-                        className="w-full px-3 py-2 bg-stone-950 border border-stone-700 rounded-xl text-xs font-mono text-emerald-300 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                      />
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                      <div className="sm:col-span-2">
+                        <label className="block text-[11px] font-bold text-stone-300 mb-1">
+                          Webhook Endpoint URL * (Make.com, Pabbly, Google Script, Node.js)
+                        </label>
+                        <input
+                          type="url"
+                          value={config.whatsappWebhookUrl || ''}
+                          onChange={(e) => setConfig({ ...config, whatsappWebhookUrl: e.target.value })}
+                          placeholder="e.g. https://hook.eu2.make.com/... or https://script.google.com/macros/s/..."
+                          className="w-full px-3 py-2 bg-stone-950 border border-stone-700 rounded-xl text-xs font-mono text-emerald-300 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                        />
+                        <p className="text-[10px] text-stone-400 mt-1">
+                          Is URL par bill punch hote hi order ka complete JSON payload background me post ho jayega.
+                        </p>
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className="block text-[11px] font-bold text-stone-300 mb-1">
+                          Secret Token / API Key (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={config.whatsappWebhookSecret || ''}
+                          onChange={(e) => setConfig({ ...config, whatsappWebhookSecret: e.target.value })}
+                          placeholder="Optional: Bearer my_secret_token or leave blank"
+                          className="w-full px-3 py-2 bg-stone-950 border border-stone-700 rounded-xl text-xs font-mono text-stone-300 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                        />
+                        <p className="text-[10px] text-stone-400 mt-1">
+                          Agar aapke webhook ko authentication chahiye to yahan secret daalein (auto-sent as Bearer token & x-api-key header).
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Free Webhook Blueprint & Code Templates */}
+                    <div className="pt-2 border-t border-stone-800 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-amber-300 flex items-center gap-1.5">
+                          <Code className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Free Webhook Setup Guides & Ready-to-use Code:</span>
+                        </span>
+
+                        {/* Template Tab Selector */}
+                        <div className="flex items-center bg-stone-950 p-0.5 rounded-lg border border-stone-800 text-[10px]">
+                          <button
+                            type="button"
+                            onClick={() => setWebhookTab('make')}
+                            className={`px-2 py-0.5 rounded-md font-bold transition-colors cursor-pointer ${
+                              webhookTab === 'make' ? 'bg-emerald-600 text-white' : 'text-stone-400 hover:text-white'
+                            }`}
+                          >
+                            Make / Pabbly
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setWebhookTab('gas')}
+                            className={`px-2 py-0.5 rounded-md font-bold transition-colors cursor-pointer ${
+                              webhookTab === 'gas' ? 'bg-emerald-600 text-white' : 'text-stone-400 hover:text-white'
+                            }`}
+                          >
+                            Google Script (Free)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setWebhookTab('node')}
+                            className={`px-2 py-0.5 rounded-md font-bold transition-colors cursor-pointer ${
+                              webhookTab === 'node' ? 'bg-emerald-600 text-white' : 'text-stone-400 hover:text-white'
+                            }`}
+                          >
+                            Node.js
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Tab Content 1: Make.com / Pabbly */}
+                      {webhookTab === 'make' && (
+                        <div className="p-3 bg-stone-950/80 rounded-xl border border-stone-800 text-[11px] text-stone-300 space-y-1.5 leading-relaxed">
+                          <p className="font-bold text-emerald-300">⚡ Make.com / Pabbly Connect Setup (Zero Coding):</p>
+                          <ol className="list-decimal list-inside space-y-1 text-stone-400">
+                            <li>Make.com ya Pabbly par free account banakar <strong>"Custom Webhook"</strong> trigger create karein.</li>
+                            <li>Wahan mila URL copy karke upar <strong>Endpoint URL</strong> me paste karein.</li>
+                            <li>Next action module me <strong>WhatsApp Cloud API / Wati / Twilio</strong> choose karein.</li>
+                            <li>Recipient me <code className="text-emerald-400 font-mono">phone</code> aur message me <code className="text-emerald-400 font-mono">message</code> select karein.</li>
+                          </ol>
+                        </div>
+                      )}
+
+                      {/* Tab Content 2: Google Apps Script */}
+                      {webhookTab === 'gas' && (
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-stone-400">100% Free Google Script Webhook (Deploy as Web App):</span>
+                            <button
+                              type="button"
+                              onClick={() => copySnippet(`function doPost(e) {\n  var data = JSON.parse(e.postData.contents);\n  var phone = data.phone;      // 919876543210\n  var message = data.message;  // WhatsApp E-Bill Text\n  var billNo = data.billNo;    // Bill #\n  var total = data.totalAmount;// ₹ Amount\n\n  // Forward to your free WhatsApp Gateway (UltraMsg / GreenAPI / Meta):\n  // UrlFetchApp.fetch("https://api.ultramsg.com/...", { method: "post", payload: ... });\n\n  return ContentService.createTextOutput(JSON.stringify({ status: "success" }))\n    .setMimeType(ContentService.MimeType.JSON);\n}`)}
+                              className="flex items-center gap-1 text-[10px] text-emerald-400 hover:text-emerald-300 font-bold cursor-pointer"
+                            >
+                              {copiedScript ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                              <span>{copiedScript ? 'Copied!' : 'Copy Script'}</span>
+                            </button>
+                          </div>
+                          <pre className="p-2.5 bg-stone-950 rounded-xl border border-stone-800 text-[10px] font-mono text-emerald-300/90 overflow-x-auto max-h-32">
+{`function doPost(e) {
+  var data = JSON.parse(e.postData.contents);
+  var phone = data.phone;      // 919876543210
+  var message = data.message;  // WhatsApp E-Bill Text
+  var billNo = data.billNo;    // Bill #
+  var total = data.totalAmount;// ₹ Amount
+
+  // Forward to WhatsApp Gateway or Save in Google Sheet:
+  return ContentService.createTextOutput(JSON.stringify({ status: "success" }))
+    .setMimeType(ContentService.MimeType.JSON);
+}`}
+                          </pre>
+                        </div>
+                      )}
+
+                      {/* Tab Content 3: Node.js */}
+                      {webhookTab === 'node' && (
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-stone-400">Express.js / Baileys / Evolution API Endpoint:</span>
+                            <button
+                              type="button"
+                              onClick={() => copySnippet(`const express = require('express');\nconst app = express();\napp.use(express.json());\n\napp.post('/api/whatsapp-bill', async (req, res) => {\n  const { phone, message, billNo, totalAmount } = req.body;\n  console.log(\`Received Bill \${billNo} of ₹\${totalAmount} for \${phone}\`);\n  // Send via Baileys / WPPConnect: await sock.sendMessage(\`\${phone}@s.whatsapp.net\`, { text: message });\n  res.json({ success: true });\n});\n\napp.listen(3000, () => console.log('Listening on :3000'));`)}
+                              className="flex items-center gap-1 text-[10px] text-emerald-400 hover:text-emerald-300 font-bold cursor-pointer"
+                            >
+                              {copiedScript ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                              <span>{copiedScript ? 'Copied!' : 'Copy Code'}</span>
+                            </button>
+                          </div>
+                          <pre className="p-2.5 bg-stone-950 rounded-xl border border-stone-800 text-[10px] font-mono text-emerald-300/90 overflow-x-auto max-h-32">
+{`app.post('/api/whatsapp-bill', async (req, res) => {
+  const { phone, message, billNo, totalAmount } = req.body;
+  // Send via Baileys / Evolution / Twilio bot
+  res.json({ success: true, message: 'Bill Dispatched' });
+});`}
+                          </pre>
+                        </div>
+                      )}
+
+                      {/* JSON Payload Preview Toggle */}
+                      <div className="pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setShowPayloadDetails(!showPayloadDetails)}
+                          className="flex items-center gap-1.5 text-[11px] text-stone-400 hover:text-emerald-300 font-bold cursor-pointer"
+                        >
+                          {showPayloadDetails ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                          <span>{showPayloadDetails ? 'Hide' : 'Show'} JSON Payload Keys Sent to Webhook</span>
+                        </button>
+
+                        {showPayloadDetails && (
+                          <div className="mt-1.5 p-2 bg-stone-950 rounded-xl border border-stone-800 text-[10px] font-mono text-stone-300 space-y-1">
+                            <p className="text-emerald-400 font-bold">Fields dispatched on every bill punch:</p>
+                            <p>• <span className="text-amber-300 font-bold">phone / to / number:</span> Customer 10-digit number (e.g. "919876543210")</p>
+                            <p>• <span className="text-amber-300 font-bold">message / text / caption:</span> Formatted WhatsApp Digital E-Bill</p>
+                            <p>• <span className="text-amber-300 font-bold">billNo / tokenOrBillNo:</span> Invoice / Table number</p>
+                            <p>• <span className="text-amber-300 font-bold">totalAmount / subtotal / discount:</span> Financial numbers</p>
+                            <p>• <span className="text-amber-300 font-bold">items:</span> [{`{ name, qty, price, amount }`}, ...]</p>
+                          </div>
+                        )}
+                      </div>
+
                     </div>
                   </div>
                 )}
