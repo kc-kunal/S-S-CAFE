@@ -12,9 +12,10 @@ import {
   testCustomWebhookEndpoint
 } from '../utils/whatsappAlert';
 
-export default function StockAlertSettingsModal({ isOpen, onClose, showToast }) {
+export default function StockAlertSettingsModal({ isOpen, onClose, showToast, currentCafe }) {
   const [activeTab, setActiveTab] = useState('whatsapp'); // 'whatsapp' | 'telegram'
-  const [config, setConfig] = useState(getAlertConfig());
+  const cafeId = currentCafe?.cafeId || 'default';
+  const [config, setConfig] = useState(() => getAlertConfig(cafeId));
   
   // WhatsApp testing state
   const [testPhone, setTestPhone] = useState('');
@@ -32,13 +33,13 @@ export default function StockAlertSettingsModal({ isOpen, onClose, showToast }) 
 
   useEffect(() => {
     if (isOpen) {
-      const current = getAlertConfig();
+      const current = getAlertConfig(cafeId);
       setConfig(current);
       setTestPhone(current.ownerPhone || '');
       setTestWaResult(null);
       setTestTgResult(null);
     }
-  }, [isOpen]);
+  }, [isOpen, cafeId]);
 
   if (!isOpen) return null;
 
@@ -60,9 +61,9 @@ export default function StockAlertSettingsModal({ isOpen, onClose, showToast }) 
       vendorPhone: config.vendorPhone?.trim() || '',
       isEnabled: true
     };
-    saveAlertConfig(updated);
+    saveAlertConfig(updated, cafeId);
     if (showToast) {
-      showToast('✅ Communication & WhatsApp Gateway Settings Saved Successfully!');
+      showToast(`✅ "${currentCafe?.cafeName || 'Cafe'}" Gateway Settings Saved Successfully!`);
     }
     onClose();
   };
@@ -188,7 +189,7 @@ export default function StockAlertSettingsModal({ isOpen, onClose, showToast }) 
               <MessageSquare className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-base sm:text-lg font-bold font-serif-title text-amber-100">
                   Communications & WhatsApp Gateway
                 </h2>
@@ -199,8 +200,13 @@ export default function StockAlertSettingsModal({ isOpen, onClose, showToast }) 
                 }`}>
                   {isWaConfigured ? '🟢 Zero-Redirect Active' : '🟡 Setup Ready'}
                 </span>
+                {currentCafe?.cafeName && (
+                  <span className="text-[10px] bg-stone-800 text-amber-300 border border-stone-700 px-2 py-0.5 rounded-full font-bold">
+                    ☕ {currentCafe.cafeName}
+                  </span>
+                )}
               </div>
-              <p className="text-xs text-stone-400">Silent background messaging — Staff stays on POS screen with zero redirects</p>
+              <p className="text-xs text-stone-400">Multi-tenant isolated — Webhook and credentials belong strictly to this cafe</p>
             </div>
           </div>
           <button 

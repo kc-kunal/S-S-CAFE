@@ -1643,6 +1643,7 @@ export default function App() {
         isOpen={isAlertSettingsOpen}
         onClose={() => setIsAlertSettingsOpen(false)}
         showToast={showToast}
+        currentCafe={currentCafe}
       />
 
       {/* 🖨️ Thermal Bill & Kitchen KOT Receipt Printer Modal */}

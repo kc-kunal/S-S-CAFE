@@ -1,3 +1,5 @@
+import { getCurrentCafeId } from './storage';
+
 // S&S Cafe Automated Alert & Silent WhatsApp Dispatch System
 // Supports: Official Telegram Bot & Zero-Redirect WhatsApp Gateways (Meta Cloud, UltraMsg, GreenAPI, Webhooks)
 
@@ -23,8 +25,11 @@ const DEFAULT_CONFIG = {
   whatsappWebhookSecret: import.meta.env.VITE_WHATSAPP_WEBHOOK_SECRET || '' // Optional auth bearer token
 };
 
-// Retrieve configuration with priority to .env variables
-export const getAlertConfig = () => {
+// Retrieve configuration with multi-tenant isolation per cafe
+export const getAlertConfig = (cafeId) => {
+  const activeId = cafeId || (typeof getCurrentCafeId === 'function' ? getCurrentCafeId() : 'default');
+  const scopedKey = `${ALERT_CONFIG_KEY}_${activeId}`;
+
   const envBotToken = import.meta.env.VITE_TELEGRAM_BOT_TOKEN || '';
   const envChatId = import.meta.env.VITE_TELEGRAM_CHAT_ID || '';
   const envOwnerPhone = import.meta.env.VITE_OWNER_WHATSAPP_PHONE || '';
@@ -37,7 +42,10 @@ export const getAlertConfig = () => {
   const envWaSecret = import.meta.env.VITE_WHATSAPP_WEBHOOK_SECRET || '';
 
   try {
-    const raw = localStorage.getItem(ALERT_CONFIG_KEY);
+    let raw = localStorage.getItem(scopedKey);
+    if (!raw && activeId !== 'default') {
+      raw = localStorage.getItem(ALERT_CONFIG_KEY);
+    }
     if (raw) {
       const parsed = JSON.parse(raw);
       return {
@@ -76,10 +84,15 @@ export const getAlertConfig = () => {
   };
 };
 
-// Save configuration
-export const saveAlertConfig = (config) => {
+// Save configuration with multi-tenant isolation per cafe
+export const saveAlertConfig = (config, cafeId) => {
+  const activeId = cafeId || (typeof getCurrentCafeId === 'function' ? getCurrentCafeId() : 'default');
+  const scopedKey = `${ALERT_CONFIG_KEY}_${activeId}`;
   try {
-    localStorage.setItem(ALERT_CONFIG_KEY, JSON.stringify(config));
+    localStorage.setItem(scopedKey, JSON.stringify(config));
+    if (activeId === 'default') {
+      localStorage.setItem(ALERT_CONFIG_KEY, JSON.stringify(config));
+    }
   } catch (e) {
     console.error('Error saving alert config:', e);
   }
@@ -360,7 +373,7 @@ export const generateCustomerEBillLink = (billData) => {
  * The cashier stays 100% on the POS screen with ZERO tab switches.
  */
 export const sendBackgroundWhatsAppEBill = async (billData) => {
-  const config = billData.customConfig || getAlertConfig();
+  const config = billData.customConfig || getAlertConfig(billData.cafeId);
   const rawPhone = billData.customerPhone || '';
   if (!rawPhone) {
     return { success: false, reason: 'Customer phone number is missing' };
