@@ -31,6 +31,7 @@ export default function DiningManager({
   onDeleteOrder,
   onPreviewCustomerView,
   onOpenAlertSettings,
+  onOpenReceiptPrinter,
   showToast
 }) {
   const [activeSubTab, setActiveSubTab] = useState('orders'); // 'orders' or 'qrcodes'
@@ -445,9 +446,30 @@ export default function DiningManager({
                         )}
                       </div>
 
-                      {/* Cancel / Delete Button */}
-                      {!isBilled && (
-                        <div className="flex justify-end">
+                      {/* Print KOT and Print Bill Quick Action Buttons */}
+                      <div className="flex items-center justify-between pt-1 border-t border-stone-100">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => onOpenReceiptPrinter && onOpenReceiptPrinter(order, 'kot')}
+                            className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                            title="Print Kitchen Order Ticket (KOT) for chef"
+                          >
+                            <ChefHat className="w-3 h-3 text-amber-700" />
+                            <span>KOT</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onOpenReceiptPrinter && onOpenReceiptPrinter(order, 'bill')}
+                            className="px-2.5 py-1 bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-200 rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                            title="Print Thermal Customer Bill Slip"
+                          >
+                            <Printer className="w-3 h-3 text-stone-700" />
+                            <span>Bill Slip</span>
+                          </button>
+                        </div>
+
+                        {!isBilled && (
                           <button
                             onClick={() => {
                               if (confirm(`Table #${order.tableNumber} ka ye order cancel/delete karna chahte hain?`)) {
@@ -457,10 +479,10 @@ export default function DiningManager({
                             className="text-[11px] text-stone-400 hover:text-red-600 flex items-center gap-1 transition-colors cursor-pointer"
                           >
                             <Trash2 className="w-3 h-3" />
-                            <span>Cancel Order</span>
+                            <span>Cancel</span>
                           </button>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
 
                   </div>
@@ -688,6 +710,29 @@ export default function DiningManager({
                 className="px-4 py-2.5 bg-stone-800 hover:bg-stone-700 text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer"
               >
                 Confirm Settle
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const ord = settlingOrder;
+                  handleConfirmSettle(false);
+                  if (onOpenReceiptPrinter && ord) {
+                    onOpenReceiptPrinter({
+                      ...ord,
+                      tokenOrBillNo: `Table #${ord.tableNumber}`,
+                      tableNumber: ord.tableNumber,
+                      orderType: 'Dine-In',
+                      paymentMethod: settlePaymentMode,
+                      customerPhone: settleCustomerPhone.trim() || ord.customerPhone
+                    }, 'bill');
+                  }
+                }}
+                className="px-4 py-2.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white text-xs font-black rounded-xl shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
+                title="Settle bill aur Thermal Printer par slip print karein"
+              >
+                <Printer className="w-3.5 h-3.5 text-amber-200" />
+                <span>🖨️ Settle & Print Bill</span>
               </button>
 
               <button

@@ -15,7 +15,9 @@ import {
   ShieldCheck,
   Trash2,
   AlertTriangle,
-  Lock
+  Lock,
+  Printer,
+  Receipt
 } from 'lucide-react';
 import { updateCafeDetails, createAdditionalCafeOutlet } from '../utils/auth';
 
@@ -55,6 +57,10 @@ export default function CafeProfileModal({
   const [editPhone, setEditPhone] = useState(currentCafe?.phone || '');
   const [editCity, setEditCity] = useState(currentCafe?.city || '');
   const [editAddress, setEditAddress] = useState(currentCafe?.address || '');
+  const [editUpiId, setEditUpiId] = useState(currentCafe?.upiId || '');
+  const [editFssai, setEditFssai] = useState(currentCafe?.fssai || '');
+  const [editGstin, setEditGstin] = useState(currentCafe?.gstin || '');
+  const [editFooterNote, setEditFooterNote] = useState(currentCafe?.billFooterNote || 'Thank you! Please visit again.');
 
   // New outlet fields
   const [newOutletName, setNewOutletName] = useState('');
@@ -87,7 +93,11 @@ export default function CafeProfileModal({
         cafeName: editName.trim(),
         phone: editPhone.trim(),
         city: editCity.trim(),
-        address: editAddress.trim()
+        address: editAddress.trim(),
+        upiId: editUpiId.trim(),
+        fssai: editFssai.trim(),
+        gstin: editGstin.trim(),
+        billFooterNote: editFooterNote.trim()
       });
 
       if (onUpdateCafe) onUpdateCafe(updated);
@@ -201,6 +211,30 @@ export default function CafeProfileModal({
                 </div>
               </div>
 
+              {/* Bill & Tax Settings Preview */}
+              {(currentCafe?.upiId || currentCafe?.fssai || currentCafe?.gstin) && (
+                <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600 pt-2 border-t border-slate-200">
+                  {currentCafe?.upiId && (
+                    <div className="flex items-center gap-1.5 truncate">
+                      <span className="font-semibold text-slate-700">UPI QR:</span>
+                      <span className="truncate text-indigo-700 font-mono font-medium">{currentCafe.upiId}</span>
+                    </div>
+                  )}
+                  {currentCafe?.fssai && (
+                    <div className="flex items-center gap-1.5 truncate">
+                      <span className="font-semibold text-slate-700">FSSAI:</span>
+                      <span className="truncate text-slate-800">{currentCafe.fssai}</span>
+                    </div>
+                  )}
+                  {currentCafe?.gstin && (
+                    <div className="flex items-center gap-1.5 truncate col-span-2">
+                      <span className="font-semibold text-slate-700">GSTIN:</span>
+                      <span className="truncate text-slate-800">{currentCafe.gstin}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Cafe ID & QR Code link */}
               <div className="pt-2 border-t border-slate-200 space-y-2">
                 <div className="flex items-center justify-between bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs">
@@ -278,6 +312,71 @@ export default function CafeProfileModal({
                   onChange={(e) => setEditAddress(e.target.value)}
                   className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
                 />
+              </div>
+
+              {/* Thermal Bill Printer & UPI Settings */}
+              <div className="pt-2 border-t border-slate-200 space-y-2.5">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                  <Printer className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Thermal Bill Printer & UPI Settings</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                      Cafe UPI ID (Bill QR Code)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. cafe@okaxis or 9876543210@upi"
+                      value={editUpiId}
+                      onChange={(e) => setEditUpiId(e.target.value)}
+                      className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                    />
+                    <p className="text-[10px] text-slate-400 mt-0.5">Prints dynamic UPI scan & pay QR on bills</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                      FSSAI License No.
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="14-digit FSSAI Lic. No."
+                      value={editFssai}
+                      onChange={(e) => setEditFssai(e.target.value)}
+                      className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                      GSTIN (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 27AAAAA0000A1Z5"
+                      value={editGstin}
+                      onChange={(e) => setEditGstin(e.target.value)}
+                      className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                      Bill Footer Message
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Thank you! Visit Again."
+                      value={editFooterNote}
+                      onChange={(e) => setEditFooterNote(e.target.value)}
+                      className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="flex items-center gap-2 pt-2">

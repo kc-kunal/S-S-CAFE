@@ -25,7 +25,8 @@ import {
   Check,
   Phone,
   Send,
-  MessageSquare
+  MessageSquare,
+  Printer
 } from 'lucide-react';
 import { checkItemStock, calculateAggregatorLedger } from '../utils/storage';
 import { generateCustomerEBillLink, sendBackgroundWhatsAppEBill, getAlertConfig } from '../utils/whatsappAlert';
@@ -48,6 +49,7 @@ export default function SalesTracker({
   onClearAllSettlements,
   onAddExpense,
   onOpenAlertSettings,
+  onOpenReceiptPrinter,
   showToast
 }) {
   const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
@@ -319,7 +321,7 @@ export default function SalesTracker({
     }
   };
 
-  const handlePunchCounterOrder = async (sendWhatsApp = false) => {
+  const handlePunchCounterOrder = async (sendWhatsApp = false, printBill = false) => {
     const itemsInCart = Object.values(counterCart);
     if (itemsInCart.length === 0) {
       showWarning('Kripya kam se kam 1 item cart me add karein!');
@@ -372,7 +374,12 @@ export default function SalesTracker({
       channel: counterPaymentMode === 'Cash' ? 'Cash' : 'Counter UPI',
       itemsCount: counterTotalUnits,
       summary: itemsInCart.map(e => `${e.qty}x ${e.item.name}`).join(', '),
-      items: itemsInCart,
+      items: itemsInCart.map(e => ({
+        name: e.item.name,
+        qty: e.qty,
+        price: e.price,
+        total: e.price * e.qty
+      })),
       subtotal: totalGross,
       discount: discTotal,
       bill: orderFinalBill,
@@ -383,6 +390,21 @@ export default function SalesTracker({
 
     // Add to live session log tray
     setSessionPunchedOrders(prev => [sessionOrderData, ...prev]);
+
+    // 🖨️ Direct Thermal Bill Print Station Trigger
+    if (printBill && onOpenReceiptPrinter) {
+      onOpenReceiptPrinter({
+        ...sessionOrderData,
+        tokenOrBillNo: token,
+        orderType: counterPaymentMode === 'Cash' ? 'Counter (Cash)' : 'Counter (UPI)',
+        subtotal: totalGross,
+        discount: discTotal,
+        totalAmount: orderFinalBill,
+        paymentMethod: counterPaymentMode,
+        cashTendered: Number(cashTendered || 0),
+        notes: counterNotes.trim()
+      }, 'bill');
+    }
 
     // Reset Cart & advance Token immediately so cashier is instantly ready for next order
     setCounterCart({});
@@ -1569,30 +1591,44 @@ export default function SalesTracker({
                   )}
 
                   {/* Punch Buttons */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handlePunchCounterOrder(false)}
-                      disabled={counterTotalUnits === 0}
-                      className={`py-3 px-3 rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-md cursor-pointer ${
-                        counterTotalUnits === 0
-                          ? 'bg-stone-200 text-stone-400 border border-stone-300 cursor-not-allowed shadow-none'
-                          : `${currentTheme.punchBtn} active:scale-98`
-                      }`}
-                    >
-                      <Zap className="w-4 h-4 fill-white" />
-                      <span>⚡ Punch Order (₹{counterFinalBill})</span>
-                    </button>
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handlePunchCounterOrder(false, true)}
+                        disabled={counterTotalUnits === 0}
+                        className="py-3 px-3 bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 hover:from-amber-500 hover:to-orange-500 text-white rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-md shadow-orange-600/25 active:scale-98 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                        title="Punch Order aur Thermal Printer par Bill Print Karein (58mm / 80mm)"
+                      >
+                        <Printer className="w-4 h-4 text-amber-200" />
+                        <span>🖨️ Punch & Print Bill</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handlePunchCounterOrder(true, false)}
+                        disabled={counterTotalUnits === 0}
+                        className="py-3 px-3 bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-700 hover:from-emerald-500 hover:to-teal-600 active:from-emerald-800 text-white rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-md shadow-emerald-700/25 active:scale-98 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                        title="Direct Punch Order & Background WhatsApp Bill (Zero Page Redirect)"
+                      >
+                        <Phone className="w-3.5 h-3.5 text-amber-300" />
+                        <span>📱 Punch & WhatsApp Bill</span>
+                      </button>
+                    </div>
 
                     <button
                       type="button"
-                      onClick={() => handlePunchCounterOrder(true)}
+                      onClick={() => handlePunchCounterOrder(false, false)}
                       disabled={counterTotalUnits === 0}
-                      className="py-3 px-3 bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-700 hover:from-emerald-500 hover:to-teal-600 active:from-emerald-800 text-white rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-md shadow-emerald-700/25 active:scale-98 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                      title="Direct Punch Order & Background WhatsApp Bill (Zero Page Redirect)"
+                      className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                        counterTotalUnits === 0
+                          ? 'bg-stone-200 text-stone-400 border border-stone-300 cursor-not-allowed'
+                          : 'bg-stone-900 hover:bg-stone-800 text-amber-300 border border-stone-700 shadow-xs active:scale-98'
+                      }`}
+                      title="Silent Fast Punch without printing"
                     >
-                      <Phone className="w-3.5 h-3.5 text-amber-300" />
-                      <span>📱 Punch & WhatsApp Bill</span>
+                      <Zap className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
+                      <span>⚡ Quick Punch Only (₹{counterFinalBill})</span>
                     </button>
                   </div>
                 </div>
@@ -1851,6 +1887,15 @@ export default function SalesTracker({
                     <span className="text-stone-300 text-[10px]">✓ {ord.itemsCount} items</span>
                     <button
                       type="button"
+                      onClick={() => onOpenReceiptPrinter && onOpenReceiptPrinter(ord, 'bill')}
+                      className="px-1.5 py-0.5 bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 rounded-md text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors border border-amber-500/30"
+                      title="Thermal Bill Print Karein (58mm / 80mm)"
+                    >
+                      <Printer className="w-2.5 h-2.5" />
+                      <span>Print</span>
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => handleSendWhatsAppBill(ord)}
                       className="px-1.5 py-0.5 bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 rounded-md text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors border border-emerald-500/30"
                       title="Customer WhatsApp par Digital Bill Bhejein"
@@ -1997,6 +2042,14 @@ export default function SalesTracker({
                           <div className="flex items-center justify-center gap-1">
                             <button
                               type="button"
+                              onClick={() => onOpenReceiptPrinter && onOpenReceiptPrinter(sale, 'bill')}
+                              className="p-1.5 text-stone-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
+                              title="Thermal Bill Print Karein (58mm / 80mm)"
+                            >
+                              <Printer className="w-3.5 h-3.5 text-amber-600" />
+                            </button>
+                            <button
+                              type="button"
                               onClick={() => handleSendWhatsAppBill(sale)}
                               className="p-1.5 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
                               title="Customer ke WhatsApp par E-Bill bhejein"
@@ -2060,18 +2113,36 @@ export default function SalesTracker({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2.5 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0">
                       <div className="text-right">
                         <div className="font-black text-emerald-700 text-sm sm:text-base">₹{sale.totalRevenue}</div>
                         <span className="text-[10px] text-stone-500">{sale.quantitySold} × ₹{sale.sellingPrice}</span>
                       </div>
-                      <button
-                        onClick={() => onDeleteSale(sale.id)}
-                        className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
-                        title="Delete sale log"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => onOpenReceiptPrinter && onOpenReceiptPrinter(sale, 'bill')}
+                          className="p-1.5 text-stone-500 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-colors cursor-pointer"
+                          title="Thermal Bill Print Karein"
+                        >
+                          <Printer className="w-3.5 h-3.5 text-amber-600" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSendWhatsAppBill(sale)}
+                          className="p-1.5 text-stone-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors cursor-pointer"
+                          title="WhatsApp Bill"
+                        >
+                          <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                        </button>
+                        <button
+                          onClick={() => onDeleteSale(sale.id)}
+                          className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                          title="Delete sale log"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );

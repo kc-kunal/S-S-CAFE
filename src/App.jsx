@@ -18,6 +18,7 @@ import CafeProfileModal from './components/CafeProfileModal';
 import LandingPage from './components/LandingPage';
 import AIMenuScannerModal from './components/AIMenuScannerModal';
 import StockAlertSettingsModal from './components/StockAlertSettingsModal';
+import ThermalBillModal from './components/ThermalBillModal';
 import AdminPortal from './components/AdminPortal';
 import {
   subscribeToAuthChanges,
@@ -108,6 +109,17 @@ export default function App() {
 
   // Communications & WhatsApp Silent Gateway Modal State
   const [isAlertSettingsOpen, setIsAlertSettingsOpen] = useState(false);
+
+  // 🖨️ Thermal Receipt / Bill & KOT Printer Modal State
+  const [isReceiptPrinterOpen, setIsReceiptPrinterOpen] = useState(false);
+  const [receiptPrinterOrder, setReceiptPrinterOrder] = useState(null);
+  const [receiptPrinterMode, setReceiptPrinterMode] = useState('bill'); // 'bill' | 'kot'
+
+  const handleOpenReceiptPrinter = (orderData, mode = 'bill') => {
+    setReceiptPrinterOrder(orderData);
+    setReceiptPrinterMode(mode);
+    setIsReceiptPrinterOpen(true);
+  };
 
   // 🛡️ Super Admin Hidden Route Detection (/admin, #/admin, ?admin=true)
   const checkIsAdminPath = () => {
@@ -1364,6 +1376,7 @@ export default function App() {
             onClearAllSettlements={handleClearAllSettlements}
             onAddExpense={handleAddExpense}
             onOpenAlertSettings={() => setIsAlertSettingsOpen(true)}
+            onOpenReceiptPrinter={handleOpenReceiptPrinter}
             showToast={showToast}
           />
         )}
@@ -1381,6 +1394,7 @@ export default function App() {
               setIsCustomerMode(true);
             }}
             onOpenAlertSettings={() => setIsAlertSettingsOpen(true)}
+            onOpenReceiptPrinter={handleOpenReceiptPrinter}
             showToast={showToast}
           />
         )}
@@ -1622,6 +1636,16 @@ export default function App() {
       <StockAlertSettingsModal
         isOpen={isAlertSettingsOpen}
         onClose={() => setIsAlertSettingsOpen(false)}
+        showToast={showToast}
+      />
+
+      {/* 🖨️ Thermal Bill & Kitchen KOT Receipt Printer Modal */}
+      <ThermalBillModal
+        isOpen={isReceiptPrinterOpen}
+        onClose={() => setIsReceiptPrinterOpen(false)}
+        orderData={receiptPrinterOrder}
+        cafeProfile={currentCafe}
+        initialMode={receiptPrinterMode}
         showToast={showToast}
       />
 
