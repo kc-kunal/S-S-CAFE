@@ -14,7 +14,9 @@ import {
   CheckCircle2,
   X,
   ShieldCheck,
-  KeyRound
+  KeyRound,
+  Coffee,
+  UtensilsCrossed
 } from 'lucide-react';
 import {
   registerCafeOwner,
@@ -34,6 +36,7 @@ export default function AuthModal({
   selectedPlan = ''
 }) {
   const [activeTab, setActiveTab] = useState(initialTab || 'login');
+  const [businessType, setBusinessType] = useState('cafe'); // 'cafe' | 'restaurant'
 
   React.useEffect(() => {
     if (isOpen) {
@@ -41,8 +44,11 @@ export default function AuthModal({
       setErrorMsg('');
       setSuccessMsg('');
       setIsConfigError(false);
+      if (selectedPlan && /hotel|restaurant|enterprise/i.test(selectedPlan)) {
+        setBusinessType('restaurant');
+      }
     }
-  }, [isOpen, initialTab]);
+  }, [isOpen, initialTab, selectedPlan]);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -102,13 +108,18 @@ export default function AuthModal({
     setErrorMsg('');
     setIsConfigError(false);
     if (activeTab === 'signup') {
+      const isRestaurant = businessType === 'restaurant';
+      const defaultName = isRestaurant ? 'Hotel & Family Restaurant' : 'My Cafe';
+      const defaultOwner = isRestaurant ? 'Restaurant Owner' : 'Cafe Owner';
+      const defaultEmail = isRestaurant ? 'owner@myrestaurant.com' : 'owner@mycafe.com';
       const res = registerLocalCafeOwner({
-        email: email || 'owner@mycafe.com',
+        email: email || defaultEmail,
         password: password || '123456',
-        cafeName: cafeName || 'My Cafe',
-        ownerName: ownerName || 'Cafe Owner',
+        cafeName: cafeName || defaultName,
+        ownerName: ownerName || defaultOwner,
         phone,
         city,
+        businessType,
         seedStarterData
       });
       setSuccessMsg(`🎉 "${res.cafe.cafeName}" Local mode me successfully create ho gaya!`);
@@ -118,7 +129,7 @@ export default function AuthModal({
       }, 700);
     } else {
       const res = loginLocalCafeOwner(email || 'owner@mycafe.com', password || '123456');
-      setSuccessMsg('🎉 Login successful (Local Cafe Mode).');
+      setSuccessMsg('🎉 Login successful (Local Mode).');
       setTimeout(() => {
         onAuthSuccess(res);
         onClose();
@@ -159,12 +170,13 @@ export default function AuthModal({
     setErrorMsg('');
     setSuccessMsg('');
 
+    const isRestaurant = businessType === 'restaurant';
     if (!cafeName.trim()) {
-      setErrorMsg('Apne Cafe ka naam daalein!');
+      setErrorMsg(isRestaurant ? 'Apne Hotel / Restaurant ka naam daalein!' : 'Apne Cafe ka naam daalein!');
       return;
     }
     if (!ownerName.trim()) {
-      setErrorMsg('Apna naam (Owner Name) enter karein!');
+      setErrorMsg('Apna naam (Owner / Manager Name) enter karein!');
       return;
     }
     if (!email.trim() || !password) {
@@ -189,6 +201,7 @@ export default function AuthModal({
         ownerName,
         phone,
         city,
+        businessType,
         seedStarterData
       });
 
@@ -318,7 +331,7 @@ export default function AuthModal({
                     className="w-full py-2.5 px-4 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-bold rounded-xl text-xs shadow-md cursor-pointer flex items-center justify-center gap-2 transition-all"
                   >
                     <Store className="w-4 h-4" />
-                    <span>Launch "{cafeName || 'My Cafe'}" in Local Cafe Mode 🚀</span>
+                    <span>Launch "{cafeName || (businessType === 'restaurant' ? 'Hotel & Restaurant' : 'My Cafe')}" in Local Mode 🚀</span>
                   </button>
 
                   <div className="pt-2 border-t border-amber-200/80 text-[11px] text-amber-800/80 leading-relaxed">
@@ -427,21 +440,92 @@ export default function AuthModal({
             </form>
           )}
 
-          {/* 2. REGISTER NEW CAFE TAB */}
+          {/* 2. REGISTER NEW CAFE / RESTAURANT TAB */}
           {activeTab === 'signup' && (
             <form onSubmit={handleSignup} className="space-y-3.5">
+              {/* Business Type Selector: Cafe vs Hotel & Restaurant */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                  <span>Aapka Business Type kya hai? *</span>
+                  <span className="text-[11px] font-medium text-slate-500">Auto-loads tables & menu</span>
+                </label>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setBusinessType('cafe')}
+                    className={`p-3 rounded-2xl border-2 text-left transition-all cursor-pointer relative flex flex-col gap-1 ${
+                      businessType === 'cafe'
+                        ? 'border-amber-500 bg-amber-50/80 shadow-xs ring-1 ring-amber-500/20'
+                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                        businessType === 'cafe' ? 'bg-amber-500 text-white shadow-xs' : 'bg-amber-100 text-amber-700'
+                      }`}>
+                        <Coffee className="w-4 h-4" />
+                      </div>
+                      {businessType === 'cafe' && (
+                        <span className="w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-bold">✓</span>
+                      )}
+                    </div>
+                    <div className="mt-1">
+                      <p className={`text-xs font-bold ${businessType === 'cafe' ? 'text-amber-950' : 'text-slate-800'}`}>
+                        Cafe & Fast Food
+                      </p>
+                      <p className="text-[10.5px] text-slate-500 leading-tight mt-0.5">
+                        Pizza, Burgers, Coffee, Shakes (8 Tables)
+                      </p>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setBusinessType('restaurant')}
+                    className={`p-3 rounded-2xl border-2 text-left transition-all cursor-pointer relative flex flex-col gap-1 ${
+                      businessType === 'restaurant'
+                        ? 'border-indigo-600 bg-indigo-50/80 shadow-xs ring-1 ring-indigo-600/20'
+                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                        businessType === 'restaurant' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-indigo-100 text-indigo-700'
+                      }`}>
+                        <UtensilsCrossed className="w-4 h-4" />
+                      </div>
+                      {businessType === 'restaurant' && (
+                        <span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold">✓</span>
+                      )}
+                    </div>
+                    <div className="mt-1">
+                      <p className={`text-xs font-bold ${businessType === 'restaurant' ? 'text-indigo-950' : 'text-slate-800'}`}>
+                        Hotel & Restaurant
+                      </p>
+                      <p className="text-[10.5px] text-slate-500 leading-tight mt-0.5">
+                        Main Course, Biryani, Naan, Thali (15 Tables)
+                      </p>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Cafe Name *
+                    {businessType === 'restaurant' ? 'Hotel / Restaurant Name *' : 'Cafe Name *'}
                   </label>
                   <div className="relative">
-                    <Store className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    {businessType === 'restaurant' ? (
+                      <UtensilsCrossed className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    ) : (
+                      <Store className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    )}
                     <input
                       type="text"
                       value={cafeName}
                       onChange={(e) => setCafeName(e.target.value)}
-                      placeholder="e.g. Chai Junction"
+                      placeholder={businessType === 'restaurant' ? 'e.g. Royal Palace Restaurant' : 'e.g. Chai Junction'}
                       required
                       className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 focus:border-indigo-600 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                     />
@@ -562,9 +646,13 @@ export default function AuthModal({
                   className="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500"
                 />
                 <div>
-                  <span className="font-semibold text-slate-900">Starter Menu Catalog Shuru Karein</span>
+                  <span className="font-semibold text-slate-900">
+                    {businessType === 'restaurant' ? 'Starter Hotel & Restaurant Catalog Shuru Karein' : 'Starter Cafe Menu Catalog Shuru Karein'}
+                  </span>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    Pizzas, Burgers, Cold Coffee & Recipes automatically aapke naye cafe me pre-load ho jayenge.
+                    {businessType === 'restaurant'
+                      ? 'Paneer Handi, Tandoori Breads, Dum Biryani, Maharaja Thali & portion recipes automatically pre-load ho jayenge.'
+                      : 'Pizzas, Burgers, Cold Coffee & Recipes automatically aapke naye cafe me pre-load ho jayenge.'}
                   </p>
                 </div>
               </label>
@@ -577,12 +665,12 @@ export default function AuthModal({
                 {loading ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Setting up Cafe Tenant...
+                    Setting up {businessType === 'restaurant' ? 'Restaurant' : 'Cafe'} Tenant...
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4 text-white" />
-                    <span>Create & Launch My Cafe</span>
+                    <span>{businessType === 'restaurant' ? 'Create & Launch Restaurant POS' : 'Create & Launch My Cafe POS'}</span>
                   </>
                 )}
               </button>

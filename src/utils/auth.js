@@ -247,14 +247,14 @@ export const loginLocalCafeOwner = (email, password = '') => {
 /**
  * Register a new Cafe Owner with Email/Password & initialize their Cafe Tenant
  */
-export const registerCafeOwner = async ({ email, password, cafeName, ownerName, phone = '', city = '', address = '', forceLocal = false, seedStarterData = true }) => {
+export const registerCafeOwner = async ({ email, password, cafeName, ownerName, phone = '', city = '', address = '', businessType = 'cafe', forceLocal = false, seedStarterData = true }) => {
   if (forceLocal) {
-    return registerLocalCafeOwner({ email, password, cafeName, ownerName, phone, city, address, seedStarterData });
+    return registerLocalCafeOwner({ email, password, cafeName, ownerName, phone, city, address, businessType, seedStarterData });
   }
 
   const auth = getFirebaseAuth();
   if (!auth) {
-    return registerLocalCafeOwner({ email, password, cafeName, ownerName, phone, city, address, seedStarterData });
+    return registerLocalCafeOwner({ email, password, cafeName, ownerName, phone, city, address, businessType, seedStarterData });
   }
 
   try {
@@ -272,7 +272,7 @@ export const registerCafeOwner = async ({ email, password, cafeName, ownerName, 
     const cafeId = user.uid; // Primary cafe ID matches owner's UID
     const cleanEmail = (user.email || email || '').trim().toLowerCase();
     const isKc = cleanEmail === 'kc@gmail.com';
-    const isRestaurant = isKc || /hotel|restaurant|dhaba|bhojanalay/i.test(cafeName || '');
+    const isRestaurant = isKc || businessType === 'restaurant' || /hotel|restaurant|dhaba|bhojanalay/i.test(cafeName || '');
 
     const defaultName = isKc ? 'KC Grand Hotel & Family Restaurant' : (isRestaurant ? 'Hotel & Family Restaurant' : 'My Cafe');
     const resolvedName = (cafeName && cafeName !== 'My Cafe') ? cafeName.trim() : defaultName;
