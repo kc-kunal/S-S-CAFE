@@ -868,7 +868,7 @@ export default function AdminPortal({ onExit, onSwitchCafe }) {
                 <div className="text-2xl font-black text-amber-100">₹999<span className="text-xs text-stone-400 font-normal"> / month</span></div>
                 <ul className="text-xs text-stone-300 space-y-1.5 list-disc pl-4">
                   <li>Unlimited Menu & Recipe BOM</li>
-                  <li>Silent WhatsApp E-Bill Gateway</li>
+                  <li>Telegram Automated Stock & Order Alerts</li>
                   <li>Cloud Sync & Multi-Device</li>
                   <li>Dine-In QR Table Ordering</li>
                 </ul>

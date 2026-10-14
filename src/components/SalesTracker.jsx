@@ -29,7 +29,6 @@ import {
   Printer
 } from 'lucide-react';
 import { checkItemStock, calculateAggregatorLedger } from '../utils/storage';
-import { generateCustomerEBillLink, sendBackgroundWhatsAppEBill, getAlertConfig } from '../utils/whatsappAlert';
 import OnlineOrderPunchModal from './OnlineOrderPunchModal';
 import AggregatorSettlementModal from './AggregatorSettlementModal';
 
@@ -72,7 +71,6 @@ export default function SalesTracker({
   const [counterDiscount, setCounterDiscount] = useState(0);
   const [counterCart, setCounterCart] = useState({}); // { [itemId]: { item, qty, price } }
   const [cashTendered, setCashTendered] = useState(''); // Cash Given by Customer for Change Return
-  const [customerPhone, setCustomerPhone] = useState(''); // Customer Mobile for WhatsApp E-Bill
 
   // 🛵 Online Aggregator (Swiggy / Zomato) State
   const [onlinePlatform, setOnlinePlatform] = useState('Swiggy'); // 'Swiggy' or 'Zomato'
@@ -275,53 +273,7 @@ export default function SalesTracker({
     return Math.max(0, counterSubtotal - Number(counterDiscount || 0));
   }, [counterSubtotal, counterDiscount]);
 
-  const handleSendWhatsAppBill = async (orderOrSession) => {
-    let phone = orderOrSession.customerPhone || customerPhone || '';
-    if (!phone) {
-      phone = window.prompt('📱 Customer ka 10-digit WhatsApp number darj karein:', '');
-      if (!phone) return;
-    }
-    const cleanPhone = phone.replace(/\D/g, '');
-    const items = orderOrSession.items || (orderOrSession.itemName ? [{
-      name: orderOrSession.itemName,
-      qty: Number(orderOrSession.quantitySold) || 1,
-      price: Number(orderOrSession.sellingPrice) || Number(orderOrSession.totalRevenue) || 0
-    }] : []);
-
-    const billPayload = {
-      cafeName: currentCafe?.cafeName || 'S&S Cafe',
-      cafeCity: currentCafe?.city || '',
-      cafePhone: currentCafe?.phone || '',
-      tokenOrBillNo: orderOrSession.token || orderOrSession.platformOrderId || '#BILL',
-      date: orderOrSession.date || saleDate,
-      time: orderOrSession.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      items,
-      subtotal: orderOrSession.subtotal || orderOrSession.bill || orderOrSession.totalRevenue || 0,
-      discount: orderOrSession.discount || orderOrSession.discountAmount || 0,
-      totalAmount: orderOrSession.bill || orderOrSession.totalRevenue || 0,
-      paymentMethod: orderOrSession.channel || orderOrSession.paymentMethod || 'Cash',
-      customerPhone: cleanPhone
-    };
-
-    // Attempt silent background dispatch first (Zero Redirect!)
-    const result = await sendBackgroundWhatsAppEBill(billPayload);
-    if (result.success) {
-      const msg = `⚡ WhatsApp E-Bill directly sent to +91 ${cleanPhone}! (Zero Redirect)`;
-      if (showToast) showToast(msg);
-      else showWarning(msg);
-    } else if (result.notConfigured) {
-      // If gateway is not yet configured, provide fallback for manual click
-      const url = generateCustomerEBillLink(billPayload);
-      window.open(url, '_blank');
-    } else {
-      const msg = `⚠️ WhatsApp Error: ${result.reason || 'Failed'}. Opening fallback WhatsApp Web...`;
-      if (showToast) showToast(msg);
-      const url = generateCustomerEBillLink(billPayload);
-      window.open(url, '_blank');
-    }
-  };
-
-  const handlePunchCounterOrder = async (sendWhatsApp = false, printBill = false) => {
+  const handlePunchCounterOrder = (printBill = false) => {
     const itemsInCart = Object.values(counterCart);
     if (itemsInCart.length === 0) {
       showWarning('Kripya kam se kam 1 item cart me add karein!');
@@ -333,7 +285,6 @@ export default function SalesTracker({
     const totalGross = counterSubtotal;
     const discTotal = Number(counterDiscount || 0);
     const orderFinalBill = counterFinalBill;
-    const orderCustomerPhone = customerPhone.trim();
 
     const salesBatch = itemsInCart.map((entry, idx) => {
       const itemGross = entry.price * entry.qty;
@@ -352,7 +303,6 @@ export default function SalesTracker({
         totalCost: (entry.item.costPrice || 0) * entry.qty,
         paymentMethod: counterPaymentMode, // 'Cash' or 'Online' (Counter UPI)
         platformOrderId: token,
-        customerPhone: orderCustomerPhone || undefined,
         discountAmount: itemDiscShare > 0 ? itemDiscShare : undefined,
         notes: counterNotes.trim() || undefined,
         date: saleDate,
@@ -383,7 +333,6 @@ export default function SalesTracker({
       subtotal: totalGross,
       discount: discTotal,
       bill: orderFinalBill,
-      customerPhone: orderCustomerPhone,
       date: saleDate,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
@@ -411,56 +360,12 @@ export default function SalesTracker({
     setCounterNotes('');
     setCounterDiscount(0);
     setCashTendered('');
-    setCustomerPhone('');
     const nextTokenNum = counterTokenNum + 1;
     setCounterTokenNum(nextTokenNum);
     setCounterToken(`C-${nextTokenNum}`);
 
-    // 2. DISPATCH WHATSAPP SILENTLY IN THE BACKGROUND (ABSOLUTE ZERO REDIRECT!)
-    if (sendWhatsApp) {
-      if (!orderCustomerPhone) {
-        const msg = `⚡ Order ${token} Punched & Saved! (WhatsApp number khali tha, bill add ho gaya)`;
-        if (showToast) showToast(msg);
-        else showWarning(msg);
-      } else {
-        // Dispatched asynchronously via HTTP API - POS screen STAYS 100% active with zero tab switches!
-        sendBackgroundWhatsAppEBill({
-          cafeName: currentCafe?.cafeName || 'S&S Cafe',
-          cafeCity: currentCafe?.city || '',
-          cafePhone: currentCafe?.phone || '',
-          tokenOrBillNo: token,
-          date: saleDate,
-          time: sessionOrderData.time,
-          items: itemsInCart,
-          subtotal: totalGross,
-          discount: discTotal,
-          totalAmount: orderFinalBill,
-          paymentMethod: counterPaymentMode,
-          customerPhone: orderCustomerPhone,
-          customerName: counterNotes.trim()
-        }).then((result) => {
-          if (result.success) {
-            const successMsg = `⚡ Order ${token} Punched & WhatsApp Bill Sent to +91 ${orderCustomerPhone} (Zero Redirect)!`;
-            if (showToast) showToast(successMsg);
-            else showWarning(successMsg);
-          } else if (result.notConfigured) {
-            const noticeMsg = `✅ Order ${token} Punched & Saved! Direct Auto-WhatsApp active karne ke liye Settings me Gateway connect karein.`;
-            if (showToast) showToast(noticeMsg);
-            else showWarning(noticeMsg);
-          } else {
-            const errNotice = `✅ Order ${token} Punched & Saved! (WhatsApp Notice: ${result.reason || 'Offline'})`;
-            if (showToast) showToast(errNotice);
-            else showWarning(errNotice);
-          }
-        }).catch((err) => {
-          console.error('Silent WhatsApp dispatch error:', err);
-          if (showToast) showToast(`✅ Order ${token} Punched & Saved!`);
-        });
-      }
-    } else {
-      if (showToast) {
-        showToast(`⚡ Order ${token} Punched (₹${orderFinalBill})!`);
-      }
+    if (showToast) {
+      showToast(`⚡ Order ${token} Punched (₹${orderFinalBill})!`);
     }
   };
 
@@ -1549,76 +1454,22 @@ export default function SalesTracker({
                     )}
                   </div>
 
-                  {/* Optional Customer WhatsApp Phone & Silent Gateway Indicator */}
-                  {counterTotalUnits > 0 && (
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 text-xs bg-white px-3 py-2 rounded-xl border border-stone-200 shadow-2xs">
-                      <div className="flex items-center justify-between sm:justify-start gap-2">
-                        <span className="font-bold text-stone-700 flex items-center gap-1.5">
-                          <Phone className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>Customer WhatsApp:</span>
-                        </span>
-                        {onOpenAlertSettings && (
-                          <button
-                            type="button"
-                            onClick={onOpenAlertSettings}
-                            className={`text-[10px] px-2 py-0.5 rounded-md font-bold transition-colors cursor-pointer flex items-center gap-1 ${
-                              getAlertConfig().whatsappToken?.trim() || getAlertConfig().whatsappWebhookUrl?.trim()
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
-                                : 'bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100'
-                            }`}
-                            title="WhatsApp Gateway Setup / Status"
-                          >
-                            <span>
-                              {getAlertConfig().whatsappToken?.trim() || getAlertConfig().whatsappWebhookUrl?.trim()
-                                ? '🟢 Silent Send Active'
-                                : '⚙️ Setup Gateway'}
-                            </span>
-                          </button>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1 self-end sm:self-auto">
-                        <span className="text-[11px] text-stone-400 font-bold">+91</span>
-                        <input
-                          type="tel"
-                          maxLength="10"
-                          value={customerPhone}
-                          onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, ''))}
-                          placeholder="10-digit mobile"
-                          className="w-28 px-2 py-0.5 text-right font-bold text-stone-900 border border-stone-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 text-xs placeholder:text-stone-300"
-                        />
-                      </div>
-                    </div>
-                  )}
-
                   {/* Punch Buttons */}
                   <div className="space-y-2">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handlePunchCounterOrder(false, true)}
-                        disabled={counterTotalUnits === 0}
-                        className="py-3 px-3 bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 hover:from-amber-500 hover:to-orange-500 text-white rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-md shadow-orange-600/25 active:scale-98 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                        title="Punch Order aur Thermal Printer par Bill Print Karein (58mm / 80mm)"
-                      >
-                        <Printer className="w-4 h-4 text-amber-200" />
-                        <span>🖨️ Punch & Print Bill</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => handlePunchCounterOrder(true, false)}
-                        disabled={counterTotalUnits === 0}
-                        className="py-3 px-3 bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-700 hover:from-emerald-500 hover:to-teal-600 active:from-emerald-800 text-white rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-md shadow-emerald-700/25 active:scale-98 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                        title="Direct Punch Order & Background WhatsApp Bill (Zero Page Redirect)"
-                      >
-                        <Phone className="w-3.5 h-3.5 text-amber-300" />
-                        <span>📱 Punch & WhatsApp Bill</span>
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handlePunchCounterOrder(true)}
+                      disabled={counterTotalUnits === 0}
+                      className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 hover:from-amber-500 hover:to-orange-500 text-white rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-2 shadow-lg shadow-orange-600/30 active:scale-98 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                      title="Punch Order aur Thermal Printer par Bill Print Karein (58mm / 80mm)"
+                    >
+                      <Printer className="w-4 h-4 text-amber-200" />
+                      <span>🖨️ Punch & Print Bill (₹{counterFinalBill})</span>
+                    </button>
 
                     <button
                       type="button"
-                      onClick={() => handlePunchCounterOrder(false, false)}
+                      onClick={() => handlePunchCounterOrder(false)}
                       disabled={counterTotalUnits === 0}
                       className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                         counterTotalUnits === 0
@@ -1628,7 +1479,7 @@ export default function SalesTracker({
                       title="Silent Fast Punch without printing"
                     >
                       <Zap className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
-                      <span>⚡ Quick Punch Only (₹{counterFinalBill})</span>
+                      <span>⚡ Quick Punch Only</span>
                     </button>
                   </div>
                 </div>
@@ -1894,15 +1745,6 @@ export default function SalesTracker({
                       <Printer className="w-2.5 h-2.5" />
                       <span>Print</span>
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => handleSendWhatsAppBill(ord)}
-                      className="px-1.5 py-0.5 bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 rounded-md text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors border border-emerald-500/30"
-                      title="Customer WhatsApp par Digital Bill Bhejein"
-                    >
-                      <Phone className="w-2.5 h-2.5" />
-                      <span>WhatsApp Bill</span>
-                    </button>
                     <span className="text-stone-500 text-[10px]">{ord.time}</span>
                   </div>
                 );
@@ -2049,14 +1891,6 @@ export default function SalesTracker({
                               <Printer className="w-3.5 h-3.5 text-amber-600" />
                             </button>
                             <button
-                              type="button"
-                              onClick={() => handleSendWhatsAppBill(sale)}
-                              className="p-1.5 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
-                              title="Customer ke WhatsApp par E-Bill bhejein"
-                            >
-                              <Phone className="w-3.5 h-3.5 text-emerald-600" />
-                            </button>
-                            <button
                               onClick={() => onDeleteSale(sale.id)}
                               className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                               title="Delete sale log entry"
@@ -2126,14 +1960,6 @@ export default function SalesTracker({
                           title="Thermal Bill Print Karein"
                         >
                           <Printer className="w-3.5 h-3.5 text-amber-600" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleSendWhatsAppBill(sale)}
-                          className="p-1.5 text-stone-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors cursor-pointer"
-                          title="WhatsApp Bill"
-                        >
-                          <Phone className="w-3.5 h-3.5 text-emerald-600" />
                         </button>
                         <button
                           onClick={() => onDeleteSale(sale.id)}

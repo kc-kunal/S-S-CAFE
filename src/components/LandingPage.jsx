@@ -561,7 +561,7 @@ export default function LandingPage({
                   </p>
                   <ul className="mt-4 space-y-2 text-xs font-semibold text-slate-700">
                     <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600" /> Gram & Liter Level Precise Consumption</li>
-                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600" /> Telegram & WhatsApp Low Stock Alert</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600" /> Instant Telegram Low Stock Bot Alert</li>
                     <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600" /> Raw Material Procurement Entry & Supplier Ledger</li>
                   </ul>
                 </div>
@@ -888,7 +888,7 @@ export default function LandingPage({
                   <div className="flex items-center gap-2.5"><CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0" /> Unlimited Branch / Outlets Switcher</div>
                   <div className="flex items-center gap-2.5"><CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0" /> Central Warehouse Procurement & Raw Stock</div>
                   <div className="flex items-center gap-2.5"><CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0" /> Cross-Branch Consolidated Financials</div>
-                  <div className="flex items-center gap-2.5"><CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0" /> Priority WhatsApp & Call Support 24x7</div>
+                  <div className="flex items-center gap-2.5"><CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0" /> Priority Call & Helpdesk Support 24x7</div>
                   <div className="flex items-center gap-2.5"><CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0" /> Custom Menu & Recipe Setup Assistance</div>
                 </div>
               </div>
@@ -990,7 +990,7 @@ export default function LandingPage({
             <div className="bg-white border border-slate-200 p-4 sm:p-5 rounded-2xl shadow-xs">
               <h4 className="text-sm font-bold text-slate-900">Kya mujhe apna poora menu manually ek ek karke type karna padega?</h4>
               <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
-                Bilkul nahi! CafePulse me built-in <strong className="text-indigo-600 font-semibold">AI Menu Card Scanner</strong> hai. Aap apne printed menu card ki photo click karke upload kijiye ya WhatsApp rate card paste kijiye — AI automatically 5 second me categories, item names aur prices extract karke aapka live menu bana deta hai.
+                Bilkul nahi! CafePulse me built-in <strong className="text-indigo-600 font-semibold">AI Menu Card Scanner</strong> hai. Aap apne printed menu card ki photo click karke upload kijiye ya digital rate list paste kijiye — AI automatically 5 second me categories, item names aur prices extract karke aapka live menu bana deta hai.
               </p>
             </div>
 

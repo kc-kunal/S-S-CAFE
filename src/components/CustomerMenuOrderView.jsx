@@ -16,7 +16,6 @@ import {
   UtensilsCrossed
 } from 'lucide-react';
 import { checkItemStock } from '../utils/storage';
-import { generateCustomerWhatsAppOrderLink, generateCustomerEBillLink } from '../utils/whatsappAlert';
 
 export default function CustomerMenuOrderView({
   tableNumber = '1',
@@ -143,8 +142,6 @@ export default function CustomerMenuOrderView({
 
   // If order was successfully placed, show Confirmation screen
   if (orderPlaced) {
-    const waLink = generateCustomerWhatsAppOrderLink(orderPlaced);
-
     return (
       <div className="min-h-screen bg-stone-950 text-amber-50 flex flex-col items-center justify-center p-4">
         <div className="max-w-md w-full bg-stone-900 border border-stone-800 rounded-3xl p-6 sm:p-8 shadow-2xl text-center space-y-5 animate-in fade-in zoom-in-95 duration-300">
@@ -197,28 +194,9 @@ export default function CustomerMenuOrderView({
 
           {/* Action Buttons */}
           <div className="space-y-2.5 pt-2">
-            <a
-              href={generateCustomerEBillLink({
-                cafeName: cafeName || 'S&S Cafe',
-                tokenOrBillNo: `Table #${orderPlaced.tableNumber}`,
-                date: orderPlaced.date,
-                items: orderPlaced.items,
-                subtotal: orderPlaced.totalAmount,
-                totalAmount: orderPlaced.totalAmount,
-                paymentMethod: 'Dine-In',
-                customerName: orderPlaced.customerName || ''
-              })}
-              target="_blank"
-              rel="noreferrer"
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-950/40 transition-all cursor-pointer"
-            >
-              <Send className="w-4 h-4" />
-              <span>📱 Send Digital Bill on My WhatsApp</span>
-            </a>
-
             <button
               onClick={() => setOrderPlaced(null)}
-              className="w-full py-3 px-4 bg-stone-800 hover:bg-stone-700 active:bg-stone-800 text-stone-200 font-bold text-xs rounded-xl border border-stone-700 transition-colors cursor-pointer"
+              className="w-full py-3 px-4 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-amber-900/40 transition-all cursor-pointer"
             >
               Order More Items for Table #{orderPlaced.tableNumber}
             </button>

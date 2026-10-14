@@ -442,7 +442,7 @@ export const printThermalReceiptDirectly = (orderData, cafeProfile = {}, options
 };
 
 /**
- * Generate plain-text formatted receipt (for WhatsApp / SMS / ClipBoard)
+ * Generate plain-text formatted receipt (for SMS / Clipboard / Sharing)
  */
 export const generatePlainTextReceipt = (orderData, cafeProfile = {}) => {
   const data = normalizeReceiptData(orderData, cafeProfile);

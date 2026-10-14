@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Package, AlertTriangle, CheckCircle2, XCircle, Plus, Edit2, Trash2, Search, Filter, TrendingDown, Layers, Send } from 'lucide-react';
-import { generateVendorOrderLink, getAlertConfig } from '../utils/whatsappAlert';
+import { Package, AlertTriangle, CheckCircle2, XCircle, Plus, Edit2, Trash2, Search, Filter, TrendingDown, Layers } from 'lucide-react';
 
 const CATEGORIES = ['Dairy', 'Beans & Teas', 'Produce', 'Bakery', 'Packaging', 'Groceries'];
 const UNITS = ['Kg', 'Liters', 'Packets', 'Bags', 'Boxes', 'Units', 'Packs'];
@@ -301,17 +300,6 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
 
                     {/* Actions */}
                     <td className="py-3.5 px-4 text-center space-x-1">
-                      {(isLow || isOut) && (
-                        <a
-                          href={generateVendorOrderLink(item, alertConfig.reorderQuantity || 20, alertConfig.vendorPhone)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg inline-flex items-center cursor-pointer"
-                          title={`Order ${item.materialName} on Vendor WhatsApp`}
-                        >
-                          <Send className="w-4 h-4" />
-                        </a>
-                      )}
                       <button
                         onClick={() => handleOpenEdit(item)}
                         className="p-1.5 text-stone-600 hover:text-amber-800 hover:bg-amber-50 rounded-lg cursor-pointer"
@@ -404,19 +392,6 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
                             ✓ In Stock
                           </span>
-                        )}
-
-                        {(isLow || isOut) && (
-                          <a
-                            href={generateVendorOrderLink(item, alertConfig.reorderQuantity || 20, alertConfig.vendorPhone)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-600 text-white rounded-lg text-[10px] font-bold shadow-2xs active:scale-95 ml-auto sm:ml-0"
-                            title={`Order ${item.materialName} on Vendor WhatsApp`}
-                          >
-                            <Send className="w-2.5 h-2.5" />
-                            <span>Order</span>
-                          </a>
                         )}
                       </div>
 

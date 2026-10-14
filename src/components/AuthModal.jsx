@@ -469,7 +469,7 @@ export default function AuthModal({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Contact / WhatsApp No.
+                    Contact Mobile No.
                   </label>
                   <div className="relative">
                     <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />

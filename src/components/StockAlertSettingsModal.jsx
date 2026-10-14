@@ -1,32 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { 
   X, Send, Check, AlertCircle, ExternalLink, ShieldCheck, Zap, Bot, 
-  Sparkles, Phone, MessageSquare, Globe, QrCode, Key, Radio, CheckCircle2,
-  Copy, Code, Terminal, ChevronDown, ChevronUp, Link as LinkIcon
+  Sparkles, CheckCircle2, Eye, EyeOff, MessageSquare, Bell, ArrowRight
 } from 'lucide-react';
 import { 
   getAlertConfig, 
   saveAlertConfig, 
-  sendTelegramAlert, 
-  sendTestWhatsAppMessage,
-  testCustomWebhookEndpoint
-} from '../utils/whatsappAlert';
+  sendTelegramAlert 
+} from '../utils/telegramAlert';
 
 export default function StockAlertSettingsModal({ isOpen, onClose, showToast, currentCafe }) {
-  const [activeTab, setActiveTab] = useState('whatsapp'); // 'whatsapp' | 'telegram'
   const cafeId = currentCafe?.cafeId || 'default';
-  const [config, setConfig] = useState(() => getAlertConfig(cafeId));
+  const cafeName = currentCafe?.cafeName || 'Current Cafe';
   
-  // WhatsApp testing state
-  const [testPhone, setTestPhone] = useState('');
-  const [isTestingWa, setIsTestingWa] = useState(false);
-  const [testWaResult, setTestWaResult] = useState(null);
-
-  // Custom Webhook UI state
-  const [webhookTab, setWebhookTab] = useState('make'); // 'make' | 'gas' | 'nodejs'
-  const [copiedScript, setCopiedScript] = useState(false);
-  const [showPayloadDetails, setShowPayloadDetails] = useState(false);
-
+  const [config, setConfig] = useState(() => getAlertConfig(cafeId));
+  const [showToken, setShowToken] = useState(false);
+  
   // Telegram testing state
   const [isTestingTg, setIsTestingTg] = useState(false);
   const [testTgResult, setTestTgResult] = useState(null);
@@ -35,15 +24,12 @@ export default function StockAlertSettingsModal({ isOpen, onClose, showToast, cu
     if (isOpen) {
       const current = getAlertConfig(cafeId);
       setConfig(current);
-      setTestPhone(current.ownerPhone || '');
-      setTestWaResult(null);
       setTestTgResult(null);
     }
   }, [isOpen, cafeId]);
 
   if (!isOpen) return null;
 
-  const isWaConfigured = !!(config.whatsappToken?.trim() || config.whatsappWebhookUrl?.trim());
   const isTgConfigured = !!(config.telegramBotToken?.trim() && config.telegramChatId?.trim());
 
   const handleSave = (e) => {
@@ -52,103 +38,20 @@ export default function StockAlertSettingsModal({ isOpen, onClose, showToast, cu
       ...config,
       telegramBotToken: config.telegramBotToken?.trim() || '',
       telegramChatId: config.telegramChatId?.trim() || '',
-      whatsappToken: config.whatsappToken?.trim() || '',
-      whatsappPhoneId: config.whatsappPhoneId?.trim() || '',
-      whatsappInstanceId: config.whatsappInstanceId?.trim() || '',
-      whatsappWebhookUrl: config.whatsappWebhookUrl?.trim() || '',
-      whatsappWebhookSecret: config.whatsappWebhookSecret?.trim() || '',
-      ownerPhone: config.ownerPhone?.trim() || '',
-      vendorPhone: config.vendorPhone?.trim() || '',
-      isEnabled: true
+      isEnabled: config.isEnabled !== false
     };
     saveAlertConfig(updated, cafeId);
     if (showToast) {
-      showToast(`✅ "${currentCafe?.cafeName || 'Cafe'}" Gateway Settings Saved Successfully!`);
+      showToast(`✅ "${cafeName}" Telegram Alert Settings Saved!`);
     }
     onClose();
-  };
-
-  const copySnippet = (text) => {
-    navigator.clipboard.writeText(text);
-    setCopiedScript(true);
-    setTimeout(() => setCopiedScript(false), 2500);
-  };
-
-  const handleTestWhatsApp = async () => {
-    if (!testPhone.trim()) {
-      setTestWaResult({
-        type: 'error',
-        text: 'Kripya test ke liye apna 10-digit WhatsApp number darj karein!'
-      });
-      return;
-    }
-
-    // Direct Webhook dispatch testing
-    if (config.whatsappProvider === 'webhook') {
-      if (!config.whatsappWebhookUrl?.trim()) {
-        setTestWaResult({
-          type: 'error',
-          text: 'Kripya pehle Custom Webhook Endpoint URL darj karein!'
-        });
-        return;
-      }
-
-      setIsTestingWa(true);
-      setTestWaResult(null);
-
-      const res = await testCustomWebhookEndpoint(
-        config.whatsappWebhookUrl.trim(),
-        config.whatsappWebhookSecret?.trim() || '',
-        testPhone.trim()
-      );
-      setIsTestingWa(false);
-
-      if (res.success) {
-        setTestWaResult({
-          type: 'success',
-          text: `✓ Webhook Received! HTTP ${res.status || 200} OK (${res.durationMs || 0}ms). Test digital bill payload successfully delivered to your Webhook!`
-        });
-      } else {
-        setTestWaResult({
-          type: 'error',
-          text: `✕ Webhook Error: ${res.reason || 'Could not connect'}. URL ya server verify karein.`
-        });
-      }
-      return;
-    }
-
-    if (!config.whatsappToken?.trim() && !config.whatsappWebhookUrl?.trim()) {
-      setTestWaResult({
-        type: 'error',
-        text: 'Kripya pehle Gateway Token ya Instance ID bharein!'
-      });
-      return;
-    }
-
-    setIsTestingWa(true);
-    setTestWaResult(null);
-
-    const res = await sendTestWhatsAppMessage(config, testPhone.trim());
-    setIsTestingWa(false);
-
-    if (res.success) {
-      setTestWaResult({
-        type: 'success',
-        text: `✓ Test WhatsApp Bill successfully bhej diya gaya to +91 ${testPhone.trim()}! Apne phone par WhatsApp check karein.`
-      });
-    } else {
-      setTestWaResult({
-        type: 'error',
-        text: `Error: ${res.reason || 'WhatsApp Gateway connect nahi ho paya'}. Kripya Instance ID / Token verify karein.`
-      });
-    }
   };
 
   const handleTestTelegram = async () => {
     if (!config.telegramBotToken?.trim() || !config.telegramChatId?.trim()) {
       setTestTgResult({
         type: 'error',
-        text: 'Kripya pehle Telegram Bot Token aur Chat ID bharein!'
+        text: 'Kripya Telegram Bot Token aur Chat ID dono darj karein!'
       });
       return;
     }
@@ -156,627 +59,295 @@ export default function StockAlertSettingsModal({ isOpen, onClose, showToast, cu
     setIsTestingTg(true);
     setTestTgResult(null);
 
-    const testMessage = 
-      `🚨 <b>S&S CAFE — TEST AUTO ALERT!</b>\n` +
+    const testMsg = 
+      `🎉 <b>TELEGRAM ALERT SYSTEM ACTIVE!</b>\n` +
       `━━━━━━━━━━━━━━━━━━━━\n` +
-      `🎉 <b>Badhai ho!</b> Aapka Telegram Auto Stock Alert 100% active ho gaya hai!\n` +
-      `Ab POS par staff normal sale karega aur stock kam hote hi bina kisi button dabaye aapko direct alert mil jayega.`;
+      `🏢 <b>Cafe:</b> ${cafeName}\n` +
+      `⚡ <b>Status:</b> Connected & Multi-Tenant Verified!\n` +
+      `📢 <b>Alerts Enabled:</b>\n` +
+      ` • 🚨 Low Raw Material Stock Alert\n` +
+      ` • 🔔 Live QR Table Order Notification\n` +
+      `━━━━━━━━━━━━━━━━━━━━\n` +
+      `✅ <i>Ab stock khatam hone par yaha automatic message aayega!</i>`;
 
-    const res = await sendTelegramAlert(config.telegramBotToken, config.telegramChatId, testMessage);
+    const res = await sendTelegramAlert(
+      config.telegramBotToken.trim(),
+      config.telegramChatId.trim(),
+      testMsg
+    );
+
     setIsTestingTg(false);
-
     if (res.success) {
       setTestTgResult({
         type: 'success',
-        text: '✓ Test Alert bhej diya gaya hai! Apne phone par Telegram app check karein.'
+        text: '✅ Test Message Telegram par bhej diya gaya hai! Apna Telegram check karein.'
       });
+      if (showToast) showToast('Telegram Test Alert Sent Successfully!');
     } else {
       setTestTgResult({
         type: 'error',
-        text: `Error: ${res.error}. Kripya Token ya Chat ID verify karein (Bot ko pehle /start karna zaroori hai).`
+        text: `❌ Telegram Send Failed: ${res.error || 'Check Bot Token/Chat ID. Make sure you clicked START on your bot!'}`
       });
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/70 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-white rounded-3xl shadow-2xl border border-stone-200 w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
         
-        {/* Header */}
-        <div className="bg-stone-950 text-amber-50 px-5 sm:px-6 py-4 flex items-center justify-between border-b border-stone-800 shrink-0">
-          <div className="flex items-center space-x-3">
-            <div className="p-2.5 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 text-white shadow-md shadow-emerald-700/30">
-              <MessageSquare className="w-5 h-5" />
+        {/* Modal Header */}
+        <div className="p-5 border-b border-slate-800 bg-gradient-to-r from-sky-950/40 via-slate-900 to-indigo-950/40 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-sky-500/20 text-sky-400 border border-sky-500/30 rounded-xl shadow-inner">
+              <Bot className="w-6 h-6 animate-pulse" />
             </div>
             <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-base sm:text-lg font-bold font-serif-title text-amber-100">
-                  Communications & WhatsApp Gateway
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold text-white tracking-wide">
+                  Telegram Automated Alerts
                 </h2>
-                <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
-                  isWaConfigured 
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' 
-                    : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                }`}>
-                  {isWaConfigured ? '🟢 Zero-Redirect Active' : '🟡 Setup Ready'}
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                  100% Free & Unlimited
                 </span>
-                {currentCafe?.cafeName && (
-                  <span className="text-[10px] bg-stone-800 text-amber-300 border border-stone-700 px-2 py-0.5 rounded-full font-bold">
-                    ☕ {currentCafe.cafeName}
-                  </span>
-                )}
               </div>
-              <p className="text-xs text-stone-400">Multi-tenant isolated — Webhook and credentials belong strictly to this cafe</p>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Configured specifically for: <strong className="text-amber-400">{cafeName}</strong>
+              </p>
             </div>
           </div>
           <button 
-            onClick={onClose} 
-            className="text-stone-400 hover:text-white p-1 rounded-xl hover:bg-stone-800 transition-colors cursor-pointer"
+            onClick={onClose}
+            className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Tab Switcher */}
-        <div className="bg-stone-100 px-4 sm:px-6 py-2.5 border-b border-stone-200 flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={() => setActiveTab('whatsapp')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'whatsapp'
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-700/20'
-                : 'bg-white text-stone-600 hover:bg-stone-200 border border-stone-200'
-            }`}
-          >
-            <Phone className="w-3.5 h-3.5" />
-            <span>📱 WhatsApp Silent E-Bill Gateway</span>
-            {isWaConfigured && <CheckCircle2 className="w-3 h-3 text-emerald-200" />}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('telegram')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'telegram'
-                ? 'bg-sky-600 text-white shadow-md shadow-sky-700/20'
-                : 'bg-white text-stone-600 hover:bg-stone-200 border border-stone-200'
-            }`}
-          >
-            <Bot className="w-3.5 h-3.5" />
-            <span>🤖 Telegram Stock & Order Alerts</span>
-            {isTgConfigured && <CheckCircle2 className="w-3 h-3 text-sky-200" />}
-          </button>
-        </div>
-
-        {/* Scrollable Body */}
-        <form onSubmit={handleSave} className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1 text-sm text-stone-700">
+        {/* Modal Body */}
+        <div className="p-6 overflow-y-auto space-y-6 flex-1 custom-scrollbar">
           
-          {/* ============================================================== */}
-          {/* TAB 1: WHATSAPP SILENT GATEWAY (ZERO REDIRECT POS BILLING)     */}
-          {/* ============================================================== */}
-          {activeTab === 'whatsapp' && (
-            <div className="space-y-4">
-              
-              {/* Notice Banner */}
-              <div className="p-3.5 bg-emerald-50/80 border border-emerald-200 rounded-2xl text-xs text-emerald-950 space-y-1">
-                <span className="font-extrabold flex items-center gap-1.5 text-emerald-800">
-                  <Sparkles className="w-4 h-4 text-emerald-600" />
-                  <span>Zero-Redirect POS: Screen Chode Bina WhatsApp Par Bill!</span>
-                </span>
-                <p className="text-[11px] text-stone-600 leading-relaxed">
-                  Jab cashier <strong>"Punch & WhatsApp Bill"</strong> dabayega, software browser ko kisi naye WhatsApp tab par 
-                  <strong> redirect nahi karega</strong>. Order data turant save ho jayega aur bill background me seedhe customer ko chala jayega.
-                </p>
-              </div>
-
-              {/* Status Alert Banner */}
-              {testWaResult && (
-                <div className={`p-3.5 rounded-2xl text-xs font-bold flex items-center justify-between gap-2 animate-in fade-in ${
-                  testWaResult.type === 'success'
-                    ? 'bg-emerald-50 text-emerald-900 border border-emerald-300'
-                    : 'bg-rose-50 text-rose-900 border border-rose-300'
-                }`}>
-                  <span>{testWaResult.text}</span>
-                  <button type="button" onClick={() => setTestWaResult(null)} className="text-stone-400 hover:text-stone-700 font-extrabold cursor-pointer">✕</button>
-                </div>
-              )}
-
-              {/* Provider Selection */}
+          {/* Status Banner */}
+          <div className={`p-4 rounded-xl border flex items-center justify-between gap-3 ${
+            isTgConfigured && config.isEnabled 
+              ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-300' 
+              : 'bg-amber-950/20 border-amber-500/30 text-amber-300'
+          }`}>
+            <div className="flex items-center gap-3">
+              <div className={`w-3 h-3 rounded-full ${isTgConfigured && config.isEnabled ? 'bg-emerald-400 animate-ping' : 'bg-amber-400'}`} />
               <div>
-                <label className="block text-xs font-extrabold text-stone-700 uppercase tracking-wider mb-2">
-                  Choose WhatsApp Gateway Provider:
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {[
-                    { id: 'webhook', title: 'Custom Webhook', subtitle: '🔗 Free Webhook (Huk)', badge: '100% Free' },
-                    { id: 'ultramsg', title: 'UltraMsg', subtitle: '⚡ QR Scan (Best)', badge: 'Easy QR' },
-                    { id: 'greenapi', title: 'Green-API', subtitle: '🟢 QR Scan', badge: 'Free Tier' },
-                    { id: 'meta', title: 'Meta Cloud', subtitle: '☁️ Official Graph', badge: '1K Free/Mo' }
-                  ].map((prov) => (
-                    <button
-                      key={prov.id}
-                      type="button"
-                      onClick={() => setConfig({ ...config, whatsappProvider: prov.id })}
-                      className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-1.5 ${
-                        config.whatsappProvider === prov.id
-                          ? 'border-emerald-500 bg-emerald-50/50 ring-2 ring-emerald-500/20 text-emerald-950 font-bold'
-                          : 'border-stone-200 bg-white hover:bg-stone-50 text-stone-700'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between w-full">
-                        <span className="text-xs font-extrabold">{prov.title}</span>
-                        <span className={`text-[9px] px-1.5 py-0.2 rounded-md font-black ${
-                          config.whatsappProvider === prov.id ? 'bg-emerald-600 text-white' : 'bg-stone-100 text-stone-500'
-                        }`}>
-                          {prov.badge}
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-stone-500">{prov.subtitle}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Provider Specific Configuration Box */}
-              <div className="p-4 bg-stone-900 text-stone-200 rounded-2xl border border-stone-800 space-y-3.5">
-                
-                {/* ULTRAMSG */}
-                {config.whatsappProvider === 'ultramsg' && (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
-                        <QrCode className="w-4 h-4 text-emerald-400" />
-                        <span>UltraMsg Setup (Scan QR Code Once)</span>
-                      </span>
-                      <a
-                        href="https://ultramsg.com"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[11px] text-emerald-400 hover:text-emerald-300 underline font-bold flex items-center gap-1"
-                      >
-                        <span>ultramsg.com kholein</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
-                    <p className="text-[11px] text-stone-400">
-                      UltraMsg par account banayein, apna phone ka WhatsApp QR scan karein, aur Instance ID & Token yahan daalein:
-                    </p>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                      <div>
-                        <label className="block text-[11px] font-bold text-stone-300 mb-1">Instance ID *</label>
-                        <input
-                          type="text"
-                          value={config.whatsappInstanceId || ''}
-                          onChange={(e) => setConfig({ ...config, whatsappInstanceId: e.target.value })}
-                          placeholder="e.g. instance102938"
-                          className="w-full px-3 py-2 bg-stone-950 border border-stone-700 rounded-xl text-xs font-mono text-emerald-300 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-bold text-stone-300 mb-1">Token *</label>
-                        <input
-                          type="text"
-                          value={config.whatsappToken || ''}
-                          onChange={(e) => setConfig({ ...config, whatsappToken: e.target.value })}
-                          placeholder="e.g. a1b2c3d4e5f6..."
-                          className="w-full px-3 py-2 bg-stone-950 border border-stone-700 rounded-xl text-xs font-mono text-emerald-300 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* GREEN-API */}
-                {config.whatsappProvider === 'greenapi' && (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
-                        <QrCode className="w-4 h-4 text-emerald-400" />
-                        <span>Green-API Setup (Developer Free Tier)</span>
-                      </span>
-                      <a
-                        href="https://green-api.com"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[11px] text-emerald-400 hover:text-emerald-300 underline font-bold flex items-center gap-1"
-                      >
-                        <span>green-api.com kholein</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                      <div>
-                        <label className="block text-[11px] font-bold text-stone-300 mb-1">idInstance *</label>
-                        <input
-                          type="text"
-                          value={config.whatsappInstanceId || ''}
-                          onChange={(e) => setConfig({ ...config, whatsappInstanceId: e.target.value })}
-                          placeholder="e.g. 110182394"
-                          className="w-full px-3 py-2 bg-stone-950 border border-stone-700 rounded-xl text-xs font-mono text-emerald-300 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-bold text-stone-300 mb-1">apiTokenInstance *</label>
-                        <input
-                          type="text"
-                          value={config.whatsappToken || ''}
-                          onChange={(e) => setConfig({ ...config, whatsappToken: e.target.value })}
-                          placeholder="e.g. c78912ef..."
-                          className="w-full px-3 py-2 bg-stone-950 border border-stone-700 rounded-xl text-xs font-mono text-emerald-300 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* META CLOUD API */}
-                {config.whatsappProvider === 'meta' && (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
-                        <Globe className="w-4 h-4 text-emerald-400" />
-                        <span>Meta WhatsApp Cloud API (Official Facebook Graph API)</span>
-                      </span>
-                      <a
-                        href="https://developers.facebook.com"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[11px] text-emerald-400 hover:text-emerald-300 underline font-bold flex items-center gap-1"
-                      >
-                        <span>developers.facebook.com</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                      <div>
-                        <label className="block text-[11px] font-bold text-stone-300 mb-1">Phone Number ID *</label>
-                        <input
-                          type="text"
-                          value={config.whatsappPhoneId || ''}
-                          onChange={(e) => setConfig({ ...config, whatsappPhoneId: e.target.value })}
-                          placeholder="e.g. 1049283749284"
-                          className="w-full px-3 py-2 bg-stone-950 border border-stone-700 rounded-xl text-xs font-mono text-emerald-300 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-bold text-stone-300 mb-1">Permanent Access Token *</label>
-                        <input
-                          type="text"
-                          value={config.whatsappToken || ''}
-                          onChange={(e) => setConfig({ ...config, whatsappToken: e.target.value })}
-                          placeholder="e.g. EAA..."
-                          className="w-full px-3 py-2 bg-stone-950 border border-stone-700 rounded-xl text-xs font-mono text-emerald-300 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* CUSTOM WEBHOOK (CUSTOM HUK SETUP) */}
-                {config.whatsappProvider === 'webhook' && (
-                  <div className="space-y-3.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
-                        <Globe className="w-4 h-4 text-emerald-400" />
-                        <span>Custom Webhook (Huk) Setup — 100% Free & Zero Redirect</span>
-                      </span>
-                      <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
-                        Universal JSON Format
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                      <div className="sm:col-span-2">
-                        <label className="block text-[11px] font-bold text-stone-300 mb-1">
-                          Webhook Endpoint URL * (Make.com, Pabbly, Google Script, Node.js)
-                        </label>
-                        <input
-                          type="url"
-                          value={config.whatsappWebhookUrl || ''}
-                          onChange={(e) => setConfig({ ...config, whatsappWebhookUrl: e.target.value })}
-                          placeholder="e.g. https://hook.eu2.make.com/... or https://script.google.com/macros/s/..."
-                          className="w-full px-3 py-2 bg-stone-950 border border-stone-700 rounded-xl text-xs font-mono text-emerald-300 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                        />
-                        <p className="text-[10px] text-stone-400 mt-1">
-                          Is URL par bill punch hote hi order ka complete JSON payload background me post ho jayega.
-                        </p>
-                      </div>
-
-                      <div className="sm:col-span-2">
-                        <label className="block text-[11px] font-bold text-stone-300 mb-1">
-                          Secret Token / API Key (Optional)
-                        </label>
-                        <input
-                          type="text"
-                          value={config.whatsappWebhookSecret || ''}
-                          onChange={(e) => setConfig({ ...config, whatsappWebhookSecret: e.target.value })}
-                          placeholder="Optional: Bearer my_secret_token or leave blank"
-                          className="w-full px-3 py-2 bg-stone-950 border border-stone-700 rounded-xl text-xs font-mono text-stone-300 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                        />
-                        <p className="text-[10px] text-stone-400 mt-1">
-                          Agar aapke webhook ko authentication chahiye to yahan secret daalein (auto-sent as Bearer token & x-api-key header).
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Free Webhook Blueprint & Code Templates */}
-                    <div className="pt-2 border-t border-stone-800 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-bold text-amber-300 flex items-center gap-1.5">
-                          <Code className="w-3.5 h-3.5 text-amber-400" />
-                          <span>Free Webhook Setup Guides & Ready-to-use Code:</span>
-                        </span>
-
-                        {/* Template Tab Selector */}
-                        <div className="flex items-center bg-stone-950 p-0.5 rounded-lg border border-stone-800 text-[10px]">
-                          <button
-                            type="button"
-                            onClick={() => setWebhookTab('make')}
-                            className={`px-2 py-0.5 rounded-md font-bold transition-colors cursor-pointer ${
-                              webhookTab === 'make' ? 'bg-emerald-600 text-white' : 'text-stone-400 hover:text-white'
-                            }`}
-                          >
-                            Make / Pabbly
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setWebhookTab('gas')}
-                            className={`px-2 py-0.5 rounded-md font-bold transition-colors cursor-pointer ${
-                              webhookTab === 'gas' ? 'bg-emerald-600 text-white' : 'text-stone-400 hover:text-white'
-                            }`}
-                          >
-                            Google Script (Free)
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setWebhookTab('node')}
-                            className={`px-2 py-0.5 rounded-md font-bold transition-colors cursor-pointer ${
-                              webhookTab === 'node' ? 'bg-emerald-600 text-white' : 'text-stone-400 hover:text-white'
-                            }`}
-                          >
-                            Node.js
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Tab Content 1: Make.com / Pabbly */}
-                      {webhookTab === 'make' && (
-                        <div className="p-3 bg-stone-950/80 rounded-xl border border-stone-800 text-[11px] text-stone-300 space-y-1.5 leading-relaxed">
-                          <p className="font-bold text-emerald-300">⚡ Make.com / Pabbly Connect Setup (Zero Coding):</p>
-                          <ol className="list-decimal list-inside space-y-1 text-stone-400">
-                            <li>Make.com ya Pabbly par free account banakar <strong>"Custom Webhook"</strong> trigger create karein.</li>
-                            <li>Wahan mila URL copy karke upar <strong>Endpoint URL</strong> me paste karein.</li>
-                            <li>Next action module me <strong>WhatsApp Cloud API / Wati / Twilio</strong> choose karein.</li>
-                            <li>Recipient me <code className="text-emerald-400 font-mono">phone</code> aur message me <code className="text-emerald-400 font-mono">message</code> select karein.</li>
-                          </ol>
-                        </div>
-                      )}
-
-                      {/* Tab Content 2: Google Apps Script */}
-                      {webhookTab === 'gas' && (
-                        <div className="space-y-1.5">
-                          <div className="flex items-center justify-between text-[11px]">
-                            <span className="text-stone-400">100% Free Google Script Webhook (Deploy as Web App):</span>
-                            <button
-                              type="button"
-                              onClick={() => copySnippet(`function doPost(e) {\n  var data = JSON.parse(e.postData.contents);\n  var phone = data.phone;      // 919876543210\n  var message = data.message;  // WhatsApp E-Bill Text\n  var billNo = data.billNo;    // Bill #\n  var total = data.totalAmount;// ₹ Amount\n\n  // Forward to your free WhatsApp Gateway (UltraMsg / GreenAPI / Meta):\n  // UrlFetchApp.fetch("https://api.ultramsg.com/...", { method: "post", payload: ... });\n\n  return ContentService.createTextOutput(JSON.stringify({ status: "success" }))\n    .setMimeType(ContentService.MimeType.JSON);\n}`)}
-                              className="flex items-center gap-1 text-[10px] text-emerald-400 hover:text-emerald-300 font-bold cursor-pointer"
-                            >
-                              {copiedScript ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                              <span>{copiedScript ? 'Copied!' : 'Copy Script'}</span>
-                            </button>
-                          </div>
-                          <pre className="p-2.5 bg-stone-950 rounded-xl border border-stone-800 text-[10px] font-mono text-emerald-300/90 overflow-x-auto max-h-32">
-{`function doPost(e) {
-  var data = JSON.parse(e.postData.contents);
-  var phone = data.phone;      // 919876543210
-  var message = data.message;  // WhatsApp E-Bill Text
-  var billNo = data.billNo;    // Bill #
-  var total = data.totalAmount;// ₹ Amount
-
-  // Forward to WhatsApp Gateway or Save in Google Sheet:
-  return ContentService.createTextOutput(JSON.stringify({ status: "success" }))
-    .setMimeType(ContentService.MimeType.JSON);
-}`}
-                          </pre>
-                        </div>
-                      )}
-
-                      {/* Tab Content 3: Node.js */}
-                      {webhookTab === 'node' && (
-                        <div className="space-y-1.5">
-                          <div className="flex items-center justify-between text-[11px]">
-                            <span className="text-stone-400">Express.js / Baileys / Evolution API Endpoint:</span>
-                            <button
-                              type="button"
-                              onClick={() => copySnippet(`const express = require('express');\nconst app = express();\napp.use(express.json());\n\napp.post('/api/whatsapp-bill', async (req, res) => {\n  const { phone, message, billNo, totalAmount } = req.body;\n  console.log(\`Received Bill \${billNo} of ₹\${totalAmount} for \${phone}\`);\n  // Send via Baileys / WPPConnect: await sock.sendMessage(\`\${phone}@s.whatsapp.net\`, { text: message });\n  res.json({ success: true });\n});\n\napp.listen(3000, () => console.log('Listening on :3000'));`)}
-                              className="flex items-center gap-1 text-[10px] text-emerald-400 hover:text-emerald-300 font-bold cursor-pointer"
-                            >
-                              {copiedScript ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                              <span>{copiedScript ? 'Copied!' : 'Copy Code'}</span>
-                            </button>
-                          </div>
-                          <pre className="p-2.5 bg-stone-950 rounded-xl border border-stone-800 text-[10px] font-mono text-emerald-300/90 overflow-x-auto max-h-32">
-{`app.post('/api/whatsapp-bill', async (req, res) => {
-  const { phone, message, billNo, totalAmount } = req.body;
-  // Send via Baileys / Evolution / Twilio bot
-  res.json({ success: true, message: 'Bill Dispatched' });
-});`}
-                          </pre>
-                        </div>
-                      )}
-
-                      {/* JSON Payload Preview Toggle */}
-                      <div className="pt-1">
-                        <button
-                          type="button"
-                          onClick={() => setShowPayloadDetails(!showPayloadDetails)}
-                          className="flex items-center gap-1.5 text-[11px] text-stone-400 hover:text-emerald-300 font-bold cursor-pointer"
-                        >
-                          {showPayloadDetails ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                          <span>{showPayloadDetails ? 'Hide' : 'Show'} JSON Payload Keys Sent to Webhook</span>
-                        </button>
-
-                        {showPayloadDetails && (
-                          <div className="mt-1.5 p-2 bg-stone-950 rounded-xl border border-stone-800 text-[10px] font-mono text-stone-300 space-y-1">
-                            <p className="text-emerald-400 font-bold">Fields dispatched on every bill punch:</p>
-                            <p>• <span className="text-amber-300 font-bold">phone / to / number:</span> Customer 10-digit number (e.g. "919876543210")</p>
-                            <p>• <span className="text-amber-300 font-bold">message / text / caption:</span> Formatted WhatsApp Digital E-Bill</p>
-                            <p>• <span className="text-amber-300 font-bold">billNo / tokenOrBillNo:</span> Invoice / Table number</p>
-                            <p>• <span className="text-amber-300 font-bold">totalAmount / subtotal / discount:</span> Financial numbers</p>
-                            <p>• <span className="text-amber-300 font-bold">items:</span> [{`{ name, qty, price, amount }`}, ...]</p>
-                          </div>
-                        )}
-                      </div>
-
-                    </div>
-                  </div>
-                )}
-
-              </div>
-
-              {/* Test WhatsApp E-Bill Section */}
-              <div className="p-3.5 bg-stone-50 border border-stone-200 rounded-2xl space-y-2.5">
-                <span className="text-xs font-extrabold text-stone-800 flex items-center gap-1.5">
-                  <Zap className="w-3.5 h-3.5 text-amber-500" />
-                  <span>🧪 Test Gateway Connectivity (Real Message Send)</span>
-                </span>
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                  <div className="flex items-center gap-1 bg-white border border-stone-300 rounded-xl px-2.5 py-1.5 flex-1">
-                    <span className="text-xs font-bold text-stone-400">+91</span>
-                    <input
-                      type="tel"
-                      maxLength="10"
-                      value={testPhone}
-                      onChange={(e) => setTestPhone(e.target.value.replace(/\D/g, ''))}
-                      placeholder="Enter 10-digit mobile"
-                      className="w-full text-xs font-bold text-stone-900 focus:outline-none"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleTestWhatsApp}
-                    disabled={isTestingWa}
-                    className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 active:bg-emerald-800 text-white rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 cursor-pointer transition-all disabled:opacity-40 shrink-0 shadow-xs"
-                  >
-                    <Send className={`w-3.5 h-3.5 ${isTestingWa ? 'animate-bounce' : ''}`} />
-                    <span>{isTestingWa ? 'Sending...' : 'Send Test Bill'}</span>
-                  </button>
-                </div>
-              </div>
-
-            </div>
-          )}
-
-          {/* ============================================================== */}
-          {/* TAB 2: TELEGRAM BOT (AUTO STOCK ALERTS & DINE-IN ORDERS)      */}
-          {/* ============================================================== */}
-          {activeTab === 'telegram' && (
-            <div className="space-y-4">
-              
-              {/* Quick Notice */}
-              <div className="p-3.5 bg-sky-50/70 border border-sky-200 rounded-2xl text-xs text-sky-950 space-y-1">
-                <span className="font-extrabold flex items-center gap-1.5 text-sky-800">
-                  <Bot className="w-4 h-4 text-sky-600" />
-                  <span>Telegram Bot (100% Free & Zero-Clicks)</span>
-                </span>
-                <p className="text-[11px] text-stone-600 leading-relaxed">
-                  Jaise hi koi raw material (Cheese, Milk, etc.) khatam hone lagega, Telegram bot seedhe Owner ke mobile par loud push alert bhej dega.
+                <p className="text-sm font-semibold text-white">
+                  {isTgConfigured && config.isEnabled 
+                    ? 'Active: Real-time Stock & Order Alerts Online' 
+                    : 'Setup Incomplete: Telegram bot details required'}
+                </p>
+                <p className="text-xs text-slate-300">
+                  {isTgConfigured 
+                    ? 'POS me stock reorder limit se niche jate hi instant Telegram push aayega.' 
+                    : 'Niche diye 3 aasan steps follow karke apna bot connect karein.'}
                 </p>
               </div>
-
-              {/* Status Alert Banner */}
-              {testTgResult && (
-                <div className={`p-3.5 rounded-2xl text-xs font-bold flex items-center justify-between gap-2 animate-in fade-in ${
-                  testTgResult.type === 'success'
-                    ? 'bg-emerald-50 text-emerald-900 border border-emerald-300'
-                    : 'bg-rose-50 text-rose-900 border border-rose-300'
-                }`}>
-                  <span>{testTgResult.text}</span>
-                  <button type="button" onClick={() => setTestTgResult(null)} className="text-stone-400 hover:text-stone-700 font-extrabold cursor-pointer">✕</button>
-                </div>
-              )}
-
-              {/* Quick 1-Min Guide */}
-              <div className="p-4 bg-stone-900 text-stone-200 rounded-2xl border border-stone-800 space-y-2 text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
-                    <ShieldCheck className="w-4 h-4 text-amber-400" />
-                    <span>Telegram Bot Kaise Banayein (1-Min)</span>
-                  </span>
-                  <span className="text-[10px] bg-sky-500/20 text-sky-300 px-2 py-0.5 rounded-full font-bold border border-sky-500/30">Free</span>
-                </div>
-                <p className="text-stone-300 text-[11px]">
-                  1. Telegram me <strong>@BotFather</strong> ko <code>/newbot</code> bhejein aur token copy karein.<br />
-                  2. Apne bot me jakar <strong>"START"</strong> dabayein.<br />
-                  3. <strong>@userinfobot</strong> se apni Chat ID nikalen.
-                </p>
-              </div>
-
-              {/* Inputs */}
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                    <Bot className="w-3.5 h-3.5 text-sky-600" />
-                    <span>Telegram Bot Token</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={config.telegramBotToken || ''}
-                    onChange={(e) => setConfig({ ...config, telegramBotToken: e.target.value })}
-                    placeholder="e.g. 7891234567:AAHk..."
-                    className="w-full px-4 py-2.5 text-xs font-mono bg-stone-50 border border-stone-300 rounded-xl font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-sky-500/30"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                    <Zap className="w-3.5 h-3.5 text-amber-600" />
-                    <span>Telegram Chat ID</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={config.telegramChatId || ''}
-                    onChange={(e) => setConfig({ ...config, telegramChatId: e.target.value })}
-                    placeholder="e.g. 1234567890"
-                    className="w-full px-4 py-2.5 text-xs font-mono bg-stone-50 border border-stone-300 rounded-xl font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
-                  />
-                </div>
-              </div>
-
-              {/* Test Button */}
-              <div className="pt-1">
-                <button
-                  type="button"
-                  onClick={handleTestTelegram}
-                  disabled={isTestingTg || !config.telegramBotToken?.trim()}
-                  className="w-full sm:w-auto px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-bold rounded-xl border border-stone-300 flex items-center justify-center gap-1.5 cursor-pointer transition-all disabled:opacity-40"
-                >
-                  <Send className={`w-3.5 h-3.5 text-sky-600 ${isTestingTg ? 'animate-bounce' : ''}`} />
-                  <span>{isTestingTg ? 'Sending Alert...' : '🧪 Send Test Alert to Telegram'}</span>
-                </button>
-              </div>
-
             </div>
-          )}
 
-          {/* Action Footer */}
-          <div className="pt-3 border-t border-stone-200 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <span className="text-[11px] text-stone-500 font-semibold">
-              Settings are saved automatically in cafe storage.
-            </span>
-
-            <button
-              type="submit"
-              className="w-full sm:w-auto px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white text-xs font-extrabold rounded-xl shadow-md shadow-emerald-700/25 flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-98"
-            >
-              <Check className="w-4 h-4 stroke-[3]" />
-              <span>Save & Activate Settings</span>
-            </button>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={config.isEnabled !== false} 
+                onChange={(e) => setConfig({ ...config, isEnabled: e.target.checked })} 
+                className="sr-only peer" 
+              />
+              <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-500"></div>
+            </label>
           </div>
 
-        </form>
+          {/* Form Fields */}
+          <div className="space-y-4 bg-slate-800/40 border border-slate-700/60 p-5 rounded-xl">
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <Zap className="w-4 h-4 text-sky-400" /> Telegram Bot Credentials ({cafeName})
+            </h3>
+
+            {/* Bot Token */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-semibold text-slate-300">
+                  Telegram Bot Token <span className="text-red-400">*</span>
+                </label>
+                <a 
+                  href="https://t.me/BotFather" 
+                  target="_blank" 
+                  rel="noreferrer"
+                  className="text-[11px] text-sky-400 hover:text-sky-300 flex items-center gap-1 hover:underline"
+                >
+                  Create bot on @BotFather <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+              <div className="relative">
+                <input
+                  type={showToken ? 'text' : 'password'}
+                  value={config.telegramBotToken || ''}
+                  onChange={(e) => setConfig({ ...config, telegramBotToken: e.target.value })}
+                  placeholder="e.g. 7123456789:AAFlq... (from @BotFather)"
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate-500 focus:outline-none focus:border-sky-500 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowToken(!showToken)}
+                  className="absolute right-3 top-2.5 text-slate-400 hover:text-white"
+                >
+                  {showToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1">
+                Ye token sirf iss cafe ke liye secure save hota hai.
+              </p>
+            </div>
+
+            {/* Chat ID */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-semibold text-slate-300">
+                  Your Telegram Chat ID (User ID ya Group ID) <span className="text-red-400">*</span>
+                </label>
+                <a 
+                  href="https://t.me/userinfobot" 
+                  target="_blank" 
+                  rel="noreferrer"
+                  className="text-[11px] text-sky-400 hover:text-sky-300 flex items-center gap-1 hover:underline"
+                >
+                  Get ID from @userinfobot <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+              <input
+                type="text"
+                value={config.telegramChatId || ''}
+                onChange={(e) => setConfig({ ...config, telegramChatId: e.target.value })}
+                placeholder="e.g. 182736452 (Personal) ya -1001928374 (Staff Group)"
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate-500 focus:outline-none focus:border-sky-500"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">
+                Tip: Cafe ke staff ka Telegram group banakar bot ko group me add karke group Chat ID bhi daal sakte ho!
+              </p>
+            </div>
+
+            {/* Test Button & Result */}
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={handleTestTelegram}
+                disabled={isTestingTg || !config.telegramBotToken?.trim() || !config.telegramChatId?.trim()}
+                className="w-full py-2.5 px-4 bg-sky-600 hover:bg-sky-500 disabled:bg-slate-800 disabled:text-slate-500 text-white rounded-lg font-semibold text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-sky-900/30"
+              >
+                {isTestingTg ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Telegram Alert Bhej Raha Hai...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    🧪 Test Alert Bhejein (Verify Connection)
+                  </>
+                )}
+              </button>
+
+              {testTgResult && (
+                <div className={`mt-3 p-3 rounded-lg text-xs flex items-start gap-2 ${
+                  testTgResult.type === 'success' 
+                    ? 'bg-emerald-950/40 border border-emerald-500/40 text-emerald-300' 
+                    : 'bg-rose-950/40 border border-rose-500/40 text-rose-300'
+                }`}>
+                  {testTgResult.type === 'success' ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                  )}
+                  <span>{testTgResult.text}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 3 Step Setup Guide */}
+          <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 space-y-3">
+            <h4 className="text-xs font-bold text-sky-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5" /> 2-Minute Easy Setup Guide:
+            </h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+              <div className="bg-slate-900/90 border border-slate-800 p-3 rounded-lg flex flex-col justify-between">
+                <div>
+                  <span className="inline-block px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-400 font-bold mb-1.5">
+                    Step 1
+                  </span>
+                  <p className="font-semibold text-white">Bot Create Karein</p>
+                  <p className="text-slate-400 mt-1 text-[11px]">
+                    Telegram par <b>@BotFather</b> search karein, <code className="text-sky-300">/newbot</code> bhejein aur Bot Token copy karein.
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-slate-900/90 border border-slate-800 p-3 rounded-lg flex flex-col justify-between">
+                <div>
+                  <span className="inline-block px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-400 font-bold mb-1.5">
+                    Step 2
+                  </span>
+                  <p className="font-semibold text-white">Chat ID Nikalein</p>
+                  <p className="text-slate-400 mt-1 text-[11px]">
+                    Telegram par <b>@userinfobot</b> ko start karein. Wo aapko aapka number Chat ID de dega.
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-slate-900/90 border border-slate-800 p-3 rounded-lg flex flex-col justify-between">
+                <div>
+                  <span className="inline-block px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-400 font-bold mb-1.5">
+                    Step 3
+                  </span>
+                  <p className="font-semibold text-white">Bot Ko START Karein</p>
+                  <p className="text-slate-400 mt-1 text-[11px]">
+                    Apne banaye hue Bot ko Telegram me open karke <b>START</b> dabayein, phir upar Test button dabayein!
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Benefits Feature Box */}
+          <div className="bg-emerald-950/20 border border-emerald-500/20 rounded-xl p-3 text-xs text-emerald-300 space-y-1">
+            <p className="font-bold flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4 text-emerald-400" /> Kyu Telegram Alert Best Hai?
+            </p>
+            <ul className="text-[11px] text-slate-300 list-disc list-inside space-y-0.5 pl-1">
+              <li><b>100% Free:</b> Kabhi koi monthly charge ya per-message fees nahi lagti.</li>
+              <li><b>Zero Redirects:</b> Screen redirect nahi hoti, background me instant push notification aati hai.</li>
+              <li><b>Multi-Staff Group:</b> Cafe owner, kitchen manager, sabko ek sath group me alert mil sakte hain.</li>
+              <li><b>Multi-Tenant Safe:</b> Har cafe ka apna alag Bot/Chat ID hota hai, data mix nahi hota.</li>
+            </ul>
+          </div>
+
+        </div>
+
+        {/* Modal Footer */}
+        <div className="p-4 border-t border-slate-800 bg-slate-950/60 flex items-center justify-between">
+          <p className="text-xs text-slate-400">
+            Tenant: <span className="font-mono text-slate-300">{cafeId}</span>
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              className="px-5 py-2 text-xs font-bold text-white bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 rounded-lg shadow-lg shadow-sky-900/30 transition-all flex items-center gap-1.5"
+            >
+              <Check className="w-4 h-4" /> Save Settings
+            </button>
+          </div>
+        </div>
 
       </div>
     </div>

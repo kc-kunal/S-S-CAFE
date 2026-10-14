@@ -19,7 +19,6 @@ import {
   generatePlainTextReceipt,
   getUpiPaymentQrUrl
 } from '../utils/thermalPrinter';
-import { sendBackgroundWhatsAppEBill } from '../utils/whatsappAlert';
 
 export default function ThermalBillModal({
   isOpen,
@@ -35,14 +34,9 @@ export default function ThermalBillModal({
   const [showGst, setShowGst] = useState(true);
   const [isCopied, setIsCopied] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
-  const [whatsAppPhone, setWhatsAppPhone] = useState('');
-  const [whatsAppSending, setWhatsAppSending] = useState(false);
 
   useEffect(() => {
     if (initialMode) setSlipType(initialMode);
-    if (orderData?.customerPhone) {
-      setWhatsAppPhone(orderData.customerPhone);
-    }
   }, [initialMode, orderData]);
 
   if (!isOpen || !orderData) return null;
@@ -77,46 +71,6 @@ export default function ThermalBillModal({
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
     if (showToast) showToast('📋 Receipt text copied to clipboard!');
-  };
-
-  const handleSendWhatsApp = async () => {
-    const phone = whatsAppPhone.trim() || data.customerPhone;
-    if (!phone) {
-      const input = window.prompt('Customer ka 10-digit WhatsApp number enter karein:');
-      if (!input) return;
-      setWhatsAppPhone(input);
-    }
-
-    setWhatsAppSending(true);
-    try {
-      const res = await sendBackgroundWhatsAppEBill({
-        cafeName: data.cafe.cafeName,
-        cafeCity: data.cafe.city,
-        cafePhone: data.cafe.phone,
-        tokenOrBillNo: data.billNo,
-        date: data.date,
-        time: data.time,
-        items: data.items,
-        subtotal: data.subtotal,
-        discount: data.discount,
-        totalAmount: data.totalAmount,
-        paymentMethod: data.paymentMethod,
-        customerPhone: phone || whatsAppPhone,
-        customerName: data.customerName
-      });
-
-      if (res.success) {
-        if (showToast) showToast('📱 Digital WhatsApp Bill sent successfully!');
-      } else {
-        // Fallback open link
-        if (res.whatsappUrl) window.open(res.whatsappUrl, '_blank');
-        if (showToast) showToast('📱 WhatsApp chat opened with bill details.');
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setWhatsAppSending(false);
-    }
   };
 
   return (
@@ -456,17 +410,6 @@ export default function ThermalBillModal({
             >
               {isCopied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
               <span>{isCopied ? 'Copied' : 'Copy Text'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleSendWhatsApp}
-              disabled={whatsAppSending}
-              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold rounded-xl cursor-pointer transition-colors"
-              title="Send to WhatsApp"
-            >
-              <Phone className="w-4 h-4" />
-              <span>{whatsAppSending ? 'Sending...' : 'WhatsApp Bill'}</span>
             </button>
 
             {slipType === 'bill' && (

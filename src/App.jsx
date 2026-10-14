@@ -25,7 +25,7 @@ import {
   getLocalActiveCafe,
   logoutCafeOwner
 } from './utils/auth';
-import { triggerAutomaticStockAlerts, sendTelegramNewOrderAlert } from './utils/whatsappAlert';
+import { triggerAutomaticStockAlerts, sendTelegramNewOrderAlert } from './utils/telegramAlert';
 import { playOrderChime } from './utils/audioAlert';
 import {
   setCurrentCafeId,
@@ -107,7 +107,7 @@ export default function App() {
   // AI Menu Photo & Text Importer Modal State
   const [isAIScannerOpen, setIsAIScannerOpen] = useState(false);
 
-  // Communications & WhatsApp Silent Gateway Modal State
+  // Telegram Automated Stock & Order Alerts Modal State
   const [isAlertSettingsOpen, setIsAlertSettingsOpen] = useState(false);
 
   // 🖨️ Thermal Receipt / Bill & KOT Printer Modal State
@@ -1465,7 +1465,7 @@ export default function App() {
                   type="button"
                   onClick={() => setIsAIScannerOpen(true)}
                   className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-indigo-600 via-indigo-700 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer transition-all transform hover:-translate-y-0.5"
-                  title="Scan Menu Card Photo or Paste WhatsApp Rate Card"
+                  title="Scan Menu Card Photo or Paste Digital Rate List"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-amber-300" />
                   <span>📸 AI Menu Scanner</span>
@@ -1638,7 +1638,7 @@ export default function App() {
         currentMenuCount={menuItems.length}
       />
 
-      {/* 📱 Communications & WhatsApp Silent Gateway Modal */}
+      {/* 🤖 Telegram Automated Stock & Dine-In Order Alerts Modal */}
       <StockAlertSettingsModal
         isOpen={isAlertSettingsOpen}
         onClose={() => setIsAlertSettingsOpen(false)}

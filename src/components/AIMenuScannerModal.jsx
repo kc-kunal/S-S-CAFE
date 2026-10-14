@@ -172,7 +172,7 @@ export default function AIMenuScannerModal({
     }, 1200);
   };
 
-  // Convert Raw WhatsApp / Text to structured Menu Items
+  // Convert Raw Text / Rate List to structured Menu Items
   const handleParseText = () => {
     if (!rawText.trim()) return;
 
@@ -316,7 +316,7 @@ export default function AIMenuScannerModal({
                 </span>
               </div>
               <p className="text-xs text-slate-300 mt-0.5">
-                Physical menu card ki photo kheencho ya WhatsApp menu paste karo — software auto-build karega!
+                Physical menu card ki photo kheencho ya digital menu paste karo — software auto-build karega!
               </p>
             </div>
           </div>
@@ -355,7 +355,7 @@ export default function AIMenuScannerModal({
             }`}
           >
             <FileText className="w-4 h-4" />
-            <span>📋 WhatsApp / Text Paste</span>
+            <span>📋 Text / Rate List Paste</span>
           </button>
 
           <button
@@ -495,12 +495,12 @@ export default function AIMenuScannerModal({
             </div>
           )}
 
-          {/* TAB 2: WHATSAPP / TEXT PASTE */}
+          {/* TAB 2: TEXT PASTE */}
           {activeTab === 'paste' && (
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  WhatsApp ya Notepad se Menu List Paste Karein:
+                  Text ya Notepad se Menu List Paste Karein:
                 </label>
                 <textarea
                   rows={6}

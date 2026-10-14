@@ -23,7 +23,7 @@ export default function ItemCards({
         </div>
         <h3 className="text-lg font-bold text-stone-900">Aapka Cafe Menu Abhi Khaali Hai</h3>
         <p className="text-xs text-stone-500 mt-1 max-w-sm mx-auto leading-relaxed">
-          Apne cafe ke printed menu card ki photo click karke scan karein, WhatsApp rate card paste karein, ya manual item add karein.
+          Apne cafe ke printed menu card ki photo click karke scan karein, digital rate list paste karein, ya manual item add karein.
         </p>
         <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
           {onOpenAIScanner && (
