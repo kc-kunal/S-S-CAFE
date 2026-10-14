@@ -83,7 +83,9 @@ export default function Navbar({
             </div>
             <p className="text-[11px] text-slate-400 hidden sm:flex items-center gap-1 mt-0.5">
               <Sparkles className="w-3 h-3 text-indigo-400 inline" />
-              <span>{ownerName}'s Cafe POS</span>
+              <span>
+                {ownerName}'s {(currentCafe?.businessType === 'restaurant' || (currentCafe?.ownerEmail || '').toLowerCase() === 'kc@gmail.com') ? 'Hotel & Restaurant POS' : 'Cafe POS'}
+              </span>
               <span className="text-slate-700">•</span>
               <span className="text-[10px] text-emerald-400 flex items-center gap-1">
                 <ShieldCheck className="w-3 h-3 text-emerald-400" />

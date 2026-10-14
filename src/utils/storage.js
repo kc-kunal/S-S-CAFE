@@ -589,6 +589,452 @@ export const INITIAL_MENU_ITEMS = [
   { id: 'addon-3', name: 'Cheese Slice', category: 'Add Ons', sellingPrice: 20, costPrice: 8, unit: 'Piece', isAvailable: true, recipe: [{ ingredientId: 'inv-15', name: 'Cheese Slice', quantity: 1, unit: 'Piece' }] }
 ];
 
+// ==============================================================
+// 🍽️ HOTEL & FAMILY RESTAURANT STARTER CATALOG (Dine-in & Tandoor)
+// Used for kc@gmail.com, Hotel / Dine-in Family Restaurant Profiles
+// ==============================================================
+
+export const RESTAURANT_HOTEL_INVENTORY_ITEMS = [
+  { id: 'inv-h1', materialName: 'Fresh Malai Paneer', category: 'Dairy', currentStock: 12000, unit: 'Gram', reorderLevel: 2000, unitCost: 0.38, lastUpdated: getTodayDateString(0) },
+  { id: 'inv-h2', materialName: 'Royal Basmati Rice', category: 'Grains & Flours', currentStock: 35000, unit: 'Gram', reorderLevel: 8000, unitCost: 0.11, lastUpdated: getTodayDateString(0) },
+  { id: 'inv-h3', materialName: 'Chakki Fresh Atta (Wheat)', category: 'Grains & Flours', currentStock: 40000, unit: 'Gram', reorderLevel: 10000, unitCost: 0.04, lastUpdated: getTodayDateString(0) },
+  { id: 'inv-h4', materialName: 'Refined Maida Flour', category: 'Grains & Flours', currentStock: 25000, unit: 'Gram', reorderLevel: 5000, unitCost: 0.04, lastUpdated: getTodayDateString(0) },
+  { id: 'inv-h5', materialName: 'Amul Yellow Butter', category: 'Dairy', currentStock: 6000, unit: 'Gram', reorderLevel: 1500, unitCost: 0.54, lastUpdated: getTodayDateString(0) },
+  { id: 'inv-h6', materialName: 'Fresh Cooking Cream', category: 'Dairy', currentStock: 5000, unit: 'ml', reorderLevel: 1000, unitCost: 0.22, lastUpdated: getTodayDateString(0) },
+  { id: 'inv-h7', materialName: 'Desi Cow Ghee', category: 'Dairy', currentStock: 4000, unit: 'ml', reorderLevel: 800, unitCost: 0.65, lastUpdated: getTodayDateString(0) },
+  { id: 'inv-h8', materialName: 'Refined Sunflower Oil', category: 'Oils & Fats', currentStock: 30000, unit: 'ml', reorderLevel: 5000, unitCost: 0.14, lastUpdated: getTodayDateString(0) },
+  { id: 'inv-h9', materialName: 'Toor / Arhar Dal', category: 'Grains & Flours', currentStock: 15000, unit: 'Gram', reorderLevel: 3000, unitCost: 0.15, lastUpdated: getTodayDateString(0) },
+  { id: 'inv-h10', materialName: 'Black Urad Dal (Makhani)', category: 'Grains & Flours', currentStock: 12000, unit: 'Gram', reorderLevel: 2500, unitCost: 0.14, lastUpdated: getTodayDateString(0) },
+  { id: 'inv-h11', materialName: 'Fresh Red Onions', category: 'Vegetables', currentStock: 35000, unit: 'Gram', reorderLevel: 6000, unitCost: 0.035, lastUpdated: getTodayDateString(0) },
+  { id: 'inv-h12', materialName: 'Fresh Ripe Tomatoes', category: 'Vegetables', currentStock: 30000, unit: 'Gram', reorderLevel: 5000, unitCost: 0.04, lastUpdated: getTodayDateString(0) },
+  { id: 'inv-h13', materialName: 'Ginger Garlic Paste', category: 'Spices & Seasoning', currentStock: 6000, unit: 'Gram', reorderLevel: 1200, unitCost: 0.16, lastUpdated: getTodayDateString(0) },
+  { id: 'inv-h14', materialName: 'Whole Cashews (Kaju)', category: 'Spices & Seasoning', currentStock: 4000, unit: 'Gram', reorderLevel: 800, unitCost: 0.85, lastUpdated: getTodayDateString(0) },
+  { id: 'inv-h15', materialName: 'Fresh Thick Dahi / Curd', category: 'Dairy', currentStock: 10000, unit: 'Gram', reorderLevel: 2000, unitCost: 0.065, lastUpdated: getTodayDateString(0) },
+  { id: 'inv-h16', materialName: 'Whole Garam Masala Blend', category: 'Spices & Seasoning', currentStock: 3000, unit: 'Gram', reorderLevel: 500, unitCost: 0.55, lastUpdated: getTodayDateString(0) },
+  { id: 'inv-h17', materialName: 'Kasuri Methi & Herbs', category: 'Spices & Seasoning', currentStock: 1500, unit: 'Gram', reorderLevel: 300, unitCost: 0.35, lastUpdated: getTodayDateString(0) },
+  { id: 'inv-h18', materialName: 'Urad Dal Papad (Bikaneri)', category: 'Accompaniments', currentStock: 200, unit: 'Piece', reorderLevel: 40, unitCost: 3.5, lastUpdated: getTodayDateString(0) },
+  { id: 'inv-h19', materialName: 'Gulab Jamun (Canned/Fresh)', category: 'Desserts & Sweets', currentStock: 100, unit: 'Piece', reorderLevel: 25, unitCost: 12, lastUpdated: getTodayDateString(0) },
+  { id: 'inv-h20', materialName: 'Crispy Boondi (Gram Flour)', category: 'Accompaniments', currentStock: 4000, unit: 'Gram', reorderLevel: 600, unitCost: 0.18, lastUpdated: getTodayDateString(0) },
+  { id: 'inv-h21', materialName: 'Assorted Fresh Vegetables (Peas, Carrot, Capsicum)', category: 'Vegetables', currentStock: 20000, unit: 'Gram', reorderLevel: 4000, unitCost: 0.05, lastUpdated: getTodayDateString(0) },
+  { id: 'inv-h22', materialName: 'Special Biryani Masala & Saffron', category: 'Spices & Seasoning', currentStock: 1200, unit: 'Gram', reorderLevel: 250, unitCost: 0.90, lastUpdated: getTodayDateString(0) }
+];
+
+export const RESTAURANT_HOTEL_MENU_ITEMS = [
+  // SOUPS & STARTERS
+  {
+    id: 'rest-1',
+    name: 'Cream of Tomato Soup',
+    category: 'Soups & Starters',
+    sellingPrice: 95,
+    costPrice: 28,
+    unit: 'Bowl',
+    isAvailable: true,
+    recipe: [
+      { ingredientId: 'inv-h12', name: 'Fresh Ripe Tomatoes', quantity: 200, unit: 'Gram' },
+      { ingredientId: 'inv-h6', name: 'Fresh Cooking Cream', quantity: 30, unit: 'ml' },
+      { ingredientId: 'inv-h5', name: 'Amul Yellow Butter', quantity: 15, unit: 'Gram' }
+    ]
+  },
+  {
+    id: 'rest-2',
+    name: 'Paneer Tikka Tandoori (6 Pcs)',
+    category: 'Soups & Starters',
+    sellingPrice: 220,
+    costPrice: 85,
+    unit: 'Plate',
+    isAvailable: true,
+    recipe: [
+      { ingredientId: 'inv-h1', name: 'Fresh Malai Paneer', quantity: 180, unit: 'Gram' },
+      { ingredientId: 'inv-h15', name: 'Fresh Thick Dahi / Curd', quantity: 50, unit: 'Gram' },
+      { ingredientId: 'inv-h13', name: 'Ginger Garlic Paste', quantity: 20, unit: 'Gram' },
+      { ingredientId: 'inv-h16', name: 'Whole Garam Masala Blend', quantity: 10, unit: 'Gram' },
+      { ingredientId: 'inv-h5', name: 'Amul Yellow Butter', quantity: 15, unit: 'Gram' }
+    ]
+  },
+  {
+    id: 'rest-3',
+    name: 'Veg Hara Bhara Kabab (6 Pcs)',
+    category: 'Soups & Starters',
+    sellingPrice: 160,
+    costPrice: 45,
+    unit: 'Plate',
+    isAvailable: true,
+    recipe: [
+      { ingredientId: 'inv-h21', name: 'Assorted Fresh Vegetables (Peas, Carrot, Capsicum)', quantity: 150, unit: 'Gram' },
+      { ingredientId: 'inv-h1', name: 'Fresh Malai Paneer', quantity: 30, unit: 'Gram' },
+      { ingredientId: 'inv-h16', name: 'Whole Garam Masala Blend', quantity: 10, unit: 'Gram' },
+      { ingredientId: 'inv-h8', name: 'Refined Sunflower Oil', quantity: 30, unit: 'ml' }
+    ]
+  },
+  {
+    id: 'rest-4',
+    name: 'Crispy Corn Chilli Pepper',
+    category: 'Soups & Starters',
+    sellingPrice: 150,
+    costPrice: 42,
+    unit: 'Plate',
+    isAvailable: true,
+    recipe: [
+      { ingredientId: 'inv-h21', name: 'Assorted Fresh Vegetables (Peas, Carrot, Capsicum)', quantity: 100, unit: 'Gram' },
+      { ingredientId: 'inv-h4', name: 'Refined Maida Flour', quantity: 30, unit: 'Gram' },
+      { ingredientId: 'inv-h8', name: 'Refined Sunflower Oil', quantity: 40, unit: 'ml' },
+      { ingredientId: 'inv-h11', name: 'Fresh Red Onions', quantity: 40, unit: 'Gram' }
+    ]
+  },
+
+  // MAIN COURSE (PANEER & VEG)
+  {
+    id: 'rest-5',
+    name: 'Paneer Butter Masala (Special Handi)',
+    category: 'Main Course (Paneer & Veg)',
+    sellingPrice: 230,
+    costPrice: 88,
+    unit: 'Handi',
+    isAvailable: true,
+    recipe: [
+      { ingredientId: 'inv-h1', name: 'Fresh Malai Paneer', quantity: 180, unit: 'Gram' },
+      { ingredientId: 'inv-h5', name: 'Amul Yellow Butter', quantity: 30, unit: 'Gram' },
+      { ingredientId: 'inv-h6', name: 'Fresh Cooking Cream', quantity: 30, unit: 'ml' },
+      { ingredientId: 'inv-h12', name: 'Fresh Ripe Tomatoes', quantity: 150, unit: 'Gram' },
+      { ingredientId: 'inv-h11', name: 'Fresh Red Onions', quantity: 80, unit: 'Gram' },
+      { ingredientId: 'inv-h13', name: 'Ginger Garlic Paste', quantity: 15, unit: 'Gram' },
+      { ingredientId: 'inv-h14', name: 'Whole Cashews (Kaju)', quantity: 15, unit: 'Gram' },
+      { ingredientId: 'inv-h17', name: 'Kasuri Methi & Herbs', quantity: 5, unit: 'Gram' }
+    ]
+  },
+  {
+    id: 'rest-6',
+    name: 'Kadhai Paneer',
+    category: 'Main Course (Paneer & Veg)',
+    sellingPrice: 220,
+    costPrice: 80,
+    unit: 'Handi',
+    isAvailable: true,
+    recipe: [
+      { ingredientId: 'inv-h1', name: 'Fresh Malai Paneer', quantity: 180, unit: 'Gram' },
+      { ingredientId: 'inv-h21', name: 'Assorted Fresh Vegetables (Peas, Carrot, Capsicum)', quantity: 60, unit: 'Gram' },
+      { ingredientId: 'inv-h11', name: 'Fresh Red Onions', quantity: 90, unit: 'Gram' },
+      { ingredientId: 'inv-h12', name: 'Fresh Ripe Tomatoes', quantity: 120, unit: 'Gram' },
+      { ingredientId: 'inv-h8', name: 'Refined Sunflower Oil', quantity: 25, unit: 'ml' },
+      { ingredientId: 'inv-h16', name: 'Whole Garam Masala Blend', quantity: 15, unit: 'Gram' }
+    ]
+  },
+  {
+    id: 'rest-7',
+    name: 'Shahi Paneer (Royal Kaju Gravy)',
+    category: 'Main Course (Paneer & Veg)',
+    sellingPrice: 240,
+    costPrice: 94,
+    unit: 'Handi',
+    isAvailable: true,
+    recipe: [
+      { ingredientId: 'inv-h1', name: 'Fresh Malai Paneer', quantity: 180, unit: 'Gram' },
+      { ingredientId: 'inv-h14', name: 'Whole Cashews (Kaju)', quantity: 30, unit: 'Gram' },
+      { ingredientId: 'inv-h6', name: 'Fresh Cooking Cream', quantity: 40, unit: 'ml' },
+      { ingredientId: 'inv-h5', name: 'Amul Yellow Butter', quantity: 20, unit: 'Gram' },
+      { ingredientId: 'inv-h12', name: 'Fresh Ripe Tomatoes', quantity: 100, unit: 'Gram' },
+      { ingredientId: 'inv-h16', name: 'Whole Garam Masala Blend', quantity: 10, unit: 'Gram' }
+    ]
+  },
+  {
+    id: 'rest-8',
+    name: 'Mix Veg Kolhapuri (Spicy Handi)',
+    category: 'Main Course (Paneer & Veg)',
+    sellingPrice: 180,
+    costPrice: 55,
+    unit: 'Handi',
+    isAvailable: true,
+    recipe: [
+      { ingredientId: 'inv-h21', name: 'Assorted Fresh Vegetables (Peas, Carrot, Capsicum)', quantity: 200, unit: 'Gram' },
+      { ingredientId: 'inv-h11', name: 'Fresh Red Onions', quantity: 80, unit: 'Gram' },
+      { ingredientId: 'inv-h12', name: 'Fresh Ripe Tomatoes', quantity: 100, unit: 'Gram' },
+      { ingredientId: 'inv-h8', name: 'Refined Sunflower Oil', quantity: 30, unit: 'ml' },
+      { ingredientId: 'inv-h16', name: 'Whole Garam Masala Blend', quantity: 15, unit: 'Gram' }
+    ]
+  },
+  {
+    id: 'rest-9',
+    name: 'Malai Kofta (Melt in Mouth)',
+    category: 'Main Course (Paneer & Veg)',
+    sellingPrice: 230,
+    costPrice: 85,
+    unit: 'Handi',
+    isAvailable: true,
+    recipe: [
+      { ingredientId: 'inv-h1', name: 'Fresh Malai Paneer', quantity: 100, unit: 'Gram' },
+      { ingredientId: 'inv-h14', name: 'Whole Cashews (Kaju)', quantity: 25, unit: 'Gram' },
+      { ingredientId: 'inv-h6', name: 'Fresh Cooking Cream', quantity: 35, unit: 'ml' },
+      { ingredientId: 'inv-h4', name: 'Refined Maida Flour', quantity: 30, unit: 'Gram' },
+      { ingredientId: 'inv-h12', name: 'Fresh Ripe Tomatoes', quantity: 100, unit: 'Gram' },
+      { ingredientId: 'inv-h8', name: 'Refined Sunflower Oil', quantity: 35, unit: 'ml' }
+    ]
+  },
+
+  // DAL SPECIALTIES
+  {
+    id: 'rest-10',
+    name: 'Dal Tadka (Desi Ghee Fry)',
+    category: 'Dal Specialties',
+    sellingPrice: 140,
+    costPrice: 38,
+    unit: 'Bowl',
+    isAvailable: true,
+    recipe: [
+      { ingredientId: 'inv-h9', name: 'Toor / Arhar Dal', quantity: 100, unit: 'Gram' },
+      { ingredientId: 'inv-h7', name: 'Desi Cow Ghee', quantity: 20, unit: 'ml' },
+      { ingredientId: 'inv-h11', name: 'Fresh Red Onions', quantity: 40, unit: 'Gram' },
+      { ingredientId: 'inv-h12', name: 'Fresh Ripe Tomatoes', quantity: 40, unit: 'Gram' },
+      { ingredientId: 'inv-h13', name: 'Ginger Garlic Paste', quantity: 10, unit: 'Gram' }
+    ]
+  },
+  {
+    id: 'rest-11',
+    name: 'Dal Makhani (Slow Handi Dum)',
+    category: 'Dal Specialties',
+    sellingPrice: 180,
+    costPrice: 58,
+    unit: 'Handi',
+    isAvailable: true,
+    recipe: [
+      { ingredientId: 'inv-h10', name: 'Black Urad Dal (Makhani)', quantity: 100, unit: 'Gram' },
+      { ingredientId: 'inv-h5', name: 'Amul Yellow Butter', quantity: 35, unit: 'Gram' },
+      { ingredientId: 'inv-h6', name: 'Fresh Cooking Cream', quantity: 30, unit: 'ml' },
+      { ingredientId: 'inv-h12', name: 'Fresh Ripe Tomatoes', quantity: 80, unit: 'Gram' },
+      { ingredientId: 'inv-h13', name: 'Ginger Garlic Paste', quantity: 15, unit: 'Gram' }
+    ]
+  },
+
+  // TANDOORI BREADS
+  {
+    id: 'rest-12',
+    name: 'Tandoori Butter Roti',
+    category: 'Tandoori Breads',
+    sellingPrice: 20,
+    costPrice: 6,
+    unit: 'Piece',
+    isAvailable: true,
+    recipe: [
+      { ingredientId: 'inv-h3', name: 'Chakki Fresh Atta (Wheat)', quantity: 75, unit: 'Gram' },
+      { ingredientId: 'inv-h5', name: 'Amul Yellow Butter', quantity: 8, unit: 'Gram' }
+    ]
+  },
+  {
+    id: 'rest-13',
+    name: 'Plain Naan',
+    category: 'Tandoori Breads',
+    sellingPrice: 35,
+    costPrice: 8,
+    unit: 'Piece',
+    isAvailable: true,
+    recipe: [
+      { ingredientId: 'inv-h4', name: 'Refined Maida Flour', quantity: 100, unit: 'Gram' },
+      { ingredientId: 'inv-h15', name: 'Fresh Thick Dahi / Curd', quantity: 20, unit: 'Gram' }
+    ]
+  },
+  {
+    id: 'rest-14',
+    name: 'Butter Naan (Crisp & Fluffy)',
+    category: 'Tandoori Breads',
+    sellingPrice: 45,
+    costPrice: 14,
+    unit: 'Piece',
+    isAvailable: true,
+    recipe: [
+      { ingredientId: 'inv-h4', name: 'Refined Maida Flour', quantity: 100, unit: 'Gram' },
+      { ingredientId: 'inv-h5', name: 'Amul Yellow Butter', quantity: 18, unit: 'Gram' },
+      { ingredientId: 'inv-h15', name: 'Fresh Thick Dahi / Curd', quantity: 20, unit: 'Gram' }
+    ]
+  },
+  {
+    id: 'rest-15',
+    name: 'Garlic Butter Naan',
+    category: 'Tandoori Breads',
+    sellingPrice: 60,
+    costPrice: 18,
+    unit: 'Piece',
+    isAvailable: true,
+    recipe: [
+      { ingredientId: 'inv-h4', name: 'Refined Maida Flour', quantity: 100, unit: 'Gram' },
+      { ingredientId: 'inv-h5', name: 'Amul Yellow Butter', quantity: 20, unit: 'Gram' },
+      { ingredientId: 'inv-h13', name: 'Ginger Garlic Paste', quantity: 15, unit: 'Gram' }
+    ]
+  },
+  {
+    id: 'rest-16',
+    name: 'Lachha Paratha (Multi-Layered)',
+    category: 'Tandoori Breads',
+    sellingPrice: 50,
+    costPrice: 15,
+    unit: 'Piece',
+    isAvailable: true,
+    recipe: [
+      { ingredientId: 'inv-h3', name: 'Chakki Fresh Atta (Wheat)', quantity: 100, unit: 'Gram' },
+      { ingredientId: 'inv-h7', name: 'Desi Cow Ghee', quantity: 15, unit: 'ml' }
+    ]
+  },
+
+  // RICE & BIRYANI
+  {
+    id: 'rest-17',
+    name: 'Steamed Royal Basmati Rice',
+    category: 'Rice & Biryani',
+    sellingPrice: 100,
+    costPrice: 25,
+    unit: 'Plate',
+    isAvailable: true,
+    recipe: [
+      { ingredientId: 'inv-h2', name: 'Royal Basmati Rice', quantity: 160, unit: 'Gram' }
+    ]
+  },
+  {
+    id: 'rest-18',
+    name: 'Jeera Rice (Desi Ghee)',
+    category: 'Rice & Biryani',
+    sellingPrice: 130,
+    costPrice: 35,
+    unit: 'Plate',
+    isAvailable: true,
+    recipe: [
+      { ingredientId: 'inv-h2', name: 'Royal Basmati Rice', quantity: 160, unit: 'Gram' },
+      { ingredientId: 'inv-h7', name: 'Desi Cow Ghee', quantity: 15, unit: 'ml' }
+    ]
+  },
+  {
+    id: 'rest-19',
+    name: 'Hyderabadi Veg Dum Biryani (with Raita)',
+    category: 'Rice & Biryani',
+    sellingPrice: 220,
+    costPrice: 72,
+    unit: 'Handi',
+    isAvailable: true,
+    recipe: [
+      { ingredientId: 'inv-h2', name: 'Royal Basmati Rice', quantity: 180, unit: 'Gram' },
+      { ingredientId: 'inv-h1', name: 'Fresh Malai Paneer', quantity: 50, unit: 'Gram' },
+      { ingredientId: 'inv-h21', name: 'Assorted Fresh Vegetables (Peas, Carrot, Capsicum)', quantity: 80, unit: 'Gram' },
+      { ingredientId: 'inv-h7', name: 'Desi Cow Ghee', quantity: 15, unit: 'ml' },
+      { ingredientId: 'inv-h15', name: 'Fresh Thick Dahi / Curd', quantity: 60, unit: 'Gram' },
+      { ingredientId: 'inv-h22', name: 'Special Biryani Masala & Saffron', quantity: 10, unit: 'Gram' }
+    ]
+  },
+
+  // THALI & COMBOS
+  {
+    id: 'rest-20',
+    name: 'Maharaja Special Family Thali',
+    category: 'Thali & Combos',
+    sellingPrice: 280,
+    costPrice: 95,
+    unit: 'Thali',
+    isAvailable: true,
+    recipe: [
+      { ingredientId: 'inv-h1', name: 'Fresh Malai Paneer', quantity: 80, unit: 'Gram' },
+      { ingredientId: 'inv-h9', name: 'Toor / Arhar Dal', quantity: 60, unit: 'Gram' },
+      { ingredientId: 'inv-h21', name: 'Assorted Fresh Vegetables (Peas, Carrot, Capsicum)', quantity: 60, unit: 'Gram' },
+      { ingredientId: 'inv-h3', name: 'Chakki Fresh Atta (Wheat)', quantity: 150, unit: 'Gram' },
+      { ingredientId: 'inv-h2', name: 'Royal Basmati Rice', quantity: 80, unit: 'Gram' },
+      { ingredientId: 'inv-h19', name: 'Gulab Jamun (Canned/Fresh)', quantity: 1, unit: 'Piece' },
+      { ingredientId: 'inv-h18', name: 'Urad Dal Papad (Bikaneri)', quantity: 1, unit: 'Piece' }
+    ]
+  },
+
+  // ACCOMPANIMENTS & DESSERTS
+  {
+    id: 'rest-21',
+    name: 'Boondi Raita',
+    category: 'Accompaniments & Desserts',
+    sellingPrice: 70,
+    costPrice: 22,
+    unit: 'Bowl',
+    isAvailable: true,
+    recipe: [
+      { ingredientId: 'inv-h15', name: 'Fresh Thick Dahi / Curd', quantity: 150, unit: 'Gram' },
+      { ingredientId: 'inv-h20', name: 'Crispy Boondi (Gram Flour)', quantity: 30, unit: 'Gram' }
+    ]
+  },
+  {
+    id: 'rest-22',
+    name: 'Masala Roasted Papad (2 Pcs)',
+    category: 'Accompaniments & Desserts',
+    sellingPrice: 40,
+    costPrice: 12,
+    unit: 'Plate',
+    isAvailable: true,
+    recipe: [
+      { ingredientId: 'inv-h18', name: 'Urad Dal Papad (Bikaneri)', quantity: 2, unit: 'Piece' },
+      { ingredientId: 'inv-h11', name: 'Fresh Red Onions', quantity: 20, unit: 'Gram' },
+      { ingredientId: 'inv-h12', name: 'Fresh Ripe Tomatoes', quantity: 20, unit: 'Gram' }
+    ]
+  },
+  {
+    id: 'rest-23',
+    name: 'Hot Gulab Jamun with Rabdi (2 Pcs)',
+    category: 'Accompaniments & Desserts',
+    sellingPrice: 70,
+    costPrice: 28,
+    unit: 'Bowl',
+    isAvailable: true,
+    recipe: [
+      { ingredientId: 'inv-h19', name: 'Gulab Jamun (Canned/Fresh)', quantity: 2, unit: 'Piece' },
+      { ingredientId: 'inv-h6', name: 'Fresh Cooking Cream', quantity: 30, unit: 'ml' }
+    ]
+  },
+  {
+    id: 'rest-24',
+    name: 'Special Amritsari Sweet Lassi (Kulhad)',
+    category: 'Accompaniments & Desserts',
+    sellingPrice: 60,
+    costPrice: 22,
+    unit: 'Kulhad',
+    isAvailable: true,
+    recipe: [
+      { ingredientId: 'inv-h15', name: 'Fresh Thick Dahi / Curd', quantity: 200, unit: 'Gram' },
+      { ingredientId: 'inv-h6', name: 'Fresh Cooking Cream', quantity: 20, unit: 'ml' }
+    ]
+  },
+  {
+    id: 'rest-25',
+    name: 'Masala Chhach / Spiced Buttermilk',
+    category: 'Accompaniments & Desserts',
+    sellingPrice: 35,
+    costPrice: 10,
+    unit: 'Glass',
+    isAvailable: true,
+    recipe: [
+      { ingredientId: 'inv-h15', name: 'Fresh Thick Dahi / Curd', quantity: 100, unit: 'Gram' },
+      { ingredientId: 'inv-h16', name: 'Whole Garam Masala Blend', quantity: 5, unit: 'Gram' }
+    ]
+  }
+];
+
+export const RESTAURANT_HOTEL_PROCUREMENT_LOGS = [
+  { id: 'proc-h1', materialName: 'Fresh Malai Paneer', category: 'Dairy', quantityReceived: 15000, unit: 'Gram', ratePerUnit: 0.38, totalCost: 5700, supplier: 'Shri Krishna Dairy Farm', date: getTodayDateString(0) },
+  { id: 'proc-h2', materialName: 'Royal Basmati Rice', category: 'Grains & Flours', quantityReceived: 50000, unit: 'Gram', ratePerUnit: 0.105, totalCost: 5250, supplier: 'Anand Grain Traders', date: getTodayDateString(1) },
+  { id: 'proc-h3', materialName: 'Chakki Fresh Atta (Wheat)', category: 'Grains & Flours', quantityReceived: 50000, unit: 'Gram', ratePerUnit: 0.038, totalCost: 1900, supplier: 'Local Flour Mill', date: getTodayDateString(1) },
+  { id: 'proc-h4', materialName: 'Amul Yellow Butter', category: 'Dairy', quantityReceived: 5000, unit: 'Gram', ratePerUnit: 0.52, totalCost: 2600, supplier: 'Amul Wholesale Depot', date: getTodayDateString(2) },
+  { id: 'proc-h5', materialName: 'Fresh Ripe Tomatoes', category: 'Vegetables', quantityReceived: 30000, unit: 'Gram', ratePerUnit: 0.035, totalCost: 1050, supplier: 'Kisan Sabzi Mandi', date: getTodayDateString(0) }
+];
+
+export const RESTAURANT_HOTEL_EXPENSES = [
+  { id: 'exp-h1', title: 'Hotel Premises & Main Dining Hall Rent', category: 'Hotel Premises Rent', amount: 35000, date: getTodayDateString(5), paymentMode: 'Online', paidTo: 'Property Owner Agrawal Ji', notes: 'Monthly rent for hotel dining & kitchen premises' },
+  { id: 'exp-h2', title: 'Commercial 3-Phase Power Bill', category: 'Electricity', amount: 8900, date: getTodayDateString(3), paymentMode: 'Online', paidTo: 'MPPKVVCL Power Board', notes: 'AC hall & kitchen refrigeration bill' },
+  { id: 'exp-h3', title: 'Head Chef & Tandoor Master Salary', category: 'Kitchen Staff Salary', amount: 26000, date: getTodayDateString(2), paymentMode: 'Cash', paidTo: 'Chef Rajesh & Team', notes: 'Monthly kitchen staff salary advance' },
+  { id: 'exp-h4', title: 'Commercial LPG Cylinders (19kg x 3)', category: 'Commercial Gas', amount: 5550, date: getTodayDateString(1), paymentMode: 'Cash', paidTo: 'Bharat Gas Agency', notes: '3 refilled cylinders for tandoor & bhattis' },
+  { id: 'exp-h5', title: 'Table Linen & Uniform Dry Cleaning', category: 'Laundry & Hygiene', amount: 2400, date: getTodayDateString(4), paymentMode: 'Cash', paidTo: 'Deluxe Laundry', notes: 'Dine-in table covers and staff aprons' }
+];
+
+export const RESTAURANT_HOTEL_SALES_LOGS = [
+  { id: 'sale-h1', itemId: 'rest-20', itemName: 'Maharaja Special Family Thali', category: 'Thali & Combos', quantitySold: 4, sellingPrice: 280, costPrice: 95, totalRevenue: 1120, totalCost: 380, paymentMethod: 'Online', tableNumber: '4', token: 'T-104', date: getTodayDateString(0) },
+  { id: 'sale-h2', itemId: 'rest-5', itemName: 'Paneer Butter Masala (Special Handi)', category: 'Main Course (Paneer & Veg)', quantitySold: 2, sellingPrice: 230, costPrice: 88, totalRevenue: 460, totalCost: 176, paymentMethod: 'Cash', tableNumber: '7', token: 'T-107', date: getTodayDateString(0) },
+  { id: 'sale-h3', itemId: 'rest-14', itemName: 'Butter Naan (Crisp & Fluffy)', category: 'Tandoori Breads', quantitySold: 6, sellingPrice: 45, costPrice: 14, totalRevenue: 270, totalCost: 84, paymentMethod: 'Cash', tableNumber: '7', token: 'T-107', date: getTodayDateString(0) },
+  { id: 'sale-h4', itemId: 'rest-19', itemName: 'Hyderabadi Veg Dum Biryani (with Raita)', category: 'Rice & Biryani', quantitySold: 3, sellingPrice: 220, costPrice: 72, totalRevenue: 660, totalCost: 216, paymentMethod: 'Swiggy', platformOrderId: '#SWG-9021', discountAmount: 30, date: getTodayDateString(0) },
+  { id: 'sale-h5', itemId: 'rest-2', itemName: 'Paneer Tikka Tandoori (6 Pcs)', category: 'Soups & Starters', quantitySold: 2, sellingPrice: 220, costPrice: 85, totalRevenue: 440, totalCost: 170, paymentMethod: 'Zomato', platformOrderId: '#ZOM-3829', discountAmount: 20, date: getTodayDateString(0) }
+];
+
+export const RESTAURANT_HOTEL_WASTAGE_LOGS = [
+  { id: 'waste-h1', date: getTodayDateString(1), ingredientId: 'inv-h12', ingredientName: 'Fresh Ripe Tomatoes', quantity: 2000, unit: 'Gram', reason: 'Crushed in Mandi Transit', costValue: 70, loggedBy: 'Assistant Cook', remarks: 'Over-ripe and damaged transit tomatoes' },
+  { id: 'waste-h2', date: getTodayDateString(2), ingredientId: 'inv-h15', ingredientName: 'Fresh Thick Dahi / Curd', quantity: 1000, unit: 'Gram', reason: 'Sour / Fermented', costValue: 65, loggedBy: 'Pantry Chef', remarks: 'Excessively sour curd unsuitable for lassi' }
+];
+
 export const INITIAL_SALES_LOGS = [
   { id: 'sale-1', itemId: 'burger-1', itemName: 'Aloo Tikki Burger', category: 'Burgers', quantitySold: 3, sellingPrice: 39, costPrice: 18, totalRevenue: 117, totalCost: 54, paymentMethod: 'Cash', date: getTodayDateString(0) },
   { id: 'sale-2', itemId: 'shake-1', itemName: 'Classic Cold Coffee', category: 'Cold Coffee & Shakes', quantitySold: 2, sellingPrice: 59, costPrice: 25, totalRevenue: 118, totalCost: 50, paymentMethod: 'Online', date: getTodayDateString(0) },
@@ -597,7 +1043,6 @@ export const INITIAL_SALES_LOGS = [
 ];
 
 export const INITIAL_AGGREGATOR_SETTLEMENTS = [];
-
 
 export const INITIAL_PROCUREMENT_LOGS = [
   { id: 'proc-1', materialName: 'Pizza Base', category: 'Bakery', quantityReceived: 20, unit: 'Piece', ratePerUnit: 15, totalCost: 300, supplier: 'Local Baker', date: getTodayDateString(0) },
@@ -618,6 +1063,33 @@ export const getScopedKey = (baseKey, cafeId = currentCafeId) => {
   return `${baseKey}_${cafeId}`;
 };
 
+// Seed complete Hotel & Family Restaurant starter pack into scoped storage
+export const seedHotelRestaurantData = (cafeId = currentCafeId) => {
+  saveStoredMenu(RESTAURANT_HOTEL_MENU_ITEMS, cafeId);
+  saveStoredInventory(RESTAURANT_HOTEL_INVENTORY_ITEMS, cafeId);
+  saveStoredProcurement(RESTAURANT_HOTEL_PROCUREMENT_LOGS, cafeId);
+  saveStoredExpenses(RESTAURANT_HOTEL_EXPENSES, cafeId);
+  saveStoredSales(RESTAURANT_HOTEL_SALES_LOGS, cafeId);
+  saveStoredWastage(RESTAURANT_HOTEL_WASTAGE_LOGS, cafeId);
+};
+
+// Seed complete Fast Food Cafe starter pack into scoped storage
+export const seedCafeData = (cafeId = currentCafeId) => {
+  saveStoredMenu(INITIAL_MENU_ITEMS, cafeId);
+  saveStoredInventory(INITIAL_INVENTORY_ITEMS, cafeId);
+  saveStoredProcurement(INITIAL_PROCUREMENT_LOGS, cafeId);
+  saveStoredExpenses(INITIAL_EXPENSES, cafeId);
+  saveStoredSales(INITIAL_SALES_LOGS, cafeId);
+  saveStoredWastage(INITIAL_WASTAGE_LOGS, cafeId);
+};
+
+// Check if tenant is hotel/restaurant type
+export const isTenantHotelOrRestaurant = (cafeId = currentCafeId) => {
+  if (!cafeId) return false;
+  const str = cafeId.toString().toLowerCase();
+  return str.includes('kc') || str.includes('hotel') || str.includes('restaurant');
+};
+
 // Helper functions with automatic migration & fallback
 export const getStoredMenu = (cafeId = currentCafeId) => {
   try {
@@ -627,7 +1099,8 @@ export const getStoredMenu = (cafeId = currentCafeId) => {
       // Check if fallback to base key exists
       data = localStorage.getItem(MENU_STORAGE_KEY);
     }
-    if (!data) return INITIAL_MENU_ITEMS;
+    const defaultFallback = isTenantHotelOrRestaurant(cafeId) ? RESTAURANT_HOTEL_MENU_ITEMS : INITIAL_MENU_ITEMS;
+    if (!data) return defaultFallback;
     const parsed = JSON.parse(data);
     // Ensure every item has a recipe array
     return parsed.map(item => ({
@@ -635,7 +1108,7 @@ export const getStoredMenu = (cafeId = currentCafeId) => {
       recipe: item.recipe || []
     }));
   } catch (e) {
-    return INITIAL_MENU_ITEMS;
+    return isTenantHotelOrRestaurant(cafeId) ? RESTAURANT_HOTEL_MENU_ITEMS : INITIAL_MENU_ITEMS;
   }
 };
 
@@ -654,9 +1127,10 @@ export const getStoredInventory = (cafeId = currentCafeId) => {
     if (!data && cafeId !== 'default') {
       data = localStorage.getItem(INVENTORY_STORAGE_KEY);
     }
-    return data ? JSON.parse(data) : INITIAL_INVENTORY_ITEMS;
+    const defaultFallback = isTenantHotelOrRestaurant(cafeId) ? RESTAURANT_HOTEL_INVENTORY_ITEMS : INITIAL_INVENTORY_ITEMS;
+    return data ? JSON.parse(data) : defaultFallback;
   } catch (e) {
-    return INITIAL_INVENTORY_ITEMS;
+    return isTenantHotelOrRestaurant(cafeId) ? RESTAURANT_HOTEL_INVENTORY_ITEMS : INITIAL_INVENTORY_ITEMS;
   }
 };
 
@@ -675,9 +1149,10 @@ export const getStoredSales = (cafeId = currentCafeId) => {
     if (!data && cafeId !== 'default') {
       data = localStorage.getItem(SALES_STORAGE_KEY);
     }
-    return data ? JSON.parse(data) : INITIAL_SALES_LOGS;
+    const defaultFallback = isTenantHotelOrRestaurant(cafeId) ? RESTAURANT_HOTEL_SALES_LOGS : INITIAL_SALES_LOGS;
+    return data ? JSON.parse(data) : defaultFallback;
   } catch (e) {
-    return INITIAL_SALES_LOGS;
+    return isTenantHotelOrRestaurant(cafeId) ? RESTAURANT_HOTEL_SALES_LOGS : INITIAL_SALES_LOGS;
   }
 };
 
@@ -696,9 +1171,10 @@ export const getStoredProcurement = (cafeId = currentCafeId) => {
     if (!data && cafeId !== 'default') {
       data = localStorage.getItem(PROCUREMENT_STORAGE_KEY);
     }
-    return data ? JSON.parse(data) : INITIAL_PROCUREMENT_LOGS;
+    const defaultFallback = isTenantHotelOrRestaurant(cafeId) ? RESTAURANT_HOTEL_PROCUREMENT_LOGS : INITIAL_PROCUREMENT_LOGS;
+    return data ? JSON.parse(data) : defaultFallback;
   } catch (e) {
-    return INITIAL_PROCUREMENT_LOGS;
+    return isTenantHotelOrRestaurant(cafeId) ? RESTAURANT_HOTEL_PROCUREMENT_LOGS : INITIAL_PROCUREMENT_LOGS;
   }
 };
 
@@ -732,9 +1208,10 @@ export const getStoredExpenses = (cafeId = currentCafeId) => {
     if (!data && cafeId !== 'default') {
       data = localStorage.getItem(EXPENSES_STORAGE_KEY);
     }
-    return data ? JSON.parse(data) : INITIAL_EXPENSES;
+    const defaultFallback = isTenantHotelOrRestaurant(cafeId) ? RESTAURANT_HOTEL_EXPENSES : INITIAL_EXPENSES;
+    return data ? JSON.parse(data) : defaultFallback;
   } catch (e) {
-    return INITIAL_EXPENSES;
+    return isTenantHotelOrRestaurant(cafeId) ? RESTAURANT_HOTEL_EXPENSES : INITIAL_EXPENSES;
   }
 };
 
@@ -753,9 +1230,10 @@ export const getStoredWastage = (cafeId = currentCafeId) => {
     if (!data && cafeId !== 'default') {
       data = localStorage.getItem(WASTAGE_STORAGE_KEY);
     }
-    return data ? JSON.parse(data) : INITIAL_WASTAGE_LOGS;
+    const defaultFallback = isTenantHotelOrRestaurant(cafeId) ? RESTAURANT_HOTEL_WASTAGE_LOGS : INITIAL_WASTAGE_LOGS;
+    return data ? JSON.parse(data) : defaultFallback;
   } catch (e) {
-    return INITIAL_WASTAGE_LOGS;
+    return isTenantHotelOrRestaurant(cafeId) ? RESTAURANT_HOTEL_WASTAGE_LOGS : INITIAL_WASTAGE_LOGS;
   }
 };
 
@@ -1030,6 +1508,7 @@ export const calculateAggregatorLedger = (salesLogs = [], settlements = []) => {
 
 // Known Material Aliases for smart typo handling and natural naming
 export const KNOWN_MATERIAL_ALIASES = {
+  // Cafe Fast Food
   'mozzarella cheese': ['mozzerella', 'mozerella', 'mozarella', 'mozzarella', 'cheese', 'mozzarella cheese', 'mozarela', 'mozz', 'chiz'],
   'pizza sauce': ['sauce', 'souce', 'pizza sauce', 'pizza souce', 'red sauce', 'tomato sauce', 'pasta sauce', 'sauuce'],
   'pizza base': ['pizza base', 'piza base', 'base', 'pizza crust', 'crust', 'pizaa base'],
@@ -1044,7 +1523,31 @@ export const KNOWN_MATERIAL_ALIASES = {
   'sandwich bread': ['sandwich bread', 'bread', 'bread slice', 'white bread', 'brown bread'],
   'butter': ['butter', 'makhan', 'amul butter'],
   'paneer (cottage cheese)': ['paneer', 'panir', 'cottage cheese'],
-  'cheese slice': ['cheese slice', 'slice cheese', 'cheddar slice']
+  'cheese slice': ['cheese slice', 'slice cheese', 'cheddar slice'],
+
+  // Hotel & Family Restaurant Materials
+  'fresh malai paneer': ['paneer', 'panir', 'malai paneer', 'fresh paneer', 'cottage cheese', 'paner'],
+  'royal basmati rice': ['rice', 'chawal', 'basmati', 'basmati rice', 'biryani rice', 'daawat rice', 'chawal basmati'],
+  'chakki fresh atta (wheat)': ['atta', 'aata', 'wheat atta', 'gehu atta', 'flour', 'chakki atta'],
+  'refined maida flour': ['maida', 'all purpose flour', 'refined flour', 'meda'],
+  'amul yellow butter': ['butter', 'makhan', 'amul butter', 'yellow butter', 'makkan'],
+  'fresh cooking cream': ['cream', 'fresh cream', 'cooking cream', 'amul cream', 'malai'],
+  'desi cow ghee': ['ghee', 'desi ghee', 'cow ghee', 'pure ghee', 'ghi'],
+  'refined sunflower oil': ['oil', 'cooking oil', 'tel', 'sunflower oil', 'refined oil', 'soyabean oil', 'tel oil'],
+  'toor / arhar dal': ['toor dal', 'arhar dal', 'dal toor', 'peeli dal', 'tuvar dal', 'arhar', 'toor'],
+  'black urad dal (makhani)': ['urad dal', 'makhani dal', 'kaali dal', 'black dal', 'sabut urad', 'urad sabut'],
+  'fresh red onions': ['onion', 'pyaz', 'kanda', 'onions', 'red onion', 'pyaaz', 'pyaj'],
+  'fresh ripe tomatoes': ['tomato', 'tamatar', 'tomatoes', 'tamatr'],
+  'ginger garlic paste': ['adrak lasan', 'ginger garlic', 'adrak lehsun', 'gg paste', 'adrak lasan paste', 'ginger paste', 'garlic paste'],
+  'whole cashews (kaju)': ['kaju', 'cashew', 'cashews', 'kaju tukda', 'kaju whole'],
+  'fresh thick dahi / curd': ['dahi', 'curd', 'yogurt', 'fresh curd', 'daahi'],
+  'whole garam masala blend': ['garam masala', 'masala', 'sabut masala', 'khada masala', 'kitchen king'],
+  'kasuri methi & herbs': ['kasuri methi', 'kasoori methi', 'methi', 'dry methi'],
+  'urad dal papad (bikaneri)': ['papad', 'papadd', 'roasted papad', 'fry papad', 'bikaneri papad'],
+  'gulab jamun (canned/fresh)': ['gulab jamun', 'gulabjamun', 'jamun', 'gulab jamoon'],
+  'crispy boondi (gram flour)': ['boondi', 'bundi', 'raita boondi', 'namkeen boondi'],
+  'assorted fresh vegetables (peas, carrot, capsicum)': ['vegetables', 'mix veg', 'green peas', 'matar', 'gajar', 'beans', 'capsicum', 'shimla mirch', 'sabzi'],
+  'special biryani masala & saffron': ['biryani masala', 'dum masala', 'kesar', 'saffron', 'biriyani masala']
 };
 
 // Unit conversion helper (handles Kg <-> Gram, Liters <-> ml)

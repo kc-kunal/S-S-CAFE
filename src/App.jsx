@@ -49,7 +49,11 @@ import {
   convertQuantity,
   findMatchingInventoryItem,
   KNOWN_MATERIAL_ALIASES,
-  INITIAL_INVENTORY_ITEMS
+  INITIAL_INVENTORY_ITEMS,
+  RESTAURANT_HOTEL_INVENTORY_ITEMS,
+  RESTAURANT_HOTEL_MENU_ITEMS,
+  seedHotelRestaurantData,
+  seedCafeData
 } from './utils/storage';
 import { isFirebaseConfigured } from './utils/firebase';
 import {
@@ -104,12 +108,28 @@ export default function App() {
   // Multi-Tenant Cafe & User Auth State
   const [currentUser, setCurrentUser] = useState(null);
   const [isDemoMode, setIsDemoMode] = useState(false);
-  const [currentCafe, setCurrentCafe] = useState(getLocalActiveCafe() || {
-    cafeId: 'default',
-    cafeName: 'S&S Cafe',
-    ownerName: 'Admin',
-    city: 'Indore',
-    role: 'owner'
+  const [currentCafe, setCurrentCafe] = useState(() => {
+    const local = getLocalActiveCafe();
+    if (local) {
+      const isKc = (local.ownerEmail || '').toLowerCase() === 'kc@gmail.com' || local.cafeId === 'cafe_kc_hotel';
+      if (isKc) {
+        return {
+          ...local,
+          cafeName: local.cafeName && !local.cafeName.includes('My Cafe') ? local.cafeName : 'KC Grand Hotel & Family Restaurant',
+          ownerName: local.ownerName && !local.ownerName.includes('Cafe Owner') ? local.ownerName : 'Kunal Chaudhary (KC)',
+          businessType: 'restaurant'
+        };
+      }
+      return local;
+    }
+    return {
+      cafeId: 'default',
+      cafeName: 'S&S Cafe',
+      ownerName: 'Admin',
+      city: 'Indore',
+      role: 'owner',
+      businessType: 'cafe'
+    };
   });
   const [userCafes, setUserCafes] = useState([]);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -223,20 +243,38 @@ export default function App() {
   const loadCafeData = (cafeId) => {
     const activeId = cafeId || 'default';
     setCurrentCafeId(activeId);
-    const rawMenu = getStoredMenu(activeId);
-    const rawSales = getStoredSales(activeId);
-    const rawProc = getStoredProcurement(activeId);
+
+    const isKcOrRestaurant = 
+      activeId.includes('kc') || 
+      activeId.includes('hotel') ||
+      activeId.includes('restaurant') ||
+      (currentCafe?.ownerEmail || '').toLowerCase() === 'kc@gmail.com' || 
+      currentCafe?.businessType === 'restaurant';
+
+    let rawMenu = getStoredMenu(activeId);
+    let rawSales = getStoredSales(activeId);
+    let rawProc = getStoredProcurement(activeId);
     let rawInv = getStoredInventory(activeId);
+
+    // If it's KC Grand Hotel or a restaurant, and the catalog is empty or has only the initial 7 pizza cafe items, auto-seed the Hotel Catalog!
+    if (isKcOrRestaurant && (!rawMenu || rawMenu.length === 0 || (rawMenu.length === 7 && rawMenu[0]?.id === 'pizza-1'))) {
+      seedHotelRestaurantData(activeId);
+      rawMenu = getStoredMenu(activeId);
+      rawSales = getStoredSales(activeId);
+      rawProc = getStoredProcurement(activeId);
+      rawInv = getStoredInventory(activeId);
+    }
 
     // Auto-fix/normalize any existing misspelled items in inventory
     let invChanged = false;
     const consolidatedInv = [];
+    const ALL_INVENTORY_TEMPLATES = [...INITIAL_INVENTORY_ITEMS, ...RESTAURANT_HOTEL_INVENTORY_ITEMS];
 
     const getCanonicalName = (name) => {
       const lower = (name || '').toLowerCase().trim();
       for (const [canonical, aliases] of Object.entries(KNOWN_MATERIAL_ALIASES)) {
         if (aliases.some(a => lower === a || lower.includes(a) || a.includes(lower))) {
-          const match = INITIAL_INVENTORY_ITEMS.find(p => p.materialName.toLowerCase() === canonical);
+          const match = ALL_INVENTORY_TEMPLATES.find(p => p.materialName.toLowerCase() === canonical);
           return match ? match.materialName : canonical;
         }
       }
@@ -247,7 +285,7 @@ export default function App() {
       const canonicalName = getCanonicalName(item.materialName);
       if (canonicalName !== item.materialName) {
         invChanged = true;
-        const standardDef = INITIAL_INVENTORY_ITEMS.find(p => p.materialName.toLowerCase() === canonicalName.toLowerCase());
+        const standardDef = ALL_INVENTORY_TEMPLATES.find(p => p.materialName.toLowerCase() === canonicalName.toLowerCase());
         const targetUnit = standardDef ? standardDef.unit : item.unit;
         const targetCategory = standardDef ? standardDef.category : item.category;
 
@@ -594,6 +632,81 @@ export default function App() {
     }
 
     showToast('✨ Clean Slate Activated! Saara demo stock aur recipes hat gaye. Ab aap apna original menu aur stock daal sakte hain.');
+  };
+
+  // 🍽️ Load Business Catalog Preset (Hotel & Family Restaurant vs Fast Food Cafe)
+  const handleLoadCatalogPreset = async (presetType = 'hotel') => {
+    const activeId = currentCafe?.cafeId || 'default';
+    if (presetType === 'hotel') {
+      seedHotelRestaurantData(activeId);
+      const menu = getStoredMenu(activeId);
+      const inv = getStoredInventory(activeId);
+      const proc = getStoredProcurement(activeId);
+      const exp = getStoredExpenses(activeId);
+      const sales = getStoredSales(activeId);
+      const waste = getStoredWastage(activeId);
+
+      setMenuItems(menu);
+      setInventoryItems(inv);
+      setProcurementLogs(proc);
+      setExpenses(exp);
+      setSalesLogs(sales);
+      setWastageLogs(waste);
+
+      const updatedCafe = {
+        ...currentCafe,
+        businessType: 'restaurant',
+        cafeName: currentCafe?.cafeName?.includes('Cafe')
+          ? currentCafe.cafeName.replace(/Cafe/i, 'Hotel & Restaurant')
+          : (currentCafe?.cafeName || 'KC Grand Hotel & Family Restaurant')
+      };
+      setCurrentCafe(updatedCafe);
+      setLocalActiveCafe(updatedCafe);
+
+      if (isFirebaseConfigured()) {
+        try {
+          syncCloudMenu(menu, activeId);
+          syncCloudInventory(inv, activeId);
+          syncCloudProcurement(proc, activeId);
+          syncCloudExpenses(exp, activeId);
+        } catch (e) {}
+      }
+
+      showToast('🍽️ Hotel & Family Restaurant Catalog Loaded (25+ Dishes, Recipes & Stock)!');
+    } else {
+      seedCafeData(activeId);
+      const menu = getStoredMenu(activeId);
+      const inv = getStoredInventory(activeId);
+      const proc = getStoredProcurement(activeId);
+      const exp = getStoredExpenses(activeId);
+      const sales = getStoredSales(activeId);
+      const waste = getStoredWastage(activeId);
+
+      setMenuItems(menu);
+      setInventoryItems(inv);
+      setProcurementLogs(proc);
+      setExpenses(exp);
+      setSalesLogs(sales);
+      setWastageLogs(waste);
+
+      const updatedCafe = {
+        ...currentCafe,
+        businessType: 'cafe'
+      };
+      setCurrentCafe(updatedCafe);
+      setLocalActiveCafe(updatedCafe);
+
+      if (isFirebaseConfigured()) {
+        try {
+          syncCloudMenu(menu, activeId);
+          syncCloudInventory(inv, activeId);
+          syncCloudProcurement(proc, activeId);
+          syncCloudExpenses(exp, activeId);
+        } catch (e) {}
+      }
+
+      showToast('☕ Fast Food Cafe Catalog Loaded (Pizzas, Burgers & Cold Coffee)!');
+    }
   };
 
   // 🗑️ Raw Material Spoilage / Wastage Handlers (Auto Stock Deduction)
@@ -1737,6 +1850,7 @@ export default function App() {
         onSwitchCafe={handleSwitchCafe}
         onLogout={handleLogout}
         onResetToCleanSlate={handleResetToCleanSlate}
+        onLoadCatalogPreset={handleLoadCatalogPreset}
         onUpdateCafe={(updated) => {
           setCurrentCafe(updated);
           showToast(`Cafe details updated: ${updated.cafeName}`);

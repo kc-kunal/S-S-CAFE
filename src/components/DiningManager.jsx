@@ -48,8 +48,10 @@ export default function DiningManager({
   const [alertSettings, setAlertSettings] = useState(() => getDineInAlertSettings());
   const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
 
-  // QR Code generator settings
-  const [tableCount, setTableCount] = useState(8);
+  // QR Code generator settings (15 tables for Hotel/Restaurant, 8 for Cafe)
+  const [tableCount, setTableCount] = useState(() => {
+    return (currentCafe?.businessType === 'restaurant' || (currentCafe?.ownerEmail || '').toLowerCase() === 'kc@gmail.com') ? 15 : 8;
+  });
   const [qrBaseUrl, setQrBaseUrl] = useState(
     typeof window !== 'undefined' ? window.location.origin : 'https://ss-cafe.netlify.app'
   );

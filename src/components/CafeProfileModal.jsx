@@ -17,7 +17,10 @@ import {
   AlertTriangle,
   Lock,
   Printer,
-  Receipt
+  Receipt,
+  UtensilsCrossed,
+  Coffee,
+  CheckCircle2
 } from 'lucide-react';
 import { updateCafeDetails, createAdditionalCafeOutlet } from '../utils/auth';
 
@@ -32,7 +35,8 @@ export default function CafeProfileModal({
   onSwitchCafe,
   onLogout,
   onUpdateCafe,
-  onResetToCleanSlate
+  onResetToCleanSlate,
+  onLoadCatalogPreset
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [isAddingOutlet, setIsAddingOutlet] = useState(false);
@@ -57,10 +61,14 @@ export default function CafeProfileModal({
   const [editPhone, setEditPhone] = useState(currentCafe?.phone || '');
   const [editCity, setEditCity] = useState(currentCafe?.city || '');
   const [editAddress, setEditAddress] = useState(currentCafe?.address || '');
+  const [editBusinessType, setEditBusinessType] = useState(
+    currentCafe?.businessType || (currentCafe?.ownerEmail === 'kc@gmail.com' ? 'restaurant' : 'cafe')
+  );
   const [editUpiId, setEditUpiId] = useState(currentCafe?.upiId || '');
   const [editFssai, setEditFssai] = useState(currentCafe?.fssai || '');
   const [editGstin, setEditGstin] = useState(currentCafe?.gstin || '');
   const [editFooterNote, setEditFooterNote] = useState(currentCafe?.billFooterNote || 'Thank you! Please visit again.');
+  const [isApplyingPreset, setIsApplyingPreset] = useState(false);
 
   // New outlet fields
   const [newOutletName, setNewOutletName] = useState('');
@@ -94,6 +102,7 @@ export default function CafeProfileModal({
         phone: editPhone.trim(),
         city: editCity.trim(),
         address: editAddress.trim(),
+        businessType: editBusinessType,
         upiId: editUpiId.trim(),
         fssai: editFssai.trim(),
         gstin: editGstin.trim(),
@@ -279,8 +288,23 @@ export default function CafeProfileModal({
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                   required
-                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-indigo-600 font-semibold"
                 />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Business Establishment Type</label>
+                <select
+                  value={editBusinessType}
+                  onChange={(e) => setEditBusinessType(e.target.value)}
+                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-indigo-600 font-medium"
+                >
+                  <option value="restaurant">🍽️ Hotel & Family Restaurant (Dine-in, Handi, Tandoor & Thali)</option>
+                  <option value="cafe">☕ Fast Food Cafe & Coffee Bar (Pizza, Burger, Shakes)</option>
+                  <option value="bistro">🍸 Bistro, Lounge & Dhaba</option>
+                  <option value="cloud_kitchen">🛵 Cloud Kitchen & Takeaway</option>
+                </select>
+                <p className="text-[10px] text-slate-400 mt-0.5">Optimizes your bill headers, KOT format and POS experience</p>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
@@ -397,6 +421,85 @@ export default function CafeProfileModal({
               </div>
             </form>
           )}
+
+          {/* 🍽️ Business Catalog Presets: Hotel & Restaurant vs Cafe */}
+          <div className="bg-gradient-to-br from-indigo-50/80 via-purple-50/60 to-blue-50/40 border border-indigo-200/80 rounded-2xl p-4 space-y-3 shadow-xs">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-indigo-600/20">
+                  <UtensilsCrossed className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="text-xs font-bold text-slate-900">
+                      Business Type & Starter Catalog Presets
+                    </h4>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      (currentCafe?.businessType === 'restaurant' || currentCafe?.ownerEmail === 'kc@gmail.com')
+                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                        : 'bg-indigo-100 text-indigo-800 border border-indigo-300'
+                    }`}>
+                      {(currentCafe?.businessType === 'restaurant' || currentCafe?.ownerEmail === 'kc@gmail.com') ? '🍽️ Hotel & Restaurant Active' : '☕ Fast Food Cafe Active'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 mt-0.5 leading-relaxed">
+                    Ye software Cafe ke sath sath Hotel aur Family Dine-in Restaurants ke liye bhi poori tarah ready hai! Aap 1-click me restaurant ka ready-made menu, recipes aur raw material stock load kar sakte hain.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Catalog Actions */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-indigo-100">
+              <button
+                type="button"
+                disabled={isApplyingPreset}
+                onClick={async () => {
+                  if (window.confirm('Kya aap Hotel & Family Restaurant Starter Pack load karna chahte hain? Isme Paneer Butter Masala, Dal Makhani, Tandoori Breads, Dum Biryani, Thali, Recipes aur Raw Material Stock set ho jayega.')) {
+                    setIsApplyingPreset(true);
+                    try {
+                      if (onLoadCatalogPreset) {
+                        await onLoadCatalogPreset('hotel');
+                      }
+                      setFeedback('🍽️ Hotel & Family Restaurant Catalog (25+ Dishes, Recipes & Stock) successfully load ho gaya!');
+                    } catch (e) {
+                      setFeedback('❌ Error loading preset: ' + e.message);
+                    } finally {
+                      setIsApplyingPreset(false);
+                    }
+                  }
+                }}
+                className="p-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-xl shadow-xs cursor-pointer transition-all flex items-center justify-center gap-2 text-xs font-bold disabled:opacity-50"
+              >
+                <UtensilsCrossed className="w-4 h-4" />
+                <span>Load Hotel & Restaurant Pack</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={isApplyingPreset}
+                onClick={async () => {
+                  if (window.confirm('Kya aap Fast Food Cafe Starter Pack load karna chahte hain? Isme Pizzas, Burgers, Fries, Cold Coffee aur Cafe Raw Materials set ho jayenge.')) {
+                    setIsApplyingPreset(true);
+                    try {
+                      if (onLoadCatalogPreset) {
+                        await onLoadCatalogPreset('cafe');
+                      }
+                      setFeedback('☕ Fast Food Cafe Catalog (Pizzas, Burgers & Shakes) successfully load ho gaya!');
+                    } catch (e) {
+                      setFeedback('❌ Error loading preset: ' + e.message);
+                    } finally {
+                      setIsApplyingPreset(false);
+                    }
+                  }
+                }}
+                className="p-2.5 bg-gradient-to-r from-indigo-600 to-violet-700 hover:from-indigo-700 hover:to-violet-800 text-white rounded-xl shadow-xs cursor-pointer transition-all flex items-center justify-center gap-2 text-xs font-bold disabled:opacity-50"
+              >
+                <Coffee className="w-4 h-4" />
+                <span>Load Fast Food Cafe Pack</span>
+              </button>
+            </div>
+          </div>
 
           {/* 🧹 Production Clean Slate / Clear Demo Data Card */}
           <div className="bg-gradient-to-br from-amber-50/70 via-orange-50/50 to-amber-50/40 border border-amber-200 rounded-2xl p-4 space-y-3 shadow-xs">

@@ -164,6 +164,10 @@ export default function AdminPortal({ onExit, onSwitchCafe }) {
 
   // Impersonate / Login as this cafe
   const handleImpersonateCafe = (user) => {
+    const isRestaurant = (user.businessType === 'restaurant') ||
+      (user.email || '').toLowerCase() === 'kc@gmail.com' ||
+      /hotel|restaurant|dhaba/i.test(user.cafeName || '');
+
     const cafeProfile = {
       cafeId: user.uid || user.id,
       ownerUid: user.uid || user.id,
@@ -172,6 +176,7 @@ export default function AdminPortal({ onExit, onSwitchCafe }) {
       ownerEmail: user.email,
       phone: user.phone || '',
       city: user.city || '',
+      businessType: isRestaurant ? 'restaurant' : 'cafe',
       currency: '₹',
       role: 'owner',
       createdAt: user.registeredAt || new Date().toISOString(),

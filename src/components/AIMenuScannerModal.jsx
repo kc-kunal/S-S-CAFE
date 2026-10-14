@@ -73,19 +73,49 @@ const PRESET_CAFE_PACKS = {
       { name: 'Hot Chocolate Fudge with Nuts', category: 'Desserts', sellingPrice: 130, isVeg: true, unit: 'Cup' },
       { name: 'Waffle with Nutella & Vanilla', category: 'Desserts', sellingPrice: 160, isVeg: true, unit: 'Piece' }
     ]
+  },
+  hotel_restaurant: {
+    title: '🍽️ Hotel & Family Restaurant (Dine-in & Tandoor)',
+    description: 'Paneer Butter Masala, Dal Makhani, Tandoori Breads, Dum Biryani & Thali',
+    items: [
+      { name: 'Paneer Butter Masala (Handi)', category: 'Main Course', sellingPrice: 230, isVeg: true, unit: 'Handi' },
+      { name: 'Kadhai Paneer Special', category: 'Main Course', sellingPrice: 220, isVeg: true, unit: 'Handi' },
+      { name: 'Shahi Paneer Royal Gravy', category: 'Main Course', sellingPrice: 240, isVeg: true, unit: 'Handi' },
+      { name: 'Mix Veg Kolhapuri Handi', category: 'Main Course', sellingPrice: 180, isVeg: true, unit: 'Handi' },
+      { name: 'Dal Tadka Desi Ghee Fry', category: 'Dal Specialties', sellingPrice: 140, isVeg: true, unit: 'Bowl' },
+      { name: 'Dal Makhani Slow Handi Dum', category: 'Dal Specialties', sellingPrice: 180, isVeg: true, unit: 'Handi' },
+      { name: 'Paneer Tikka Tandoori (6 Pcs)', category: 'Soups & Starters', sellingPrice: 220, isVeg: true, unit: 'Plate' },
+      { name: 'Veg Hara Bhara Kabab (6 Pcs)', category: 'Soups & Starters', sellingPrice: 160, isVeg: true, unit: 'Plate' },
+      { name: 'Butter Naan (Crisp & Fluffy)', category: 'Tandoori Breads', sellingPrice: 45, isVeg: true, unit: 'Piece' },
+      { name: 'Garlic Butter Naan', category: 'Tandoori Breads', sellingPrice: 60, isVeg: true, unit: 'Piece' },
+      { name: 'Tandoori Butter Roti', category: 'Tandoori Breads', sellingPrice: 20, isVeg: true, unit: 'Piece' },
+      { name: 'Lachha Paratha', category: 'Tandoori Breads', sellingPrice: 50, isVeg: true, unit: 'Piece' },
+      { name: 'Hyderabadi Veg Dum Biryani', category: 'Rice & Biryani', sellingPrice: 220, isVeg: true, unit: 'Handi' },
+      { name: 'Jeera Rice Desi Ghee', category: 'Rice & Biryani', sellingPrice: 130, isVeg: true, unit: 'Plate' },
+      { name: 'Maharaja Special Family Thali', category: 'Thali & Combos', sellingPrice: 280, isVeg: true, unit: 'Thali' },
+      { name: 'Hot Gulab Jamun with Rabdi (2 Pcs)', category: 'Desserts', sellingPrice: 70, isVeg: true, unit: 'Bowl' },
+      { name: 'Amritsari Sweet Lassi (Kulhad)', category: 'Beverages', sellingPrice: 60, isVeg: true, unit: 'Kulhad' },
+      { name: 'Masala Chhach / Buttermilk', category: 'Beverages', sellingPrice: 35, isVeg: true, unit: 'Glass' }
+    ]
   }
 };
 
 // Auto-detect category from item name
 const inferCategory = (name) => {
   const lower = name.toLowerCase();
+  if (lower.includes('soup') || lower.includes('tikka') || lower.includes('kabab') || lower.includes('kebab') || lower.includes('crispy corn') || lower.includes('starter')) return 'Soups & Starters';
+  if (lower.includes('roti') || lower.includes('naan') || lower.includes('paratha') || lower.includes('kulcha') || lower.includes('bread')) return 'Tandoori Breads';
+  if (lower.includes('dal') || lower.includes('tadka') || lower.includes('makhani')) return 'Dal Specialties';
+  if (lower.includes('biryani') || lower.includes('rice') || lower.includes('pulao') || lower.includes('khichdi')) return 'Rice & Biryani';
+  if (lower.includes('thali') || lower.includes('combo') || lower.includes('platter')) return 'Thali & Combos';
+  if (lower.includes('paneer') || lower.includes('sabzi') || lower.includes('curry') || lower.includes('kofta') || lower.includes('kadhai') || lower.includes('masala')) return 'Main Course';
   if (lower.includes('pizza')) return 'Pizzas';
   if (lower.includes('burger')) return 'Burgers';
   if (lower.includes('sandwich') || lower.includes('toast') || lower.includes('panini')) return 'Sandwiches';
-  if (lower.includes('tea') || lower.includes('chai') || lower.includes('coffee') || lower.includes('shake') || lower.includes('mojito') || lower.includes('juice') || lower.includes('soda') || lower.includes('frappe') || lower.includes('latte') || lower.includes('cappuccino') || lower.includes('beverage')) return 'Beverages';
-  if (lower.includes('brownie') || lower.includes('waffle') || lower.includes('ice cream') || lower.includes('cake') || lower.includes('pastry') || lower.includes('dessert')) return 'Desserts';
-  if (lower.includes('pasta') || lower.includes('maggi') || lower.includes('fries') || lower.includes('samosa') || lower.includes('roll') || lower.includes('momos') || lower.includes('nachos') || lower.includes('garlic bread') || lower.includes('poha')) return 'Snacks';
-  return 'Snacks';
+  if (lower.includes('tea') || lower.includes('chai') || lower.includes('coffee') || lower.includes('shake') || lower.includes('mojito') || lower.includes('juice') || lower.includes('soda') || lower.includes('frappe') || lower.includes('latte') || lower.includes('cappuccino') || lower.includes('beverage') || lower.includes('lassi') || lower.includes('chhach') || lower.includes('buttermilk')) return 'Beverages';
+  if (lower.includes('brownie') || lower.includes('waffle') || lower.includes('ice cream') || lower.includes('cake') || lower.includes('pastry') || lower.includes('dessert') || lower.includes('gulab jamun') || lower.includes('sweet') || lower.includes('halwa')) return 'Desserts';
+  if (lower.includes('pasta') || lower.includes('maggi') || lower.includes('fries') || lower.includes('samosa') || lower.includes('roll') || lower.includes('momos') || lower.includes('nachos') || lower.includes('garlic bread') || lower.includes('poha') || lower.includes('raita') || lower.includes('papad')) return 'Snacks';
+  return 'Main Course';
 };
 
 export default function AIMenuScannerModal({

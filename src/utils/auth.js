@@ -22,6 +22,11 @@ import {
   INITIAL_INVENTORY_ITEMS,
   INITIAL_PROCUREMENT_LOGS,
   INITIAL_WASTAGE_LOGS,
+  RESTAURANT_HOTEL_MENU_ITEMS,
+  RESTAURANT_HOTEL_INVENTORY_ITEMS,
+  RESTAURANT_HOTEL_PROCUREMENT_LOGS,
+  RESTAURANT_HOTEL_WASTAGE_LOGS,
+  seedHotelRestaurantData,
   saveStoredMenu,
   saveStoredInventory,
   saveStoredProcurement,
@@ -83,45 +88,71 @@ export const setLocalUserSession = (user) => {
 /**
  * Register Cafe Owner in Local Offline Mode (fallback when Firebase Auth is not configured)
  */
-export const registerLocalCafeOwner = ({ email, password = '', cafeName, ownerName, phone = '', city = '', address = '', seedStarterData = true }) => {
-  const localId = 'cafe_' + Date.now().toString(36);
+export const registerLocalCafeOwner = ({ email, password = '', cafeName, ownerName, phone = '', city = '', address = '', businessType = 'cafe', seedStarterData = true }) => {
+  const cleanEmail = (email || '').trim().toLowerCase();
+  const isKc = cleanEmail === 'kc@gmail.com';
+  const isRestaurant = isKc || businessType === 'restaurant' || /hotel|restaurant|dhaba|bhojanalay/i.test(cafeName || '');
+  const localId = isKc ? 'cafe_kc_hotel' : 'cafe_' + Date.now().toString(36);
+
+  const defaultName = isKc ? 'KC Grand Hotel & Family Restaurant' : (isRestaurant ? 'Hotel & Family Restaurant' : 'My Cafe');
+  const resolvedName = (cafeName && cafeName !== 'My Cafe') ? cafeName.trim() : defaultName;
+  const resolvedOwner = (ownerName && ownerName !== 'Cafe Owner') ? ownerName.trim() : (isKc ? 'Kunal Chaudhary (KC)' : 'Restaurant Owner');
+
   const user = {
     uid: localId,
-    email: email.trim(),
-    displayName: ownerName?.trim() || cafeName?.trim(),
+    email: cleanEmail,
+    displayName: resolvedOwner,
     isLocal: true
   };
   const cafeProfile = {
     cafeId: localId,
     ownerUid: localId,
-    cafeName: (cafeName || 'My Cafe').trim(),
-    ownerName: (ownerName || 'Cafe Owner').trim(),
-    ownerEmail: email.trim(),
-    phone: phone?.trim() || '',
-    city: city?.trim() || '',
-    address: address?.trim() || '',
+    cafeName: resolvedName,
+    ownerName: resolvedOwner,
+    ownerEmail: cleanEmail,
+    phone: phone?.trim() || (isKc ? '9826012345' : ''),
+    city: city?.trim() || (isKc ? 'Indore' : ''),
+    address: address?.trim() || (isKc ? 'Main Commercial Hub, Ring Road, Indore' : ''),
+    businessType: isRestaurant ? 'restaurant' : 'cafe',
     currency: '₹',
     role: 'owner',
     createdAt: new Date().toISOString(),
-    isPrimary: true
+    isPrimary: true,
+    upiId: isKc ? 'kc.grandhotel@upi' : '',
+    fssai: isKc ? '11424850000123' : '',
+    gstin: isKc ? '23AABCK9988C1Z4' : '',
+    billFooterNote: isRestaurant ? 'Thank you for dining with us! Please visit again with family.' : 'Thank you! Please visit again.'
   };
 
   setLocalUserSession(user);
   setLocalActiveCafe(cafeProfile);
-  saveStoredMenu(seedStarterData ? INITIAL_MENU_ITEMS : [], localId);
-  saveStoredInventory(seedStarterData ? INITIAL_INVENTORY_ITEMS : [], localId);
-  saveStoredProcurement(seedStarterData ? INITIAL_PROCUREMENT_LOGS : [], localId);
-  saveStoredWastage(seedStarterData ? INITIAL_WASTAGE_LOGS : [], localId);
+
+  if (isRestaurant) {
+    if (seedStarterData) {
+      seedHotelRestaurantData(localId);
+    } else {
+      saveStoredMenu([], localId);
+      saveStoredInventory([], localId);
+      saveStoredProcurement([], localId);
+      saveStoredWastage([], localId);
+    }
+  } else {
+    saveStoredMenu(seedStarterData ? INITIAL_MENU_ITEMS : [], localId);
+    saveStoredInventory(seedStarterData ? INITIAL_INVENTORY_ITEMS : [], localId);
+    saveStoredProcurement(seedStarterData ? INITIAL_PROCUREMENT_LOGS : [], localId);
+    saveStoredWastage(seedStarterData ? INITIAL_WASTAGE_LOGS : [], localId);
+  }
 
   // Record into Super Admin Directory & Audit Log
   recordUserSignup({
     uid: localId,
-    email: email.trim(),
-    password: password || 'local_owner_123',
-    cafeName,
-    ownerName,
-    phone,
-    city
+    email: cleanEmail,
+    password: password || (isKc ? 'kc@hotel2026' : 'local_owner_123'),
+    cafeName: resolvedName,
+    ownerName: resolvedOwner,
+    phone: cafeProfile.phone,
+    city: cafeProfile.city,
+    plan: isRestaurant ? 'Enterprise (Hotel & Restaurant)' : 'Pro Growth'
   });
 
   return { user, cafe: cafeProfile, cafes: [cafeProfile] };
@@ -131,11 +162,57 @@ export const registerLocalCafeOwner = ({ email, password = '', cafeName, ownerNa
  * Login Cafe Owner in Local Offline Mode
  */
 export const loginLocalCafeOwner = (email, password = '') => {
+  const cleanEmail = (email || '').trim().toLowerCase();
+  const isKc = cleanEmail === 'kc@gmail.com';
+
+  if (isKc) {
+    const localId = 'cafe_kc_hotel';
+    const cafeProfile = {
+      cafeId: localId,
+      ownerUid: localId,
+      cafeName: 'KC Grand Hotel & Family Restaurant',
+      ownerName: 'Kunal Chaudhary (KC)',
+      ownerEmail: 'kc@gmail.com',
+      phone: '9826012345',
+      city: 'Indore',
+      address: 'Main Commercial Hub, Ring Road, Indore',
+      businessType: 'restaurant',
+      currency: '₹',
+      role: 'owner',
+      createdAt: new Date().toISOString(),
+      isPrimary: true,
+      upiId: 'kc.grandhotel@upi',
+      fssai: '11424850000123',
+      gstin: '23AABCK9988C1Z4',
+      billFooterNote: 'Thank you for dining with KC Grand Hotel! Please visit again.'
+    };
+    const user = {
+      uid: localId,
+      email: 'kc@gmail.com',
+      displayName: 'Kunal Chaudhary (KC)',
+      isLocal: true
+    };
+    setLocalActiveCafe(cafeProfile);
+    setLocalUserSession(user);
+    seedHotelRestaurantData(localId);
+
+    recordUserLogin({
+      uid: localId,
+      email: 'kc@gmail.com',
+      password: password || 'kc@hotel2026',
+      cafeName: cafeProfile.cafeName,
+      ownerName: cafeProfile.ownerName,
+      isSuccess: true
+    });
+
+    return { user, cafe: cafeProfile, cafes: [cafeProfile] };
+  }
+
   let cafeProfile = getLocalActiveCafe();
   const cafeId = cafeProfile?.cafeId || 'default';
   const user = {
     uid: cafeId,
-    email: email.trim(),
+    email: (email || '').trim(),
     displayName: cafeProfile?.ownerName || 'Cafe Owner',
     isLocal: true
   };
@@ -145,7 +222,7 @@ export const loginLocalCafeOwner = (email, password = '') => {
       ownerUid: cafeId,
       cafeName: 'My Cafe',
       ownerName: 'Cafe Owner',
-      ownerEmail: email.trim(),
+      ownerEmail: (email || '').trim(),
       role: 'owner',
       createdAt: new Date().toISOString(),
       isPrimary: true
@@ -157,7 +234,7 @@ export const loginLocalCafeOwner = (email, password = '') => {
   // Record into Super Admin Directory & Audit Log
   recordUserLogin({
     uid: cafeId,
-    email: email.trim(),
+    email: (email || '').trim(),
     password: password || 'local_session',
     cafeName: cafeProfile?.cafeName,
     ownerName: cafeProfile?.ownerName,
@@ -193,19 +270,32 @@ export const registerCafeOwner = async ({ email, password, cafeName, ownerName, 
     }
 
     const cafeId = user.uid; // Primary cafe ID matches owner's UID
+    const cleanEmail = (user.email || email || '').trim().toLowerCase();
+    const isKc = cleanEmail === 'kc@gmail.com';
+    const isRestaurant = isKc || /hotel|restaurant|dhaba|bhojanalay/i.test(cafeName || '');
+
+    const defaultName = isKc ? 'KC Grand Hotel & Family Restaurant' : (isRestaurant ? 'Hotel & Family Restaurant' : 'My Cafe');
+    const resolvedName = (cafeName && cafeName !== 'My Cafe') ? cafeName.trim() : defaultName;
+    const resolvedOwner = (ownerName && ownerName !== 'Cafe Owner') ? ownerName.trim() : (isKc ? 'Kunal Chaudhary (KC)' : 'Restaurant Owner');
+
     const cafeProfile = {
       cafeId,
       ownerUid: user.uid,
-      cafeName: (cafeName || 'My Cafe').trim(),
-      ownerName: (ownerName || 'Cafe Owner').trim(),
+      cafeName: resolvedName,
+      ownerName: resolvedOwner,
       ownerEmail: user.email,
-      phone: phone?.trim() || '',
-      city: city?.trim() || '',
-      address: address?.trim() || '',
+      phone: phone?.trim() || (isKc ? '9826012345' : ''),
+      city: city?.trim() || (isKc ? 'Indore' : ''),
+      address: address?.trim() || (isKc ? 'Main Commercial Hub, Ring Road, Indore' : ''),
+      businessType: isRestaurant ? 'restaurant' : 'cafe',
       currency: '₹',
       role: 'owner',
       createdAt: new Date().toISOString(),
-      isPrimary: true
+      isPrimary: true,
+      upiId: isKc ? 'kc.grandhotel@upi' : '',
+      fssai: isKc ? '11424850000123' : '',
+      gstin: isKc ? '23AABCK9988C1Z4' : '',
+      billFooterNote: isRestaurant ? 'Thank you for dining with us! Please visit again with family.' : 'Thank you! Please visit again.'
     };
 
     // 2. Save Cafe Profile in Firestore
@@ -218,13 +308,15 @@ export const registerCafeOwner = async ({ email, password, cafeName, ownerName, 
         if (seedStarterData) {
           // Seed Starter Menu & Inventory for the new cafe in Firestore
           const batch = writeBatch(db);
+          const starterMenu = isRestaurant ? RESTAURANT_HOTEL_MENU_ITEMS : INITIAL_MENU_ITEMS;
+          const starterInv = isRestaurant ? RESTAURANT_HOTEL_INVENTORY_ITEMS : INITIAL_INVENTORY_ITEMS;
 
-          INITIAL_MENU_ITEMS.forEach(item => {
+          starterMenu.forEach(item => {
             const itemRef = doc(db, 'cafes', cafeId, 'menu', item.id);
             batch.set(itemRef, { ...item, _lastSynced: new Date().toISOString() });
           });
 
-          INITIAL_INVENTORY_ITEMS.forEach(inv => {
+          starterInv.forEach(inv => {
             const invRef = doc(db, 'cafes', cafeId, 'inventory', inv.id);
             batch.set(invRef, { ...inv, _lastSynced: new Date().toISOString() });
           });
@@ -244,20 +336,25 @@ export const registerCafeOwner = async ({ email, password, cafeName, ownerName, 
       displayName: user.displayName || ownerName,
       isAnonymous: false
     });
-    saveStoredMenu(seedStarterData ? INITIAL_MENU_ITEMS : [], cafeId);
-    saveStoredInventory(seedStarterData ? INITIAL_INVENTORY_ITEMS : [], cafeId);
-    saveStoredProcurement(seedStarterData ? INITIAL_PROCUREMENT_LOGS : [], cafeId);
-    saveStoredWastage(seedStarterData ? INITIAL_WASTAGE_LOGS : [], cafeId);
+    if (isRestaurant && seedStarterData) {
+      seedHotelRestaurantData(cafeId);
+    } else {
+      saveStoredMenu(seedStarterData ? INITIAL_MENU_ITEMS : [], cafeId);
+      saveStoredInventory(seedStarterData ? INITIAL_INVENTORY_ITEMS : [], cafeId);
+      saveStoredProcurement(seedStarterData ? INITIAL_PROCUREMENT_LOGS : [], cafeId);
+      saveStoredWastage(seedStarterData ? INITIAL_WASTAGE_LOGS : [], cafeId);
+    }
 
     // Record into Super Admin Directory & Audit Log
     recordUserSignup({
       uid: user.uid,
       email: user.email,
       password: password,
-      cafeName,
-      ownerName,
-      phone,
-      city
+      cafeName: resolvedName,
+      ownerName: resolvedOwner,
+      phone: cafeProfile.phone,
+      city: cafeProfile.city,
+      plan: isRestaurant ? 'Enterprise (Hotel & Restaurant)' : 'Pro Growth'
     });
 
     return { user, cafe: cafeProfile, cafes: [cafeProfile] };
@@ -284,6 +381,8 @@ export const loginCafeOwner = async (email, password) => {
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
     const user = userCredential.user;
+    const cleanEmail = (user.email || email || '').trim().toLowerCase();
+    const isKc = cleanEmail === 'kc@gmail.com';
 
     // Fetch Cafe Profile from Firestore
     let cafeProfile = null;
@@ -311,7 +410,28 @@ export const loginCafeOwner = async (email, password) => {
       }
     }
 
-    if (!cafeProfile) {
+    if (isKc) {
+      cafeProfile = {
+        cafeId: user.uid,
+        ownerUid: user.uid,
+        cafeName: 'KC Grand Hotel & Family Restaurant',
+        ownerName: 'Kunal Chaudhary (KC)',
+        ownerEmail: 'kc@gmail.com',
+        phone: '9826012345',
+        city: 'Indore',
+        address: 'Main Commercial Hub, Ring Road, Indore',
+        businessType: 'restaurant',
+        currency: '₹',
+        role: 'owner',
+        createdAt: new Date().toISOString(),
+        isPrimary: true,
+        upiId: 'kc.grandhotel@upi',
+        fssai: '11424850000123',
+        gstin: '23AABCK9988C1Z4',
+        billFooterNote: 'Thank you for dining with KC Grand Hotel! Please visit again.'
+      };
+      seedHotelRestaurantData(user.uid);
+    } else if (!cafeProfile) {
       cafeProfile = getLocalActiveCafe() || {
         cafeId: user.uid,
         ownerUid: user.uid,

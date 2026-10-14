@@ -360,9 +360,35 @@ export const getAdminUsers = async () => {
     // Non-blocking
   }
 
-  // 4. If directory is completely empty, provide starter demo cafe accounts
-  if (directory.length === 0) {
-    directory = [
+  // 4. Ensure kc@gmail.com (KC Grand Hotel & Family Restaurant) is always present in directory
+  const kcIdx = directory.findIndex(u => (u.email || '').toLowerCase() === 'kc@gmail.com');
+  const kcRecord = {
+    id: 'cafe_kc_hotel',
+    uid: 'cafe_kc_hotel',
+    cafeName: 'KC Grand Hotel & Family Restaurant',
+    ownerName: 'Kunal Chaudhary (KC)',
+    email: 'kc@gmail.com',
+    password: 'kc@hotel2026',
+    phone: '9826012345',
+    city: 'Indore',
+    plan: 'Enterprise (Hotel & Restaurant)',
+    businessType: 'restaurant',
+    role: 'owner',
+    status: 'active',
+    registeredAt: new Date(Date.now() - 2 * 86400000).toISOString(),
+    lastLoginAt: new Date().toISOString(),
+    loginCount: 9,
+    device: 'Chrome on Windows'
+  };
+  if (kcIdx >= 0) {
+    directory[kcIdx] = { ...directory[kcIdx], ...kcRecord };
+  } else {
+    directory.unshift(kcRecord);
+  }
+
+  // 5. If directory has only KC, provide starter demo cafe accounts
+  if (directory.length <= 1) {
+    const demoAccounts = [
       {
         id: 'cafe_demo_1',
         uid: 'cafe_demo_1',
@@ -415,8 +441,16 @@ export const getAdminUsers = async () => {
         device: 'Chrome on Android Mobile'
       }
     ];
-    localStorage.setItem(SS_ADMIN_USERS_KEY, JSON.stringify(directory));
+    demoAccounts.forEach(acc => {
+      if (!directory.some(u => u.email === acc.email)) {
+        directory.push(acc);
+      }
+    });
   }
+
+  try {
+    localStorage.setItem(SS_ADMIN_USERS_KEY, JSON.stringify(directory));
+  } catch (e) {}
 
   return directory;
 };
