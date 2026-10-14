@@ -20,6 +20,9 @@ import AIMenuScannerModal from './components/AIMenuScannerModal';
 import StockAlertSettingsModal from './components/StockAlertSettingsModal';
 import ThermalBillModal from './components/ThermalBillModal';
 import AdminPortal from './components/AdminPortal';
+import StaffPinModal from './components/StaffPinModal';
+import DayClosingModal from './components/DayClosingModal';
+import CustomerKhataModal from './components/CustomerKhataModal';
 import {
   subscribeToAuthChanges,
   getLocalActiveCafe,
@@ -38,6 +41,9 @@ import {
   getStoredWastage, saveStoredWastage,
   getStoredDiningOrders, saveStoredDiningOrders,
   getStoredSettlements, saveStoredSettlements,
+  getStoredKhata, saveStoredKhata,
+  getStoredDayClosings, saveStoredDayClosings,
+  getStoredOwnerPin, saveStoredOwnerPin,
   calculateAggregatorLedger,
   checkItemStock,
   convertQuantity,
@@ -79,6 +85,20 @@ export default function App() {
   const [wastageLogs, setWastageLogs] = useState([]);
   const [settlements, setSettlements] = useState([]);
   const [isAggregatorModalOpen, setIsAggregatorModalOpen] = useState(false);
+
+  // 🔒 Priority 1: Staff PIN Lock State
+  const [isStaffMode, setIsStaffMode] = useState(false);
+  const [ownerPin, setOwnerPin] = useState(getStoredOwnerPin('default'));
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [pinModalTargetTab, setPinModalTargetTab] = useState(null);
+
+  // 🌙 Priority 2: Day-End Cash Closing State
+  const [dayClosings, setDayClosings] = useState(getStoredDayClosings('default'));
+  const [isDayClosingModalOpen, setIsDayClosingModalOpen] = useState(false);
+
+  // 📒 Priority 3: Customer Khata / Udhar Ledger State
+  const [khataLedger, setKhataLedger] = useState(getStoredKhata('default'));
+  const [isKhataModalOpen, setIsKhataModalOpen] = useState(false);
 
 
   // Multi-Tenant Cafe & User Auth State
@@ -274,6 +294,9 @@ export default function App() {
     setWastageLogs(getStoredWastage(activeId));
     setDiningOrders(getStoredDiningOrders(activeId));
     setSettlements(getStoredSettlements(activeId));
+    setKhataLedger(getStoredKhata(activeId));
+    setDayClosings(getStoredDayClosings(activeId));
+    setOwnerPin(getStoredOwnerPin(activeId));
   };
 
   // 1. Subscribe to Firebase Auth State Changes & Multi-Tenant Profile
@@ -1122,6 +1145,73 @@ export default function App() {
     showToast('Dining order removed');
   };
 
+  // 🔒 Priority 1: Staff PIN Lock Handlers
+  const handleLockToStaffMode = () => {
+    setIsStaffMode(true);
+    if (activeTab === 'dashboard' || activeTab === 'expenses' || activeTab === 'inventory') {
+      setActiveTab('sales');
+    }
+    showToast('🔒 Staff Mode Active (Owner P&L & Expenses Locked)');
+  };
+
+  const handlePromptUnlockStaffMode = () => {
+    setPinModalTargetTab(null);
+    setIsPinModalOpen(true);
+  };
+
+  const handleUnlockPinSuccess = () => {
+    setIsPinModalOpen(false);
+    setIsStaffMode(false);
+    if (pinModalTargetTab) {
+      setActiveTab(pinModalTargetTab);
+      setPinModalTargetTab(null);
+    }
+    showToast('👑 Owner Mode Unlocked!');
+  };
+
+  const handleUpdateOwnerPin = (newPin) => {
+    setOwnerPin(newPin);
+    saveStoredOwnerPin(newPin, currentCafe?.cafeId);
+    showToast('✅ Naya Owner PIN Save Ho Gaya!');
+  };
+
+  // 🌙 Priority 2: Day-End Cash Closing Handlers
+  const handleSaveDayClosing = (closingRecord) => {
+    const updated = [closingRecord, ...dayClosings];
+    setDayClosings(updated);
+    saveStoredDayClosings(updated, currentCafe?.cafeId);
+    showToast('✅ Day Closing Record Saved Successfully!');
+  };
+
+  // 📒 Priority 3: Customer Khata / Udhar Ledger Handlers
+  const handleAddKhataTransaction = (tx) => {
+    const updated = [tx, ...khataLedger];
+    setKhataLedger(updated);
+    saveStoredKhata(updated, currentCafe?.cafeId);
+  };
+
+  // Outstanding Khata Balance across all customers
+  const totalKhataOutstanding = useMemo(() => {
+    const customerDues = {};
+    khataLedger.forEach(k => {
+      const key = (k.customerPhone && k.customerPhone.trim()) || (k.customerName || '').trim().toLowerCase();
+      if (!customerDues[key]) customerDues[key] = 0;
+      if (k.type === 'debit') customerDues[key] += (Number(k.amount) || 0);
+      else if (k.type === 'credit') customerDues[key] -= (Number(k.amount) || 0);
+    });
+    return Object.values(customerDues).reduce((sum, bal) => sum + Math.max(0, bal), 0);
+  }, [khataLedger]);
+
+  // Tab switching guard for Staff Mode
+  const handleTabClick = (tab) => {
+    if (isStaffMode && (tab === 'dashboard' || tab === 'expenses' || tab === 'inventory')) {
+      setPinModalTargetTab(tab);
+      setIsPinModalOpen(true);
+      return;
+    }
+    setActiveTab(tab);
+  };
+
   // 🛡️ SUPER ADMIN HIDDEN PORTAL (/admin, #/admin)
   // Completely isolated from regular user UI — only triggers when /admin is entered in URL
   if (isAdminMode) {
@@ -1242,6 +1332,12 @@ export default function App() {
         onOpenCafeProfileModal={() => setIsCafeProfileModalOpen(true)}
         onExitDemo={() => setIsDemoMode(false)}
         onLogout={handleLogout}
+        isStaffMode={isStaffMode}
+        onLockToStaffMode={handleLockToStaffMode}
+        onPromptUnlockStaffMode={handlePromptUnlockStaffMode}
+        onOpenDayClosingModal={() => setIsDayClosingModalOpen(true)}
+        onOpenKhataModal={() => setIsKhataModalOpen(true)}
+        khataOutstanding={totalKhataOutstanding}
       />
 
       {/* Main Container */}
@@ -1254,7 +1350,7 @@ export default function App() {
 
             {/* Sales Tracker Tab */}
             <button
-              onClick={() => setActiveTab('sales')}
+              onClick={() => handleTabClick('sales')}
               className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${activeTab === 'sales'
                   ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/25'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -1266,7 +1362,7 @@ export default function App() {
 
             {/* 🛎️ Dine-In & QR Orders Tab */}
             <button
-              onClick={() => setActiveTab('dining')}
+              onClick={() => handleTabClick('dining')}
               className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 relative ${activeTab === 'dining'
                   ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/25'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -1281,31 +1377,35 @@ export default function App() {
 
             {/* 📦 Raw Material Stock Tab */}
             <button
-              onClick={() => setActiveTab('inventory')}
+              onClick={() => handleTabClick('inventory')}
               className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${activeTab === 'inventory'
                   ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/25'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
+              title={isStaffMode ? 'Owner PIN Protected' : 'Raw Materials Inventory'}
             >
               <Boxes className="w-4 h-4" />
               <span>📦 Stock</span>
+              {isStaffMode && <span className="text-[10px] ml-0.5">🔒</span>}
             </button>
 
             {/* Dashboard Tab */}
             <button
-              onClick={() => setActiveTab('dashboard')}
+              onClick={() => handleTabClick('dashboard')}
               className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${activeTab === 'dashboard'
                   ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/25'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
+              title={isStaffMode ? 'Owner PIN Protected' : 'Financial P&L Dashboard'}
             >
               <PieChart className="w-4 h-4" />
               <span>📊 P&L</span>
+              {isStaffMode && <span className="text-[10px] ml-0.5">🔒</span>}
             </button>
 
             {/* Procurement Log Tab */}
             <button
-              onClick={() => setActiveTab('procurement')}
+              onClick={() => handleTabClick('procurement')}
               className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${activeTab === 'procurement'
                   ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/25'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -1317,19 +1417,21 @@ export default function App() {
 
             {/* Expenses & Bills Tab */}
             <button
-              onClick={() => setActiveTab('expenses')}
+              onClick={() => handleTabClick('expenses')}
               className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${activeTab === 'expenses'
                   ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/25'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
+              title={isStaffMode ? 'Owner PIN Protected' : 'Cafe Bills & Expenses'}
             >
               <Receipt className="w-4 h-4" />
               <span>💸 Bills & Expenses</span>
+              {isStaffMode && <span className="text-[10px] ml-0.5">🔒</span>}
             </button>
 
             {/* Menu Catalog Tab */}
             <button
-              onClick={() => setActiveTab('menu')}
+              onClick={() => handleTabClick('menu')}
               className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${activeTab === 'menu'
                   ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/25'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -1384,6 +1486,12 @@ export default function App() {
             onOpenAlertSettings={() => setIsAlertSettingsOpen(true)}
             onOpenReceiptPrinter={handleOpenReceiptPrinter}
             showToast={showToast}
+            khataLedger={khataLedger}
+            onAddKhataTransaction={handleAddKhataTransaction}
+            onOpenKhataModal={() => setIsKhataModalOpen(true)}
+            onOpenDayClosingModal={() => setIsDayClosingModalOpen(true)}
+            isStaffMode={isStaffMode}
+            onPromptUnlockStaffMode={handlePromptUnlockStaffMode}
           />
         )}
 
@@ -1427,6 +1535,8 @@ export default function App() {
             settlements={settlements}
             onOpenExportModal={() => setIsExportModalOpen(true)}
             onOpenSettlementsModal={() => setIsAggregatorModalOpen(true)}
+            isStaffMode={isStaffMode}
+            onPromptUnlock={handlePromptUnlockStaffMode}
           />
         )}
 
@@ -1659,11 +1769,48 @@ export default function App() {
         showToast={showToast}
       />
 
+      {/* 🔒 Priority 1: Staff PIN Lock Modal */}
+      <StaffPinModal
+        isOpen={isPinModalOpen}
+        onClose={() => {
+          setIsPinModalOpen(false);
+          setPinModalTargetTab(null);
+        }}
+        onSuccessUnlock={handleUnlockPinSuccess}
+        currentPin={ownerPin}
+        onUpdatePin={handleUpdateOwnerPin}
+        title="Owner PIN Lock"
+        subtitle="Owner financial P&L, stock adjustments, and cafe expenses are protected in Staff Mode."
+      />
+
+      {/* 🌙 Priority 2: Day-End Cash Closing Modal (Z-Report) */}
+      <DayClosingModal
+        isOpen={isDayClosingModalOpen}
+        onClose={() => setIsDayClosingModalOpen(false)}
+        salesLogs={salesLogs}
+        expenses={expenses}
+        procurementLogs={procurementLogs}
+        khataLedger={khataLedger}
+        closingHistory={dayClosings}
+        onSaveDayClosing={handleSaveDayClosing}
+        currentCafe={currentCafe}
+        showToast={showToast}
+      />
+
+      {/* 📒 Priority 3: Customer Khata / Udhar Ledger Modal */}
+      <CustomerKhataModal
+        isOpen={isKhataModalOpen}
+        onClose={() => setIsKhataModalOpen(false)}
+        khataLedger={khataLedger}
+        onAddKhataTransaction={handleAddKhataTransaction}
+        currentCafe={currentCafe}
+        showToast={showToast}
+      />
 
       {/* Sticky Mobile Bottom Navigation Bar */}
       <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-stone-950/95 backdrop-blur-md border-t border-stone-800/80 py-1.5 px-3 flex items-center justify-around shadow-2xl safe-area-pb">
         <button
-          onClick={() => setActiveTab('sales')}
+          onClick={() => handleTabClick('sales')}
           className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all cursor-pointer ${activeTab === 'sales' ? 'text-amber-400 font-extrabold scale-105' : 'text-stone-400 hover:text-stone-200'
             }`}
         >
@@ -1672,7 +1819,7 @@ export default function App() {
         </button>
 
         <button
-          onClick={() => setActiveTab('dining')}
+          onClick={() => handleTabClick('dining')}
           className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition-all cursor-pointer relative ${activeTab === 'dining' ? 'text-amber-400 font-extrabold scale-105' : 'text-stone-400 hover:text-stone-200'
             }`}
         >
@@ -1684,25 +1831,25 @@ export default function App() {
         </button>
 
         <button
-          onClick={() => setActiveTab('inventory')}
+          onClick={() => handleTabClick('inventory')}
           className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all cursor-pointer ${activeTab === 'inventory' ? 'text-amber-400 font-extrabold scale-105' : 'text-stone-400 hover:text-stone-200'
             }`}
         >
           <Boxes className="w-4 h-4" />
-          <span className="text-[10px]">Stock</span>
+          <span className="text-[10px]">Stock{isStaffMode ? '🔒' : ''}</span>
         </button>
 
         <button
-          onClick={() => setActiveTab('dashboard')}
+          onClick={() => handleTabClick('dashboard')}
           className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all cursor-pointer ${activeTab === 'dashboard' ? 'text-amber-400 font-extrabold scale-105' : 'text-stone-400 hover:text-stone-200'
             }`}
         >
           <PieChart className="w-4 h-4" />
-          <span className="text-[10px]">P&L</span>
+          <span className="text-[10px]">P&L{isStaffMode ? '🔒' : ''}</span>
         </button>
 
         <button
-          onClick={() => setActiveTab('procurement')}
+          onClick={() => handleTabClick('procurement')}
           className={`flex flex-col items-center gap-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${activeTab === 'procurement' ? 'text-amber-400 font-extrabold scale-105' : 'text-stone-400 hover:text-stone-200'
             }`}
         >
@@ -1711,16 +1858,16 @@ export default function App() {
         </button>
 
         <button
-          onClick={() => setActiveTab('expenses')}
+          onClick={() => handleTabClick('expenses')}
           className={`flex flex-col items-center gap-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${activeTab === 'expenses' ? 'text-amber-400 font-extrabold scale-105' : 'text-stone-400 hover:text-stone-200'
             }`}
         >
           <Receipt className="w-4 h-4" />
-          <span className="text-[9px]">Bills/Exp</span>
+          <span className="text-[9px]">Bills{isStaffMode ? '🔒' : ''}</span>
         </button>
 
         <button
-          onClick={() => setActiveTab('menu')}
+          onClick={() => handleTabClick('menu')}
           className={`flex flex-col items-center gap-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${activeTab === 'menu' ? 'text-amber-400 font-extrabold scale-105' : 'text-stone-400 hover:text-stone-200'
             }`}
         >

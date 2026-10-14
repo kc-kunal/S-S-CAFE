@@ -1,4 +1,4 @@
-import { Plus, Sparkles, FileSpreadsheet, Store, LogIn, ChevronDown, LogOut, Eye, ShieldCheck, Bot } from 'lucide-react';
+import { Plus, Sparkles, FileSpreadsheet, Store, LogIn, ChevronDown, LogOut, Eye, ShieldCheck, Bot, Lock, Unlock, Moon, BookOpen } from 'lucide-react';
 import BrandLogo from './BrandLogo';
 
 export default function Navbar({
@@ -14,7 +14,13 @@ export default function Navbar({
   onOpenAuthModal,
   onOpenCafeProfileModal,
   onExitDemo,
-  onLogout
+  onLogout,
+  isStaffMode = false,
+  onLockToStaffMode,
+  onPromptUnlockStaffMode,
+  onOpenDayClosingModal,
+  onOpenKhataModal,
+  khataOutstanding = 0
 }) {
   const cafeName = currentCafe?.cafeName || 'S&S Cafe';
   const ownerName = currentCafe?.ownerName || currentUser?.displayName || 'Owner';
@@ -89,6 +95,52 @@ export default function Navbar({
 
         {/* Action Buttons */}
         <div className="flex items-center space-x-1.5 sm:space-x-2.5 shrink-0">
+
+          {/* 🔒 Staff Mode / Owner Mode Toggle */}
+          <button
+            type="button"
+            onClick={isStaffMode ? onPromptUnlockStaffMode : onLockToStaffMode}
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border shadow-xs ${
+              isStaffMode
+                ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 hover:bg-rose-500/30'
+                : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30'
+            }`}
+            title={isStaffMode ? 'Staff Mode Active (Profit & Owner Data Locked). Click to unlock with PIN.' : 'Owner Mode Active. Click to lock counter boy to Staff Mode.'}
+          >
+            {isStaffMode ? <Lock className="w-3.5 h-3.5 text-rose-400" /> : <Unlock className="w-3.5 h-3.5 text-emerald-400" />}
+            <span className="hidden sm:inline">{isStaffMode ? 'Staff Mode' : 'Owner'}</span>
+          </button>
+
+          {/* 🌙 Day-End Cash Closing (Z-Report) */}
+          {onOpenDayClosingModal && (
+            <button
+              type="button"
+              onClick={onOpenDayClosingModal}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-slate-800/90 hover:bg-amber-500/20 text-slate-200 hover:text-amber-300 border border-slate-700 hover:border-amber-500/40 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-xs"
+              title="Day-End Cash Reconciliation (Z-Report / Galla Hisab)"
+            >
+              <Moon className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden md:inline">Day Closing</span>
+            </button>
+          )}
+
+          {/* 📒 Customer Khata (Udhar Ledger) */}
+          {onOpenKhataModal && (
+            <button
+              type="button"
+              onClick={onOpenKhataModal}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-slate-800/90 hover:bg-amber-500/20 text-slate-200 hover:text-amber-300 border border-slate-700 hover:border-amber-500/40 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-xs"
+              title="Customer Khata & Udhar Ledger (Regular Grahak Hisab)"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden md:inline">Khata</span>
+              {khataOutstanding > 0 && (
+                <span className="text-[10px] bg-rose-500/30 text-rose-300 font-mono font-bold px-1.5 py-0.2 rounded-full border border-rose-500/40">
+                  ₹{khataOutstanding}
+                </span>
+              )}
+            </button>
+          )}
 
           {/* Telegram Alerts Button */}
           {onOpenAlertSettings && (

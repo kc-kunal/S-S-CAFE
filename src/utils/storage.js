@@ -6,6 +6,9 @@ const EXPENSES_STORAGE_KEY = 'ss_cafe_expenses_v1';
 const WASTAGE_STORAGE_KEY = 'ss_cafe_wastage_v1';
 const DINING_ORDERS_STORAGE_KEY = 'ss_cafe_dining_orders_v1';
 const AGGREGATOR_SETTLEMENTS_STORAGE_KEY = 'ss_cafe_aggregator_settlements_v1';
+const KHATA_STORAGE_KEY = 'ss_cafe_khata_ledger_v1';
+const DAY_CLOSING_STORAGE_KEY = 'ss_cafe_day_closing_logs_v1';
+const OWNER_PIN_STORAGE_KEY = 'ss_cafe_owner_pin_v1';
 
 
 // Get today's YYYY-MM-DD string
@@ -821,6 +824,150 @@ export const saveStoredSettlements = (settlements, cafeId = currentCafeId) => {
     console.error('Error saving settlements to localStorage:', e);
   }
 };
+
+// Initial Khata (Customer Credit Ledger) Presets
+export const INITIAL_KHATA_LEDGER = [
+  {
+    id: 'khata-tx-1',
+    type: 'debit',
+    customerName: 'Rahul Verma (Hostel)',
+    customerPhone: '9826012345',
+    amount: 198,
+    orderToken: '#C-102',
+    itemsSummary: '2x Classic Veg Burger, 1x Cold Coffee',
+    date: getTodayDateString(2),
+    createdAt: new Date(Date.now() - 172800000).toISOString(),
+    notes: 'Room 204, regular hostel student',
+    isSettled: false
+  },
+  {
+    id: 'khata-tx-2',
+    type: 'debit',
+    customerName: 'Sharma Ji (Medical Store)',
+    customerPhone: '9893098765',
+    amount: 340,
+    orderToken: '#C-115',
+    itemsSummary: '4x Cold Coffee, 2x Cheese Sandwich',
+    date: getTodayDateString(1),
+    createdAt: new Date(Date.now() - 86400000).toISOString(),
+    notes: 'Next door medical store neighbor',
+    isSettled: false
+  },
+  {
+    id: 'khata-tx-3',
+    type: 'credit',
+    customerName: 'Sharma Ji (Medical Store)',
+    customerPhone: '9893098765',
+    amount: 100,
+    orderToken: 'VASOOLI',
+    itemsSummary: 'Partial Cash Payment',
+    date: getTodayDateString(0),
+    paymentMode: 'Cash',
+    createdAt: new Date().toISOString(),
+    notes: 'Sharma ji paid ₹100 cash in morning',
+    isSettled: true
+  }
+];
+
+export const getStoredKhata = (cafeId = currentCafeId) => {
+  try {
+    const key = getScopedKey(KHATA_STORAGE_KEY, cafeId);
+    let data = localStorage.getItem(key);
+    if (!data && cafeId !== 'default') {
+      data = localStorage.getItem(KHATA_STORAGE_KEY);
+    }
+    return data ? JSON.parse(data) : INITIAL_KHATA_LEDGER;
+  } catch (e) {
+    return INITIAL_KHATA_LEDGER;
+  }
+};
+
+export const saveStoredKhata = (khataList, cafeId = currentCafeId) => {
+  try {
+    const key = getScopedKey(KHATA_STORAGE_KEY, cafeId);
+    localStorage.setItem(key, JSON.stringify(khataList));
+    if (cafeId === 'default') {
+      localStorage.setItem(KHATA_STORAGE_KEY, JSON.stringify(khataList));
+    }
+  } catch (e) {
+    console.error('Error saving khata ledger:', e);
+  }
+};
+
+// Initial Day Closings Presets
+export const INITIAL_DAY_CLOSINGS = [
+  {
+    id: 'close-demo-1',
+    date: getTodayDateString(1),
+    timestamp: new Date(Date.now() - 86400000).toISOString(),
+    closedBy: 'Owner',
+    openingFloat: 1000,
+    cashSales: 3850,
+    cashExpenses: 450,
+    cashProcurement: 300,
+    expectedCash: 4100,
+    actualCash: 4100,
+    difference: 0,
+    status: 'matched',
+    totalDaySales: 7420,
+    salesBreakdown: {
+      cash: 3850,
+      upi: 2200,
+      swiggy: 780,
+      zomato: 590
+    },
+    orderCount: 28,
+    notes: 'Shift completed. Cash matched with drawer.'
+  }
+];
+
+export const getStoredDayClosings = (cafeId = currentCafeId) => {
+  try {
+    const key = getScopedKey(DAY_CLOSING_STORAGE_KEY, cafeId);
+    let data = localStorage.getItem(key);
+    if (!data && cafeId !== 'default') {
+      data = localStorage.getItem(DAY_CLOSING_STORAGE_KEY);
+    }
+    return data ? JSON.parse(data) : INITIAL_DAY_CLOSINGS;
+  } catch (e) {
+    return INITIAL_DAY_CLOSINGS;
+  }
+};
+
+export const saveStoredDayClosings = (closings, cafeId = currentCafeId) => {
+  try {
+    const key = getScopedKey(DAY_CLOSING_STORAGE_KEY, cafeId);
+    localStorage.setItem(key, JSON.stringify(closings));
+    if (cafeId === 'default') {
+      localStorage.setItem(DAY_CLOSING_STORAGE_KEY, JSON.stringify(closings));
+    }
+  } catch (e) {
+    console.error('Error saving day closings:', e);
+  }
+};
+
+export const getStoredOwnerPin = (cafeId = currentCafeId) => {
+  try {
+    const key = getScopedKey(OWNER_PIN_STORAGE_KEY, cafeId);
+    const pin = localStorage.getItem(key);
+    return pin || '1234';
+  } catch (e) {
+    return '1234';
+  }
+};
+
+export const saveStoredOwnerPin = (newPin, cafeId = currentCafeId) => {
+  try {
+    const key = getScopedKey(OWNER_PIN_STORAGE_KEY, cafeId);
+    localStorage.setItem(key, newPin);
+    if (cafeId === 'default') {
+      localStorage.setItem(OWNER_PIN_STORAGE_KEY, newPin);
+    }
+  } catch (e) {
+    console.error('Error saving owner pin:', e);
+  }
+};
+
 
 // Calculate real-time aggregator balances (Gross sales, settled amount, pending payout, commission deducted)
 export const calculateAggregatorLedger = (salesLogs = [], settlements = []) => {

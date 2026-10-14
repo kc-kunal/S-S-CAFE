@@ -26,7 +26,10 @@ import {
   Phone,
   Send,
   MessageSquare,
-  Printer
+  Printer,
+  BookOpen,
+  Moon,
+  Lock
 } from 'lucide-react';
 import { checkItemStock, calculateAggregatorLedger } from '../utils/storage';
 import OnlineOrderPunchModal from './OnlineOrderPunchModal';
@@ -49,7 +52,13 @@ export default function SalesTracker({
   onAddExpense,
   onOpenAlertSettings,
   onOpenReceiptPrinter,
-  showToast
+  showToast,
+  khataLedger = [],
+  onAddKhataTransaction,
+  onOpenKhataModal,
+  onOpenDayClosingModal,
+  isStaffMode = false,
+  onPromptUnlockStaffMode
 }) {
   const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
   const [paymentMode, setPaymentMode] = useState('Cash'); // 'Cash', 'Online', 'Swiggy', 'Zomato'
@@ -64,7 +73,9 @@ export default function SalesTracker({
   const [punchTab, setPunchTab] = useState('counter');
 
   // 💵 Counter Orders State (Multi-Item Cart + Token)
-  const [counterPaymentMode, setCounterPaymentMode] = useState('Cash'); // 'Cash' or 'Online' (Counter UPI)
+  const [counterPaymentMode, setCounterPaymentMode] = useState('Cash'); // 'Cash', 'Online' (Counter UPI), or 'Khata' (Udhar)
+  const [khataCustomerName, setKhataCustomerName] = useState('');
+  const [khataCustomerPhone, setKhataCustomerPhone] = useState('');
   const [counterTokenNum, setCounterTokenNum] = useState(101);
   const [counterToken, setCounterToken] = useState('C-101');
   const [counterNotes, setCounterNotes] = useState('');
@@ -85,7 +96,7 @@ export default function SalesTracker({
   // Live session punch history
   const [sessionPunchedOrders, setSessionPunchedOrders] = useState([]);
 
-  // 🎨 Dynamic theme colors for the 4 payment channels (Cash=Green, UPI=Sky Blue, Swiggy=Orange, Zomato=Red)
+  // 🎨 Dynamic theme colors for payment channels (Cash=Green, UPI=Sky Blue, Khata=Amber, Swiggy=Orange, Zomato=Red)
   const currentTheme = useMemo(() => {
     if (punchTab === 'counter') {
       if (counterPaymentMode === 'Cash') {
@@ -108,6 +119,28 @@ export default function SalesTracker({
           punchBtn: 'bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-600/30 ring-2 ring-emerald-500/50',
           emptyIconText: 'text-emerald-600',
           focusRing: 'focus:ring-emerald-500/30'
+        };
+      } else if (counterPaymentMode === 'Khata') {
+        // Counter Khata / Udhar (Amber / Golden Orange)
+        return {
+          id: 'khata',
+          name: 'Khata (Udhar)',
+          tabActive: 'bg-gradient-to-r from-amber-950/80 to-stone-900 border-amber-500 shadow-lg shadow-amber-950/50 ring-2 ring-amber-500/40',
+          tabIcon: 'bg-amber-600 text-white',
+          tabBadge: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+          cartQtyPill: 'bg-amber-500 text-stone-950',
+          pillActive: 'bg-amber-600 text-white shadow-sm',
+          dot: 'bg-amber-500',
+          cardActive: 'bg-amber-50/70 border-amber-400 ring-2 ring-amber-400/40 shadow-xs',
+          inCartBadge: 'bg-amber-600 text-white',
+          addBtn: 'bg-amber-600 hover:bg-amber-500 text-white shadow-xs',
+          padIcon: 'bg-amber-600 text-white',
+          padBadge: 'bg-amber-100 text-amber-800',
+          padQtyBtn: 'bg-amber-100 hover:bg-amber-200 text-amber-800',
+          totalText: 'text-amber-700',
+          punchBtn: 'bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 hover:from-amber-500 hover:to-orange-500 text-white shadow-amber-600/30 ring-2 ring-amber-500/50',
+          emptyIconText: 'text-amber-600',
+          focusRing: 'focus:ring-amber-500/30'
         };
       } else {
         // Counter UPI (Sky Blue / Cyan)
@@ -280,6 +313,11 @@ export default function SalesTracker({
       return;
     }
 
+    if (counterPaymentMode === 'Khata' && !khataCustomerName.trim()) {
+      showWarning('Kripya Customer ka Naam dalein (Khata / Udhar ke liye zaroori hai)!');
+      return;
+    }
+
     const rawToken = counterToken.trim() || `C-${counterTokenNum}`;
     const token = rawToken.startsWith('#') ? rawToken : `#${rawToken}`;
     const totalGross = counterSubtotal;
@@ -301,7 +339,9 @@ export default function SalesTracker({
         costPrice: entry.item.costPrice || 0,
         totalRevenue: itemNet,
         totalCost: (entry.item.costPrice || 0) * entry.qty,
-        paymentMethod: counterPaymentMode, // 'Cash' or 'Online' (Counter UPI)
+        paymentMethod: counterPaymentMode, // 'Cash', 'Online' (Counter UPI), or 'Khata'
+        customerName: counterPaymentMode === 'Khata' ? khataCustomerName.trim() : undefined,
+        customerPhone: counterPaymentMode === 'Khata' && khataCustomerPhone.trim() ? khataCustomerPhone.trim() : undefined,
         platformOrderId: token,
         discountAmount: itemDiscShare > 0 ? itemDiscShare : undefined,
         notes: counterNotes.trim() || undefined,
@@ -318,10 +358,29 @@ export default function SalesTracker({
       salesBatch.forEach(s => onAddSale(s));
     }
 
+    // 2. IF KHATA / UDHAR, RECORD IN KHATA LEDGER
+    if (counterPaymentMode === 'Khata' && onAddKhataTransaction) {
+      const khataEntry = {
+        id: `khata-dr-${Date.now()}`,
+        type: 'debit',
+        customerName: khataCustomerName.trim(),
+        customerPhone: khataCustomerPhone.trim() || undefined,
+        amount: orderFinalBill,
+        orderToken: token,
+        itemsSummary: itemsInCart.map(e => `${e.qty}x ${e.item.name}`).join(', '),
+        date: saleDate,
+        createdAt: new Date().toISOString(),
+        notes: counterNotes.trim() || undefined,
+        isSettled: false
+      };
+      onAddKhataTransaction(khataEntry);
+    }
+
     const sessionOrderData = {
       id: `session-${Date.now()}`,
       token,
-      channel: counterPaymentMode === 'Cash' ? 'Cash' : 'Counter UPI',
+      channel: counterPaymentMode === 'Cash' ? 'Cash' : counterPaymentMode === 'Khata' ? 'Khata (Udhar)' : 'Counter UPI',
+      customerName: counterPaymentMode === 'Khata' ? khataCustomerName.trim() : undefined,
       itemsCount: counterTotalUnits,
       summary: itemsInCart.map(e => `${e.qty}x ${e.item.name}`).join(', '),
       items: itemsInCart.map(e => ({
@@ -345,7 +404,11 @@ export default function SalesTracker({
       onOpenReceiptPrinter({
         ...sessionOrderData,
         tokenOrBillNo: token,
-        orderType: counterPaymentMode === 'Cash' ? 'Counter (Cash)' : 'Counter (UPI)',
+        orderType: counterPaymentMode === 'Cash' 
+          ? 'Counter (Cash)' 
+          : counterPaymentMode === 'Khata' 
+          ? `Khata (${khataCustomerName.trim()})` 
+          : 'Counter (UPI)',
         subtotal: totalGross,
         discount: discTotal,
         totalAmount: orderFinalBill,
@@ -360,6 +423,8 @@ export default function SalesTracker({
     setCounterNotes('');
     setCounterDiscount(0);
     setCashTendered('');
+    setKhataCustomerName('');
+    setKhataCustomerPhone('');
     const nextTokenNum = counterTokenNum + 1;
     setCounterTokenNum(nextTokenNum);
     setCounterToken(`C-${nextTokenNum}`);
@@ -570,6 +635,11 @@ export default function SalesTracker({
       const mode = (s.paymentMethod || '').toLowerCase();
       return sum + (mode === 'zomato' ? (Number(s.totalRevenue) || 0) : 0);
     }, 0);
+
+    const khataRevenue = logs.reduce((sum, s) => {
+      const mode = (s.paymentMethod || '').toLowerCase();
+      return sum + (mode === 'khata' || mode === 'udhar' ? (Number(s.totalRevenue) || 0) : 0);
+    }, 0);
     
     const totalCost = logs.reduce((sum, s) => sum + (Number(s.totalCost) || 0), 0);
     const totalQty = logs.reduce((sum, s) => sum + (Number(s.quantitySold) || 0), 0);
@@ -593,6 +663,7 @@ export default function SalesTracker({
       upiRevenue, 
       swiggyRevenue, 
       zomatoRevenue, 
+      khataRevenue,
       totalCost, 
       totalQty, 
       netProfit, 
@@ -637,6 +708,7 @@ export default function SalesTracker({
       else if (filterPaymentMode === 'Online') matchesMode = mode === 'online' || mode === 'upi';
       else if (filterPaymentMode === 'Swiggy') matchesMode = mode === 'swiggy';
       else if (filterPaymentMode === 'Zomato') matchesMode = mode === 'zomato';
+      else if (filterPaymentMode === 'Khata') matchesMode = mode === 'khata' || mode === 'udhar';
     }
 
     return matchesDate && matchesSearch && matchesMode;
@@ -697,6 +769,32 @@ export default function SalesTracker({
                 </span>
               )}
             </button>
+
+            {/* 🌙 Day-End Cash Closing (Z-Report) */}
+            {onOpenDayClosingModal && (
+              <button
+                type="button"
+                onClick={onOpenDayClosingModal}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 rounded-2xl text-xs font-bold transition-all border border-amber-500/40 cursor-pointer shadow-md"
+                title="Shift & Day-End Cash Drawer Reconciliation (Z-Report)"
+              >
+                <Moon className="w-3.5 h-3.5 text-amber-400" />
+                <span>Day Closing</span>
+              </button>
+            )}
+
+            {/* 📒 Customer Khata (Udhar) */}
+            {onOpenKhataModal && (
+              <button
+                type="button"
+                onClick={onOpenKhataModal}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 rounded-2xl text-xs font-bold transition-all border border-amber-500/30 cursor-pointer shadow-md"
+                title="Customer Khata & Credit Ledger"
+              >
+                <BookOpen className="w-3.5 h-3.5 text-amber-400" />
+                <span>Khata (Udhar)</span>
+              </button>
+            )}
 
             {/* Excel Export Button */}
             {onOpenExportModal && (
@@ -789,13 +887,26 @@ export default function SalesTracker({
             </span>
           </div>
 
-          {/* Daily Net Profit */}
+          {/* Daily Net Profit / Margin */}
           <div className="bg-stone-800/60 p-3 sm:p-3.5 rounded-2xl border border-stone-700/50 flex flex-col justify-between">
             <span className="text-[10px] sm:text-[11px] font-bold text-stone-400 uppercase tracking-wider">Net Margin</span>
-            <div className={`text-xl sm:text-2xl font-extrabold mt-1 ${dailySummary.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-              ₹{dailySummary.netProfit.toLocaleString()}
-            </div>
-            <span className="text-[10px] text-amber-300/80 mt-0.5 font-semibold">{dailySummary.margin}% food margin</span>
+            {isStaffMode ? (
+              <div 
+                onClick={onPromptUnlockStaffMode}
+                className="flex items-center gap-1.5 text-xs font-bold text-rose-400 mt-2 cursor-pointer hover:underline"
+                title="Click to unlock with Owner PIN"
+              >
+                <Lock className="w-3.5 h-3.5" />
+                <span>PIN Locked</span>
+              </div>
+            ) : (
+              <div className={`text-xl sm:text-2xl font-extrabold mt-1 ${dailySummary.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                ₹{dailySummary.netProfit.toLocaleString()}
+              </div>
+            )}
+            <span className="text-[10px] text-amber-300/80 mt-0.5 font-semibold">
+              {isStaffMode ? 'Owner Only' : `${dailySummary.margin}% food margin`}
+            </span>
           </div>
 
         </div>
@@ -962,6 +1073,20 @@ export default function SalesTracker({
                   <Smartphone className="w-3.5 h-3.5" />
                   <span>📱 Counter UPI (Bank QR)</span>
                 </button>
+
+                {/* Khata (Udhar) */}
+                <button
+                  type="button"
+                  onClick={() => setCounterPaymentMode('Khata')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    counterPaymentMode === 'Khata'
+                      ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30 ring-2 ring-amber-500'
+                      : 'bg-white text-stone-700 hover:bg-stone-100 border border-stone-200'
+                  }`}
+                >
+                  <BookOpen className="w-3.5 h-3.5" />
+                  <span>📒 Khata (Udhar)</span>
+                </button>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
@@ -992,12 +1117,56 @@ export default function SalesTracker({
                 {/* Table / Customer Name (Optional) */}
                 <input
                   type="text"
-                  placeholder="Table # / Cust. Name (Optional)..."
+                  placeholder="Table # / Notes (Optional)..."
                   value={counterNotes}
                   onChange={(e) => setCounterNotes(e.target.value)}
-                  className="w-48 px-2.5 py-1.5 bg-white border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  className="w-44 px-2.5 py-1.5 bg-white border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 />
               </div>
+
+              {/* Customer Khata Info Bar (Active when Khata selected) */}
+              {counterPaymentMode === 'Khata' && (
+                <div className="w-full flex flex-wrap items-center gap-2 bg-amber-50 border border-amber-200 p-2.5 rounded-2xl animate-in fade-in">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900 shrink-0">
+                    <BookOpen className="w-4 h-4 text-amber-700" />
+                    <span>Customer Details:</span>
+                  </div>
+                  <input
+                    type="text"
+                    list="khata-customer-names-list"
+                    value={khataCustomerName}
+                    onChange={(e) => {
+                      setKhataCustomerName(e.target.value);
+                      const found = khataLedger.find(k => k.customerName && k.customerName.toLowerCase() === e.target.value.toLowerCase());
+                      if (found && found.customerPhone) setKhataCustomerPhone(found.customerPhone);
+                    }}
+                    placeholder="Customer Name (e.g. Rahul Sharma) *"
+                    className="flex-1 min-w-[150px] px-3 py-1.5 bg-white border border-amber-300 rounded-xl text-xs font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    required
+                  />
+                  <datalist id="khata-customer-names-list">
+                    {Array.from(new Set(khataLedger.map(k => k.customerName).filter(Boolean))).map((name, i) => (
+                      <option key={i} value={name} />
+                    ))}
+                  </datalist>
+                  <input
+                    type="tel"
+                    value={khataCustomerPhone}
+                    onChange={(e) => setKhataCustomerPhone(e.target.value)}
+                    placeholder="Mobile No. (Optional)"
+                    className="w-36 px-3 py-1.5 bg-white border border-amber-300 rounded-xl text-xs font-mono font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                  {onOpenKhataModal && (
+                    <button
+                      type="button"
+                      onClick={onOpenKhataModal}
+                      className="px-2.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-[11px] font-bold cursor-pointer shrink-0"
+                    >
+                      Khata Ledger
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
             /* ONLINE SUB-BAR: Swiggy/Zomato Toggle, Aggregator Order ID, Rider Note */
@@ -1777,6 +1946,7 @@ export default function SalesTracker({
               <option value="Online">📱 Counter UPI</option>
               <option value="Swiggy">🟠 Swiggy</option>
               <option value="Zomato">🔴 Zomato</option>
+              <option value="Khata">📒 Khata (Udhar)</option>
             </select>
 
             <input
@@ -1834,6 +2004,9 @@ export default function SalesTracker({
                     if (mode === 'online' || mode === 'upi') {
                       badgeClass = 'bg-sky-100 text-sky-800 border-sky-200';
                       badgeLabel = '📱 Counter UPI';
+                    } else if (mode === 'khata' || mode === 'udhar') {
+                      badgeClass = 'bg-amber-100 text-amber-900 border-amber-300 font-bold';
+                      badgeLabel = sale.customerName ? `📒 Khata (${sale.customerName})` : '📒 Khata';
                     } else if (mode === 'swiggy') {
                       badgeClass = 'bg-orange-100 text-orange-900 border-orange-300 font-black';
                       badgeLabel = '🟠 Swiggy';
@@ -1916,6 +2089,9 @@ export default function SalesTracker({
                 if (mode === 'online' || mode === 'upi') {
                   badgeClass = 'bg-sky-100 text-sky-800';
                   badgeLabel = '📱 UPI';
+                } else if (mode === 'khata' || mode === 'udhar') {
+                  badgeClass = 'bg-amber-100 text-amber-900 border border-amber-300';
+                  badgeLabel = sale.customerName ? `📒 Khata (${sale.customerName})` : '📒 Khata';
                 } else if (mode === 'swiggy') {
                   badgeClass = 'bg-orange-100 text-orange-900';
                   badgeLabel = '🟠 Swiggy';

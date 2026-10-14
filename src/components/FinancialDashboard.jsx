@@ -19,7 +19,8 @@ import {
   FileSpreadsheet,
   Bike,
   Clock,
-  Sparkles
+  Sparkles,
+  Lock
 } from 'lucide-react';
 import { calculateAggregatorLedger } from '../utils/storage';
 
@@ -32,7 +33,9 @@ export default function FinancialDashboard({
   wastageLogs = [],
   settlements = [],
   onOpenExportModal,
-  onOpenSettlementsModal
+  onOpenSettlementsModal,
+  isStaffMode = false,
+  onPromptUnlock
 }) {
   const [timeframe, setTimeframe] = useState('daily'); // 'daily', 'weekly', 'monthly', 'all'
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -174,6 +177,31 @@ export default function FinancialDashboard({
       topItems
     };
   }, [salesLogs, procurementLogs, menuItems, inventoryItems, expenses, wastageLogs, timeframe, selectedDate]);
+
+  if (isStaffMode) {
+    return (
+      <div className="bg-white rounded-3xl border border-stone-200 p-8 sm:p-12 shadow-sm text-center max-w-md mx-auto space-y-4 my-8">
+        <div className="w-16 h-16 rounded-3xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center mx-auto shadow-inner">
+          <Lock className="w-8 h-8" />
+        </div>
+        <div className="space-y-1">
+          <h3 className="text-lg font-bold text-stone-900">🔒 Financial P&L is Locked</h3>
+          <p className="text-xs text-stone-500 max-w-sm mx-auto leading-relaxed">
+            Staff Mode is active. Counter boys and staff are restricted from viewing cafe net profit, revenue breakdown, and food margins.
+          </p>
+        </div>
+        <div className="pt-2">
+          <button
+            type="button"
+            onClick={onPromptUnlock}
+            className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-600/20 cursor-pointer transition-all"
+          >
+            Enter Owner PIN to Unlock
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
