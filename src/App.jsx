@@ -1412,6 +1412,7 @@ export default function App() {
             onSaveItem={handleSaveInventoryItem}
             onDeleteItem={handleDeleteInventoryItem}
             onAdjustStock={handleAdjustStock}
+            onNavigateToProcurement={() => setActiveTab('procurement')}
           />
         )}
 
@@ -1508,6 +1509,7 @@ export default function App() {
               <ItemCards
                 items={menuItems}
                 inventoryItems={inventoryItems}
+                salesLogs={salesLogs}
                 onEdit={(item) => { setEditingItem(item); setIsModalOpen(true); }}
                 onDelete={(item) => setDeletingItem(item)}
                 onToggleStatus={handleToggleMenuItemStatus}
@@ -1519,6 +1521,7 @@ export default function App() {
               <ItemTable
                 items={menuItems}
                 inventoryItems={inventoryItems}
+                salesLogs={salesLogs}
                 onEdit={(item) => { setEditingItem(item); setIsModalOpen(true); }}
                 onDelete={(item) => setDeletingItem(item)}
                 onToggleStatus={handleToggleMenuItemStatus}

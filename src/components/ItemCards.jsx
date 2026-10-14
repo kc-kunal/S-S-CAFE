@@ -5,6 +5,7 @@ import { checkItemStock } from '../utils/storage';
 export default function ItemCards({
   items,
   inventoryItems = [],
+  salesLogs = [],
   onEdit,
   onDelete,
   onToggleStatus,
@@ -61,6 +62,19 @@ export default function ItemCards({
     return groups;
   }, [items]);
 
+  const topSellingItemNames = useMemo(() => {
+    const counts = {};
+    (salesLogs || []).forEach(s => {
+      const name = (s.itemName || s.name || '').toLowerCase().trim();
+      if (name) counts[name] = (counts[name] || 0) + (Number(s.quantitySold) || 1);
+    });
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .filter(([_, count]) => count > 0)
+      .map(([name]) => name);
+  }, [salesLogs]);
+
   const handleStartQuickEdit = (item) => {
     setEditingPriceId(item.id);
     setQuickPrices({ sellingPrice: item.sellingPrice, costPrice: item.costPrice });
@@ -105,6 +119,8 @@ export default function ItemCards({
               const marginPercent = curSell > 0 ? Math.round((profit / curSell) * 100) : 0;
               const stockStatus = checkItemStock(item, inventoryItems);
 
+              const isTopSeller = topSellingItemNames.includes((item.name || '').toLowerCase().trim());
+
               return (
                 <div
                   key={item.id}
@@ -117,12 +133,20 @@ export default function ItemCards({
                   }`}
                 >
                   <div>
-                    {/* Card Header: Category & Stock Badges */}
+                    {/* Card Header: Category, Best Seller & Stock Badges */}
                     <div className="flex items-center justify-between gap-1 mb-2">
-                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-900 bg-amber-100/70 px-2.5 py-0.5 rounded-full">
-                        <Tag className="w-3 h-3 text-amber-700" />
-                        {item.category}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-900 bg-amber-100/70 px-2.5 py-0.5 rounded-full">
+                          <Tag className="w-3 h-3 text-amber-700" />
+                          {item.category}
+                        </span>
+
+                        {isTopSeller && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-gradient-to-r from-amber-500 to-rose-500 text-white shadow-xs">
+                            🔥 Best Seller
+                          </span>
+                        )}
+                      </div>
 
                       <div className="flex items-center gap-1.5">
                         {stockStatus.isOutOfStock ? (

@@ -68,13 +68,12 @@ export default function ItemModal({ isOpen, onClose, onSave, editingItem, existi
 
   // Recipe helpers
   const handleAddRecipeIngredient = () => {
-    const defaultInv = inventoryItems[0];
     const newIngredient = {
-      ingredientId: defaultInv ? defaultInv.id : `custom-${Date.now()}`,
-      name: defaultInv ? defaultInv.materialName : '',
+      ingredientId: '',
+      name: '',
       quantity: 1,
-      unit: defaultInv ? defaultInv.unit : 'Piece',
-      isCustom: !defaultInv
+      unit: 'Piece',
+      isCustom: inventoryItems.length === 0
     };
     setRecipe([...recipe, newIngredient]);
   };
@@ -88,6 +87,14 @@ export default function ItemModal({ isOpen, onClose, onSave, editingItem, existi
           ingredientId: `custom-${Date.now()}`,
           name: '',
           isCustom: true
+        };
+      } else if (!value) {
+        updated[index] = {
+          ...updated[index],
+          ingredientId: '',
+          name: '',
+          unit: 'Piece',
+          isCustom: false
         };
       } else {
         const selectedInv = inventoryItems.find(i => i.id === value);
@@ -348,19 +355,34 @@ export default function ItemModal({ isOpen, onClose, onSave, editingItem, existi
                   <span>Recipe Ingredients (Raw Material Auto-Deduction)</span>
                 </h4>
                 <p className="text-[11px] text-stone-500 mt-0.5">
-                  Whenever this item is sold, these raw materials are automatically deducted from stock.
+                  Pehle Stock tab me raw material add karein, wahi yahan recipe me select hoga.
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={handleAddRecipeIngredient}
-                className="self-start sm:self-auto px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-xl shadow-sm flex items-center gap-1 cursor-pointer transition-all"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>+ Add Ingredient</span>
-              </button>
+              <div className="flex items-center gap-2 self-start sm:self-auto">
+                <span className="text-[11px] font-bold text-amber-900 bg-amber-100/80 border border-amber-300/80 px-2.5 py-1 rounded-xl shrink-0">
+                  📦 {inventoryItems.length} Stock Items
+                </span>
+                <button
+                  type="button"
+                  onClick={handleAddRecipeIngredient}
+                  className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-xl shadow-sm flex items-center gap-1 cursor-pointer transition-all shrink-0"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+ Add Ingredient</span>
+                </button>
+              </div>
             </div>
+
+            {/* If inventory has no items yet */}
+            {inventoryItems.length === 0 && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>
+                  <strong>Tip:</strong> Aapke <strong>Stock / Raw Material</strong> tab me abhi koi maal add nahi hai. Wahan maal add karne ke baad wo yahan direct dropdown me select karne ke liye dikhne lagega.
+                </span>
+              </div>
+            )}
 
             {/* Ingredients Table / Empty State */}
             {recipe.length === 0 ? (
@@ -370,7 +392,7 @@ export default function ItemModal({ isOpen, onClose, onSave, editingItem, existi
                   <span>Recipe Ingredients Add Nahi Hain</span>
                 </div>
                 <p className="text-[11px] text-stone-600 max-w-md mx-auto">
-                  ⚠️ <strong>Zaroori:</strong> Bina recipe raw material ke ye item <strong>Out of Stock</strong> dikhega. Kripya niche button par click karke raw material add karein (jaise: 1 Burger Bun, 1 Patty).
+                  ⚠️ <strong>Zaroori:</strong> Niche button dabakar apne stock se raw material chuniye (jaise 1 Bun, 60g Cheese). Sale hote hi ye maal stock se automatic minus hoga.
                 </p>
                 <button
                   type="button"
@@ -378,7 +400,7 @@ export default function ItemModal({ isOpen, onClose, onSave, editingItem, existi
                   className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-600 text-white font-bold text-xs rounded-xl shadow-sm hover:bg-amber-500 cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>+ Add Raw Material Ingredient</span>
+                  <span>+ Add Raw Material from Stock</span>
                 </button>
               </div>
             ) : (
@@ -408,10 +430,10 @@ export default function ItemModal({ isOpen, onClose, onSave, editingItem, existi
                               <button
                                 type="button"
                                 onClick={() => handleUpdateRecipeIngredient(idx, 'ingredientId', inventoryItems[0].id)}
-                                className="text-[10px] text-stone-600 hover:text-stone-900 px-1.5 py-1 bg-stone-100 rounded border border-stone-200 shrink-0 cursor-pointer"
-                                title="Choose from existing inventory"
+                                className="text-[10px] text-stone-600 hover:text-stone-900 px-2 py-1.5 bg-stone-100 rounded border border-stone-200 shrink-0 cursor-pointer font-bold"
+                                title="Choose from existing stock list"
                               >
-                                List
+                                Stock List
                               </button>
                             )}
                           </div>
@@ -419,15 +441,19 @@ export default function ItemModal({ isOpen, onClose, onSave, editingItem, existi
                           <select
                             value={ing.ingredientId || ''}
                             onChange={(e) => handleUpdateRecipeIngredient(idx, 'ingredientId', e.target.value)}
-                            className="w-full px-2.5 py-1.5 text-xs font-bold bg-stone-50 border border-stone-300 rounded-lg focus:outline-none text-stone-800"
+                            className={`w-full px-2.5 py-1.5 text-xs font-bold rounded-lg focus:outline-none transition-all ${
+                              !ing.ingredientId 
+                                ? 'bg-amber-50/80 border-2 border-amber-400 text-amber-900' 
+                                : 'bg-stone-50 border border-stone-300 text-stone-800'
+                            }`}
                           >
-                            <option value="">Select Raw Material</option>
+                            <option value="">-- Select Raw Material ({inventoryItems.length} in Stock) --</option>
                             {inventoryItems.map(inv => (
                               <option key={inv.id} value={inv.id}>
-                                {inv.materialName} ({inv.currentStock} {inv.unit} in stock • ₹{inv.unitCost}/{inv.unit})
+                                📦 {inv.materialName} ({inv.currentStock} {inv.unit} in stock • ₹{inv.unitCost}/{inv.unit})
                               </option>
                             ))}
-                            <option value="custom">➕ Type New Raw Material Name...</option>
+                            <option value="custom">➕ Type New Raw Material Name (Custom)...</option>
                           </select>
                         )}
                       </div>

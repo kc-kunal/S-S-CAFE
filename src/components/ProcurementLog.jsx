@@ -5,22 +5,6 @@ import { KNOWN_MATERIAL_ALIASES, INITIAL_INVENTORY_ITEMS, findMatchingInventoryI
 const CATEGORIES = ['Dairy', 'Bakery', 'Groceries', 'Beans & Teas', 'Frozen', 'Dry', 'Packaging'];
 const UNITS = ['Kg', 'Gram', 'Liters', 'ml', 'Piece', 'Packet', 'Box'];
 
-// Popular cafe raw materials for 1-click quick selection
-const QUICK_MATERIALS = [
-  { name: 'Pizza Base', icon: '🍕', category: 'Bakery', unit: 'Piece', defaultRate: 15 },
-  { name: 'Mozzarella Cheese', icon: '🧀', category: 'Dairy', unit: 'Kg', defaultRate: 450 },
-  { name: 'Pizza Sauce', icon: '🥫', category: 'Groceries', unit: 'Kg', defaultRate: 200 },
-  { name: 'Burger Buns', icon: '🍔', category: 'Bakery', unit: 'Piece', defaultRate: 8 },
-  { name: 'Veg Aloo Patty', icon: '🥔', category: 'Groceries', unit: 'Piece', defaultRate: 10 },
-  { name: 'Mayonnaise', icon: '🥣', category: 'Groceries', unit: 'Kg', defaultRate: 180 },
-  { name: 'Whole Milk', icon: '🥛', category: 'Dairy', unit: 'Liters', defaultRate: 60 },
-  { name: 'Coffee Powder', icon: '☕', category: 'Beans & Teas', unit: 'Gram', defaultRate: 1.5 },
-  { name: 'French Fries (Frozen)', icon: '🍟', category: 'Groceries', unit: 'Kg', defaultRate: 160 },
-  { name: 'Paneer (Cottage Cheese)', icon: '🧀', category: 'Dairy', unit: 'Kg', defaultRate: 380 },
-  { name: 'Sandwich Bread', icon: '🥪', category: 'Bakery', unit: 'Piece', defaultRate: 35 },
-  { name: 'Butter', icon: '🧈', category: 'Dairy', unit: 'Kg', defaultRate: 500 }
-];
-
 export default function ProcurementLog({
   procurementLogs = [],
   inventoryItems = [],
@@ -106,7 +90,7 @@ export default function ProcurementLog({
   // Suggestions for autocomplete while user types
   const suggestions = useMemo(() => {
     if (!materialName || materialName.trim().length === 0) {
-      return allAvailableMaterials.slice(0, 8);
+      return allAvailableMaterials;
     }
     const q = materialName.toLowerCase().trim();
 
@@ -121,10 +105,69 @@ export default function ProcurementLog({
         }
       }
       return false;
-    }).slice(0, 8);
+    });
   }, [materialName, allAvailableMaterials]);
 
-  // Smart spelling correction recommendation (e.g. "mozzerella" -> "Mozzarella Cheese")
+  // Dynamically monitor purchase frequency & inventory to build Quick Buttons for THIS cafe (Not hardcoded!)
+  const monitoredQuickMaterials = useMemo(() => {
+    const purchaseCounts = {};
+    const purchaseUnits = {};
+    const purchaseRates = {};
+    const purchaseCategories = {};
+
+    (procurementLogs || []).forEach(p => {
+      const name = p.materialName?.trim();
+      if (name) {
+        purchaseCounts[name] = (purchaseCounts[name] || 0) + 1;
+        if (!purchaseUnits[name] && p.unit) purchaseUnits[name] = p.unit;
+        if (!purchaseRates[name] && p.ratePerUnit) purchaseRates[name] = p.ratePerUnit;
+        if (!purchaseCategories[name] && p.category) purchaseCategories[name] = p.category;
+      }
+    });
+
+    // 1. Sort by purchase frequency descending
+    const sortedFromPurchases = Object.entries(purchaseCounts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, count]) => {
+        const matchedInv = (inventoryItems || []).find(
+          i => i.materialName.toLowerCase() === name.toLowerCase()
+        );
+        return {
+          name,
+          category: purchaseCategories[name] || matchedInv?.category || 'Groceries',
+          unit: purchaseUnits[name] || matchedInv?.unit || 'Kg',
+          defaultRate: purchaseRates[name] || matchedInv?.unitCost || 0,
+          purchaseCount: count,
+          currentStock: matchedInv?.currentStock,
+          isFrequent: true
+        };
+      });
+
+    // 2. If purchase logs are few (< 12), fill with active inventory items from this cafe
+    const existingNames = new Set(sortedFromPurchases.map(s => s.name.toLowerCase()));
+    const fromInventory = (inventoryItems || [])
+      .filter(i => !existingNames.has(i.materialName.toLowerCase()))
+      .map(inv => ({
+        name: inv.materialName,
+        category: inv.category || 'Groceries',
+        unit: inv.unit || 'Kg',
+        defaultRate: inv.unitCost || 0,
+        purchaseCount: 0,
+        currentStock: inv.currentStock,
+        isFrequent: false
+      }));
+
+    return [...sortedFromPurchases, ...fromInventory].slice(0, 12);
+  }, [procurementLogs, inventoryItems]);
+
+  // Exact Match with existing stock item
+  const exactMatch = useMemo(() => {
+    if (!materialName || materialName.trim().length === 0) return null;
+    const q = materialName.toLowerCase().trim();
+    return allAvailableMaterials.find(m => m.name.toLowerCase() === q);
+  }, [materialName, allAvailableMaterials]);
+
+  // Smart spelling correction recommendation (e.g. "mozzerella" -> "Mozzarella Cheese", "pizza basse" -> "Pizza Base")
   const spellingCorrection = useMemo(() => {
     if (!materialName || materialName.trim().length < 3) return null;
     const q = materialName.toLowerCase().trim();
@@ -214,10 +257,13 @@ export default function ProcurementLog({
     e.preventDefault();
     if (!materialName.trim() || !quantity || !totalCost) return;
 
-    // Use normalized spelling if user typed close alias
+    // Use normalized spelling if user typed close alias or minor typo
     let finalName = materialName.trim();
     if (spellingCorrection && spellingCorrection.name) {
       finalName = spellingCorrection.name;
+    } else {
+      const fuzzy = findMatchingInventoryItem(finalName, inventoryItems);
+      if (fuzzy) finalName = fuzzy.materialName;
     }
 
     const newEntry = {
@@ -276,37 +322,53 @@ export default function ProcurementLog({
   return (
     <div className="space-y-6">
       
-      {/* ⚡ ONE-CLICK QUICK SELECTION CHIPS */}
+      {/* ⚡ MONITORED QUICK SELECTION CHIPS (Dynamic for this Cafe) */}
       <div className="bg-stone-900 text-white rounded-3xl p-5 border border-stone-800 shadow-xl space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
           <div className="flex items-center space-x-2">
             <Sparkles className="w-4 h-4 text-amber-400" />
             <span className="text-xs font-bold text-amber-200 uppercase tracking-wider">
-              Quick Purchase Shortcuts (Click to Auto-Fill Correct Name)
+              Cafe Monitored Raw Materials (Frequent Purchases)
             </span>
           </div>
-          <span className="text-[11px] text-stone-400 font-medium">Spelling Mistake Se Bachne Ke Liye</span>
+          <span className="text-[11px] text-stone-400 font-medium">Aapke Cafe Ki Khareedi Par Auto-Monitored</span>
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {QUICK_MATERIALS.map((m) => {
-            const isSelected = materialName.toLowerCase() === m.name.toLowerCase();
-            return (
-              <button
-                key={m.name}
-                type="button"
-                onClick={() => handleSelectMaterial(m)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  isSelected
-                    ? 'bg-amber-600 text-white ring-2 ring-amber-400 shadow-md'
-                    : 'bg-stone-800/90 text-stone-200 hover:bg-stone-700 hover:text-white border border-stone-700/60'
-                }`}
-              >
-                <span>{m.icon}</span>
-                <span>{m.name}</span>
-              </button>
-            );
-          })}
+          {monitoredQuickMaterials.length === 0 ? (
+            <p className="text-xs text-stone-400 py-2 italic">
+              💡 Naye cafe ke liye: Jaise-jaise aap maal purchase karenge, aapke cafe ke frequent items yahan auto-monitor hokar 1-click button ban jayenge.
+            </p>
+          ) : (
+            monitoredQuickMaterials.map((m) => {
+              const isSelected = materialName.toLowerCase() === m.name.toLowerCase();
+              return (
+                <button
+                  key={m.name}
+                  type="button"
+                  onClick={() => handleSelectMaterial(m)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    isSelected
+                      ? 'bg-amber-600 text-white ring-2 ring-amber-400 shadow-md'
+                      : 'bg-stone-800/90 text-stone-200 hover:bg-stone-700 hover:text-white border border-stone-700/60'
+                  }`}
+                  title={`${m.name} (${m.purchaseCount > 0 ? `${m.purchaseCount}x Purchased` : `Stock: ${m.currentStock || 0} ${m.unit}`})`}
+                >
+                  <span>📦</span>
+                  <span>{m.name}</span>
+                  {m.purchaseCount > 0 ? (
+                    <span className="text-[10px] bg-amber-500/30 text-amber-300 px-1.5 py-0.5 rounded-md font-extrabold">
+                      {m.purchaseCount}x
+                    </span>
+                  ) : m.currentStock !== undefined ? (
+                    <span className="text-[10px] text-stone-400">
+                      ({m.currentStock} {m.unit})
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })
+          )}
         </div>
       </div>
 
@@ -337,9 +399,20 @@ export default function ProcurementLog({
             
             {/* 1. Material Name with Live Suggestions Dropdown */}
             <div className="relative" ref={suggestionsRef}>
-              <label className="block text-xs font-bold text-stone-700 uppercase mb-1">
-                Raw Material Name *
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-stone-700 uppercase">
+                  Raw Material Name *
+                </label>
+                {allAvailableMaterials.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowSuggestions(!showSuggestions)}
+                    className="text-[10px] text-amber-700 font-bold hover:underline cursor-pointer"
+                  >
+                    📦 View Stock List ({allAvailableMaterials.length})
+                  </button>
+                )}
+              </div>
               
               <div className="relative">
                 <input
@@ -351,17 +424,45 @@ export default function ProcurementLog({
                     setMaterialName(e.target.value);
                     setShowSuggestions(true);
                   }}
-                  placeholder="e.g. Mozzarella Cheese, Pizza Sauce..."
-                  className="w-full px-3.5 py-2.5 text-xs font-bold bg-stone-50 border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 text-stone-900"
+                  placeholder="e.g. Mozzarella Cheese, Pizza Base..."
+                  className={`w-full px-3.5 py-2.5 text-xs font-bold rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 text-stone-900 transition-all ${
+                    exactMatch
+                      ? 'bg-emerald-50/40 border border-emerald-300'
+                      : spellingCorrection
+                      ? 'bg-amber-50/50 border-2 border-amber-400'
+                      : 'bg-stone-50 border border-stone-300'
+                  }`}
                 />
                 <Search className="w-3.5 h-3.5 text-stone-400 absolute right-3 top-3 pointer-events-none" />
               </div>
 
+              {/* Exact Stock Match Indicator */}
+              {exactMatch && (
+                <div className="mt-1.5 text-[11px] text-emerald-700 font-bold flex items-center gap-1">
+                  <Check className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Existing Stock Item: {exactMatch.currentStock} {exactMatch.unit} in stock (Stock isme badhega).</span>
+                </div>
+              )}
+
+              {/* New Material Notice */}
+              {!exactMatch && !spellingCorrection && materialName.trim().length >= 3 && (
+                <div className="mt-1.5 text-[11px] text-indigo-700 font-semibold flex items-center gap-1 bg-indigo-50/70 p-1.5 rounded-lg border border-indigo-200">
+                  <span>➕ <strong>Naya Raw Material:</strong> Ye item aapke Stock me naya add ho jayega.</span>
+                </div>
+              )}
+
               {/* Suggestions Dropdown */}
               {showSuggestions && suggestions.length > 0 && (
                 <div className="absolute z-30 left-0 right-0 top-full mt-1.5 bg-white border border-stone-200 rounded-2xl shadow-xl overflow-hidden max-h-56 overflow-y-auto divide-y divide-stone-100">
-                  <div className="p-2 bg-stone-50 text-[10px] font-bold text-stone-500 uppercase tracking-wider">
-                    Sahi spelling select karein:
+                  <div className="p-2 bg-stone-50 text-[10px] font-bold text-stone-500 uppercase tracking-wider flex items-center justify-between">
+                    <span>Aapke Stock Me Se Chuniye ({suggestions.length}):</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowSuggestions(false)}
+                      className="text-stone-400 hover:text-stone-700"
+                    >
+                      ✕
+                    </button>
                   </div>
                   {suggestions.map((item) => (
                     <button
@@ -382,19 +483,19 @@ export default function ProcurementLog({
                 </div>
               )}
 
-              {/* Spelling Correction Banner (Did you mean?) */}
+              {/* Spelling Auto-Correction Banner (Did you mean?) */}
               {spellingCorrection && (
-                <div className="mt-2 p-2.5 bg-amber-50/90 border border-amber-300 rounded-xl flex items-center justify-between gap-2 shadow-xs">
+                <div className="mt-2 p-3 bg-amber-50 border-2 border-amber-400 rounded-xl flex items-center justify-between gap-2 shadow-xs animate-in fade-in">
                   <div className="text-[11px] text-amber-950 font-medium">
-                    <span>💡 Kya aapka matlab: </span>
-                    <strong className="font-bold text-amber-900 underline">{spellingCorrection.name}</strong>?
+                    <span className="text-amber-800 font-bold block">✨ Auto-Correct Match Found:</span>
+                    <span>Aapne "<strong>{materialName}</strong>" likha hai. Stock me <strong>"{spellingCorrection.name}"</strong> maujood hai.</span>
                   </div>
                   <button
                     type="button"
                     onClick={() => handleSelectMaterial(spellingCorrection)}
-                    className="px-2 py-1 bg-amber-600 hover:bg-amber-500 text-white text-[10px] font-extrabold rounded-lg transition-all shadow-xs cursor-pointer shrink-0"
+                    className="px-2.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-white text-[11px] font-extrabold rounded-lg transition-all shadow-xs cursor-pointer shrink-0"
                   >
-                    Apply Sahi Spelling
+                    Apply "{spellingCorrection.name}"
                   </button>
                 </div>
               )}

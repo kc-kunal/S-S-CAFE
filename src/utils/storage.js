@@ -963,7 +963,15 @@ export const findMatchingInventoryItem = (query, inventoryList = []) => {
   // 3. Substring inclusion match (e.g. "mozzarella" in "Mozzarella Cheese")
   const subMatch = inventoryList.find(i => {
     const m = (i.materialName || '').trim().toLowerCase();
-    return m.includes(q) || q.includes(m);
+    if (m === q) return true;
+    if (m.includes(q)) return true; // Shorter query in longer material name
+    if (q.includes(m)) {
+      // Allow minor generic affixes like "packet", "fresh", "pack", or plural 's'
+      const remainder = q.replace(m, '').trim();
+      const genericAffixes = ['packet', 'packets', 'pack', 'packs', 'box', 'boxes', 'fresh', 'raw', 'piece', 'pieces', 's', 'es'];
+      return !remainder || genericAffixes.includes(remainder) || remainder.length <= 2;
+    }
+    return false;
   });
   if (subMatch) return subMatch;
 

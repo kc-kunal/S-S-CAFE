@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Edit2, Trash2, CheckCircle2, XCircle, TrendingUp, Check, X } from 'lucide-react';
 import { checkItemStock } from '../utils/storage';
 
-export default function ItemTable({ items, inventoryItems = [], onEdit, onDelete, onToggleStatus, onSaveItem }) {
+export default function ItemTable({ items, inventoryItems = [], salesLogs = [], onEdit, onDelete, onToggleStatus, onSaveItem }) {
   const [editingPriceId, setEditingPriceId] = useState(null);
   const [quickPrices, setQuickPrices] = useState({ sellingPrice: '', costPrice: '' });
 
@@ -42,6 +42,19 @@ export default function ItemTable({ items, inventoryItems = [], onEdit, onDelete
     setEditingPriceId(null);
   };
 
+  const topSellingItemNames = useMemo(() => {
+    const counts = {};
+    (salesLogs || []).forEach(s => {
+      const name = (s.itemName || s.name || '').toLowerCase().trim();
+      if (name) counts[name] = (counts[name] || 0) + (Number(s.quantitySold) || 1);
+    });
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .filter(([_, count]) => count > 0)
+      .map(([name]) => name);
+  }, [salesLogs]);
+
   return (
     <div className="bg-white rounded-xl border border-stone-200/80 shadow-sm overflow-hidden">
       <div className="overflow-x-auto">
@@ -67,6 +80,7 @@ export default function ItemTable({ items, inventoryItems = [], onEdit, onDelete
               const profit = curSell - curCost;
               const marginPercent = curSell > 0 ? Math.round((profit / curSell) * 100) : 0;
               const stockStatus = checkItemStock(item, inventoryItems);
+              const isTopSeller = topSellingItemNames.includes((item.name || '').toLowerCase().trim());
 
               return (
                 <tr
@@ -77,10 +91,15 @@ export default function ItemTable({ items, inventoryItems = [], onEdit, onDelete
                 >
                   {/* Item Name */}
                   <td className="py-3.5 px-4 font-semibold text-stone-900">
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 flex-wrap gap-1">
                       <span className={!item.isAvailable ? 'line-through text-stone-400' : ''}>
                         {item.name}
                       </span>
+                      {isTopSeller && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-gradient-to-r from-amber-500 to-rose-500 text-white shadow-xs">
+                          🔥 Best Seller
+                        </span>
+                      )}
                       {(!item.recipe || item.recipe.length === 0) && (
                         <span className="text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
                           No Recipe

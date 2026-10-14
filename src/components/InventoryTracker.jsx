@@ -1,10 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { Package, AlertTriangle, CheckCircle2, XCircle, Plus, Edit2, Trash2, Search, Filter, TrendingDown, Layers } from 'lucide-react';
+import { Package, AlertTriangle, CheckCircle2, XCircle, Plus, Edit2, Trash2, Search, Filter, TrendingDown, Layers, PackageCheck } from 'lucide-react';
 
-const CATEGORIES = ['Dairy', 'Beans & Teas', 'Produce', 'Bakery', 'Packaging', 'Groceries'];
-const UNITS = ['Kg', 'Liters', 'Packets', 'Bags', 'Boxes', 'Units', 'Packs'];
+const CATEGORIES = ['Dairy', 'Beans & Teas', 'Produce', 'Bakery', 'Packaging', 'Groceries', 'Beverages', 'Spices & Sauces', 'Frozen'];
+const UNITS = ['Kg', 'Gram', 'Liters', 'ml', 'Piece', 'Slice', 'Portion', 'Packets', 'Bags', 'Boxes', 'Packs', 'Units'];
 
-export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteItem, onAdjustStock }) {
+export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteItem, onAdjustStock, onNavigateToProcurement }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -94,8 +94,6 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
     });
   }, [inventoryItems, searchQuery, categoryFilter, statusFilter]);
 
-  const alertConfig = useMemo(() => getAlertConfig(), [inventoryItems]);
-
   return (
     <div className="space-y-6">
       
@@ -180,6 +178,18 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
               <option value="OUT">Out of Stock Only</option>
             </select>
 
+            {onNavigateToProcurement && (
+              <button
+                type="button"
+                onClick={onNavigateToProcurement}
+                className="w-full sm:w-auto px-4 py-2 bg-stone-900 hover:bg-stone-800 text-amber-300 text-xs font-bold rounded-xl shadow transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-stone-700"
+                title="Khareeda hua maal log karein aur stock badhayein"
+              >
+                <PackageCheck className="w-4 h-4 text-emerald-400" />
+                <span>+ Log Purchase (Maal Khareedo)</span>
+              </button>
+            )}
+
             <button
               onClick={handleOpenAdd}
               className="w-full sm:w-auto px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-xl shadow transition-all flex items-center justify-center gap-1.5 cursor-pointer"
@@ -194,7 +204,23 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
 
       {/* Inventory List Container */}
       <div className="bg-white rounded-2xl border border-stone-200 p-4 sm:p-6 shadow-sm">
-        <h3 className="text-sm sm:text-base font-bold text-stone-900 mb-4">Stock Levels & Inventory Status</h3>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+          <div>
+            <h3 className="text-sm sm:text-base font-bold text-stone-900">Stock Levels & Inventory Status</h3>
+            <p className="text-[11px] text-stone-500 mt-0.5">
+              💡 <strong>Purchases</strong> tab me jo bhi maal khareedte hain, wo automatically yahan stock me jud jata hai.
+            </p>
+          </div>
+          {onNavigateToProcurement && (
+            <button
+              type="button"
+              onClick={onNavigateToProcurement}
+              className="text-xs text-amber-800 hover:text-amber-900 font-bold underline flex items-center gap-1 cursor-pointer self-start sm:self-auto"
+            >
+              <span>View All Purchase Bills →</span>
+            </button>
+          )}
+        </div>
 
         {filteredItems.length === 0 ? (
           <p className="text-xs text-stone-400 py-8 text-center">No inventory items match the current filter.</p>

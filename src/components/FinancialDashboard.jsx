@@ -36,6 +36,7 @@ export default function FinancialDashboard({
 }) {
   const [timeframe, setTimeframe] = useState('daily'); // 'daily', 'weekly', 'monthly', 'all'
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [topItemsSort, setTopItemsSort] = useState('qty'); // 'qty' or 'revenue'
 
   // Date filtering logic
   const filteredData = useMemo(() => {
@@ -499,34 +500,146 @@ export default function FinancialDashboard({
       {/* Detailed Tables & Breakdown Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        {/* Top Sold Items Ranking */}
-        <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm">
-          <h4 className="text-sm font-bold text-stone-900 uppercase tracking-wider mb-4 flex items-center gap-2">
-            <ShoppingBag className="w-4 h-4 text-amber-600" />
-            Sales Revenue by Item ({timeframe})
-          </h4>
+        {/* Top Sold Items Ranking & Best Sellers */}
+        <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-100 pb-3">
+            <div>
+              <h4 className="text-sm font-bold text-stone-900 uppercase tracking-wider flex items-center gap-2">
+                <Flame className="w-4 h-4 text-amber-600 fill-amber-500" />
+                <span>🏆 Top Selling & Best Performer Items</span>
+              </h4>
+              <p className="text-[11px] text-stone-500 mt-0.5">
+                {timeframe === 'daily' ? 'Aaj' : timeframe === 'weekly' ? 'Pichhle 7 dino' : timeframe === 'monthly' ? 'Is mahine' : 'All-time'} ki sales ke hisab se cafe ke sabse zyada demand wale items.
+              </p>
+            </div>
+
+            {/* Sort Toggle: By Quantity Sold vs By Revenue */}
+            <div className="flex items-center bg-stone-100 p-0.5 rounded-xl border border-stone-200 text-[11px] font-bold self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={() => setTopItemsSort('qty')}
+                className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                  topItemsSort === 'qty'
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'text-stone-600 hover:text-stone-900'
+                }`}
+                title="Sort by number of portions sold"
+              >
+                🔥 Most Sold (Qty)
+              </button>
+              <button
+                type="button"
+                onClick={() => setTopItemsSort('revenue')}
+                className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                  topItemsSort === 'revenue'
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'text-stone-600 hover:text-stone-900'
+                }`}
+                title="Sort by total revenue in Rupees"
+              >
+                💰 Top Revenue (₹)
+              </button>
+            </div>
+          </div>
 
           {filteredData.topItems.length === 0 ? (
             <p className="text-xs text-stone-400 py-6 text-center">No sales logged for this timeframe.</p>
           ) : (
             <div className="space-y-3">
-              {filteredData.topItems.map((item, idx) => (
-                <div key={item.name} className="flex items-center justify-between p-3 rounded-xl bg-stone-50 border border-stone-100">
-                  <div className="flex items-center space-x-3">
-                    <span className="w-6 h-6 rounded-full bg-stone-900 text-amber-200 text-xs font-bold flex items-center justify-center">
-                      #{idx + 1}
-                    </span>
-                    <div>
-                      <h5 className="text-sm font-bold text-stone-900">{item.name}</h5>
-                      <span className="text-xs text-stone-500">{item.qty} units sold</span>
+              {/* Top Seller Highlight Banner */}
+              {(() => {
+                const sorted = [...filteredData.topItems].sort((a, b) => 
+                  topItemsSort === 'qty' ? b.qty - a.qty : b.revenue - a.revenue
+                );
+                const star = sorted[0];
+                if (!star) return null;
+                return (
+                  <div className="p-3 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-300 rounded-xl flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="text-xl">🥇</span>
+                      <div className="min-w-0">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 block">
+                          #1 Highest Selling Dish ({timeframe})
+                        </span>
+                        <h5 className="text-sm font-extrabold text-stone-900 truncate">
+                          {star.name}
+                        </h5>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="text-sm font-black text-amber-900">{star.qty} Portions Sold</span>
+                      <span className="block text-[11px] font-bold text-emerald-700">₹{star.revenue.toLocaleString()} Rev</span>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <span className="text-sm font-extrabold text-amber-900">₹{item.revenue.toLocaleString()}</span>
-                    <span className="block text-[11px] text-emerald-700 font-semibold">Margin: ₹{item.profit}</span>
-                  </div>
-                </div>
-              ))}
+                );
+              })()}
+
+              {/* Items List */}
+              <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+                {[...filteredData.topItems]
+                  .sort((a, b) => topItemsSort === 'qty' ? b.qty - a.qty : b.revenue - a.revenue)
+                  .map((item, idx) => {
+                    const contribution = filteredData.totalRevenue > 0
+                      ? Math.round((item.revenue / filteredData.totalRevenue) * 100)
+                      : 0;
+
+                    return (
+                      <div key={item.name} className="p-3 rounded-xl bg-stone-50 border border-stone-200/80 hover:bg-amber-50/30 transition-all space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center space-x-2.5 min-w-0">
+                            {idx === 0 ? (
+                              <span className="px-2 py-0.5 rounded-lg bg-amber-500 text-white text-[11px] font-black shadow-xs shrink-0">
+                                🥇 #1
+                              </span>
+                            ) : idx === 1 ? (
+                              <span className="px-2 py-0.5 rounded-lg bg-stone-400 text-white text-[11px] font-black shadow-xs shrink-0">
+                                🥈 #2
+                              </span>
+                            ) : idx === 2 ? (
+                              <span className="px-2 py-0.5 rounded-lg bg-amber-700 text-white text-[11px] font-black shadow-xs shrink-0">
+                                🥉 #3
+                              </span>
+                            ) : (
+                              <span className="w-5 h-5 rounded-md bg-stone-200 text-stone-700 text-[11px] font-bold flex items-center justify-center shrink-0">
+                                #{idx + 1}
+                              </span>
+                            )}
+                            <div className="min-w-0">
+                              <h5 className="text-xs sm:text-sm font-bold text-stone-900 truncate">{item.name}</h5>
+                              {item.category && (
+                                <span className="text-[10px] text-stone-400 font-medium">
+                                  {item.category}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          
+                          <div className="text-right shrink-0">
+                            <span className="text-xs sm:text-sm font-extrabold text-amber-900">
+                              {topItemsSort === 'qty' ? `${item.qty} units` : `₹${item.revenue.toLocaleString()}`}
+                            </span>
+                            <span className="block text-[10px] text-stone-500 font-medium">
+                              {topItemsSort === 'qty' ? `₹${item.revenue.toLocaleString()} Rev` : `${item.qty} units`} • Margin: ₹{item.profit}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Progress Bar of Sales Share */}
+                        <div className="flex items-center gap-2 pt-0.5">
+                          <div className="flex-1 bg-stone-200 rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className="bg-gradient-to-r from-amber-500 to-amber-600 h-1.5 rounded-full transition-all"
+                              style={{ width: `${Math.min(100, Math.max(3, contribution))}%` }}
+                            />
+                          </div>
+                          <span className="text-[10px] font-bold text-stone-500 shrink-0">
+                            {contribution}% of sales
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
             </div>
           )}
         </div>
