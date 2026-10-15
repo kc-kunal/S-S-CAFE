@@ -419,7 +419,7 @@ export default function DiningManager({
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-3.5">
               {filteredOrders.map(order => {
                 const isPending = order.status === 'pending';
                 const isPreparing = order.status === 'preparing';
@@ -647,7 +647,7 @@ export default function DiningManager({
           </div>
 
           {/* QR Cards Grid (Formatted for both screen preview & high-quality printing) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 print:grid-cols-2 print:gap-6" id="printable-qr-grid">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3.5 print:grid-cols-2 print:gap-6" id="printable-qr-grid">
             {generatedQrs.map((item) => (
               <div
                 key={item.tableNumber}

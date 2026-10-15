@@ -73,32 +73,34 @@ export default function Navbar({
   };
 
   return (
-    <header className="bg-slate-900 text-slate-100 sticky top-0 z-30 shadow-md border-b border-slate-800 backdrop-blur-md bg-slate-900/95">
+    <header className="bg-slate-900 text-slate-100 sticky top-0 z-30 shadow-md border-b border-slate-800 backdrop-blur-md bg-slate-900/95 w-full">
       
       {/* ⚠️ Demo Mode Notice Banner */}
       {isDemoMode && (
-        <div className="bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 px-3 py-1 text-center text-xs font-extrabold flex items-center justify-center gap-2 shadow-inner">
-          <Eye className="w-3.5 h-3.5" />
-          <span>Interactive Live Demo Mode — Exploring with sample cafe data.</span>
-          <button
-            type="button"
-            onClick={() => onOpenAuthModal && onOpenAuthModal('signup')}
-            className="ml-2 underline font-black hover:text-white cursor-pointer"
-          >
-            Create Real Cafe Account
-          </button>
-          <span className="opacity-60">•</span>
-          <button
-            type="button"
-            onClick={onExitDemo}
-            className="text-[11px] bg-slate-950 text-amber-300 px-2 py-0.5 rounded-lg hover:bg-slate-900 cursor-pointer"
-          >
-            Exit Demo
-          </button>
+        <div className="bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 px-3 py-1 text-center text-xs font-extrabold shadow-inner">
+          <div className="max-w-[1920px] mx-auto flex items-center justify-center gap-2 flex-wrap">
+            <Eye className="w-3.5 h-3.5" />
+            <span>Interactive Live Demo Mode — Exploring with sample cafe data.</span>
+            <button
+              type="button"
+              onClick={() => onOpenAuthModal && onOpenAuthModal('signup')}
+              className="ml-2 underline font-black hover:text-white cursor-pointer"
+            >
+              Create Real Cafe Account
+            </button>
+            <span className="opacity-60">•</span>
+            <button
+              type="button"
+              onClick={onExitDemo}
+              className="text-[11px] bg-slate-950 text-amber-300 px-2 py-0.5 rounded-lg hover:bg-slate-900 cursor-pointer"
+            >
+              Exit Demo
+            </button>
+          </div>
         </div>
       )}
 
-      <div className="w-full px-2.5 sm:px-4 h-13 sm:h-14 flex items-center justify-between gap-2">
+      <div className="w-full max-w-[1920px] mx-auto px-2.5 sm:px-4 lg:px-6 h-13 sm:h-14 flex items-center justify-between gap-2">
 
         {/* Brand Logo & Active Cafe Name */}
         <div className="flex items-center space-x-2.5 sm:space-x-4 min-w-0">

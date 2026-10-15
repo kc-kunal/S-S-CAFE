@@ -304,8 +304,9 @@ export default function ExpenseTracker({
               : 'text-stone-600 hover:bg-stone-100'
           }`}
         >
-          <Receipt className="w-4 h-4" />
-          <span>⚡ Cafe Overheads & Bills (Light, Rent, Salary, Gas)</span>
+          <Receipt className="w-4 h-4 shrink-0" />
+          <span className="hidden sm:inline">⚡ Cafe Overheads & Bills (Light, Rent, Salary, Gas)</span>
+          <span className="sm:hidden">⚡ Overheads & Bills</span>
         </button>
 
         <button
@@ -316,8 +317,9 @@ export default function ExpenseTracker({
               : 'text-stone-600 hover:bg-stone-100'
           }`}
         >
-          <AlertOctagon className="w-4 h-4" />
-          <span>🗑️ Raw Material Spoilage / Wastage (Kharab Maal)</span>
+          <AlertOctagon className="w-4 h-4 shrink-0" />
+          <span className="hidden sm:inline">🗑️ Raw Material Spoilage / Wastage (Kharab Maal)</span>
+          <span className="sm:hidden">🗑️ Spoilage / Wastage</span>
         </button>
       </div>
 

@@ -1480,7 +1480,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans">
+    <div className="min-h-screen flex flex-col bg-slate-100/70 text-slate-900 font-sans selection:bg-amber-200 selection:text-amber-900 overflow-x-hidden">
 
       {/* Toast Notification */}
       {toast && (
@@ -1509,11 +1509,11 @@ export default function App() {
         onPromptUnlockStaffMode={handlePromptUnlockStaffMode}
       />
 
-      {/* Main Container with Left Sidebar & Content (Full-width edge-to-edge, zero margin waste) */}
-      <div className="flex-1 w-full px-1.5 sm:px-2.5 py-2 flex flex-col md:flex-row gap-2.5 items-start">
+      {/* Main Container with Left Sidebar & Content (Bounded to max 1920px, centered with responsive gutters) */}
+      <div className="flex-1 w-full max-w-[1920px] mx-auto px-2 sm:px-4 lg:px-6 py-2.5 sm:py-3.5 flex flex-col md:flex-row gap-3 items-start">
 
         {/* 🧭 LEFT SIDEBAR NAVIGATION */}
-        <aside className="w-full md:w-48 lg:w-52 shrink-0 bg-white rounded-2xl border border-slate-200 p-2 sm:p-2.5 shadow-xs md:sticky md:top-16 space-y-2 z-10">
+        <aside className="w-full md:w-52 lg:w-56 xl:w-60 shrink-0 bg-white rounded-2xl border border-slate-200 p-2 sm:p-2.5 shadow-xs md:sticky md:top-16 space-y-2 z-10">
           
           <div className="hidden md:flex items-center justify-between px-2.5 py-1 text-slate-400 border-b border-slate-100 pb-2">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Navigation</span>

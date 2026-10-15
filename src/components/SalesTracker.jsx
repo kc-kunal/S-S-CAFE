@@ -1393,7 +1393,7 @@ export default function SalesTracker({
                         </h4>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-2.5">
                         {items.map((item) => {
                           const stockStatus = getRecipeStockStatus(item);
                           const currentCart = punchTab === 'counter' ? counterCart : onlineCart;

@@ -377,7 +377,7 @@ export default function FinancialDashboard({
         </div>
 
         {/* 5-Step Formula Ribbon */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-center">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-2.5 text-center">
 
           {/* Step 1: Total Sales */}
           <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200 flex flex-col justify-between">
@@ -440,7 +440,7 @@ export default function FinancialDashboard({
           </div>
 
           {/* Step 5: True Net Profit Result */}
-          <div className={`p-2.5 rounded-xl col-span-2 md:col-span-1 border flex flex-col justify-between shadow-xs ${filteredData.trueNetProfit >= 0
+          <div className={`p-2.5 rounded-xl col-span-2 lg:col-span-1 border flex flex-col justify-between shadow-xs ${filteredData.trueNetProfit >= 0
               ? 'bg-gradient-to-br from-emerald-700 via-emerald-800 to-teal-900 text-white border-emerald-600'
               : 'bg-gradient-to-br from-rose-700 via-rose-800 to-red-900 text-white border-rose-600'
             }`}>
@@ -725,7 +725,7 @@ export default function FinancialDashboard({
           </div>
 
           {/* 5. Khata (Udhar) Card */}
-          <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-300 flex flex-col justify-between space-y-2">
+          <div className="p-3 rounded-xl sm:col-span-2 lg:col-span-1 bg-amber-50/70 border border-amber-300 flex flex-col justify-between space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-black text-amber-950 flex items-center gap-1.5">
                 <span>📒</span>
