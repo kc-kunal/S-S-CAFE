@@ -54,14 +54,21 @@ export const extractTokenNumber = (tokenStr) => {
 
 // 🎫 Calculate next Counter Token for selected date based on punched salesLogs + localStorage
 export const getNextCounterTokenInfo = (salesLogs = [], targetDate = '') => {
-  const dateStr = targetDate || new Date().toISOString().split('T')[0];
+  const dateStr = String(targetDate || new Date().toISOString().split('T')[0]).trim();
   let maxPunched = 0;
 
   if (Array.isArray(salesLogs)) {
     salesLogs.forEach(s => {
-      if (s.date === dateStr && s.platformOrderId) {
-        const isCounterOrder = !s.paymentMethod || 
-          ['cash', 'online', 'upi', 'khata', 'udhar'].includes(String(s.paymentMethod).toLowerCase()) ||
+      const sDate = String(s.date || '').trim();
+      if (sDate === dateStr && s.platformOrderId) {
+        const pm = String(s.paymentMethod || '').toLowerCase();
+        const isCounterOrder = !pm || 
+          pm.includes('cash') || 
+          pm.includes('upi') || 
+          pm.includes('online') || 
+          pm.includes('khata') || 
+          pm.includes('udhar') ||
+          pm.includes('counter') ||
           /C-/i.test(s.platformOrderId);
           
         if (isCounterOrder) {
@@ -90,7 +97,8 @@ export const getNextCounterTokenInfo = (salesLogs = [], targetDate = '') => {
   let nextNum = 101;
   if (maxPunched > 0) {
     nextNum = Math.max(maxPunched + 1, storedNext);
-  } else if (storedNext > 0) {
+  } else if (salesLogs.length === 0 && storedNext > 0) {
+    // If salesLogs has not finished loading from cloud, respect storedNext
     nextNum = storedNext;
   }
 
@@ -174,14 +182,41 @@ export default function SalesTracker({
   isStaffMode = false,
   onPromptUnlockStaffMode
 }) {
-  const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
+  const todayDateStr = new Date().toISOString().split('T')[0];
+  const yesterdayDateObj = new Date(Date.now() - 86400000);
+  const yesterdayDateStr = yesterdayDateObj.toISOString().split('T')[0];
+
+  const getInitialTimeStr = () => {
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    return `${hh}:${mm}`;
+  };
+
+  const [saleDate, setSaleDate] = useState(todayDateStr);
+  const [punchTime, setPunchTime] = useState(getInitialTimeStr);
+  const [isCustomPunchTime, setIsCustomPunchTime] = useState(false);
   const [paymentMode, setPaymentMode] = useState('Cash'); // 'Cash', 'Online', 'Swiggy', 'Zomato'
-  const [filterDate, setFilterDate] = useState('');
+  const [filterDate, setFilterDate] = useState(todayDateStr); // Default to TODAY (present date) as requested!
   const [filterPaymentMode, setFilterPaymentMode] = useState('All');
   const [searchItem, setSearchItem] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [posSearch, setPosSearch] = useState('');
   const [warningMessage, setWarningMessage] = useState(null);
+
+  // Keep live punch time refreshed to current minute unless user explicitly set custom time
+  useEffect(() => {
+    if (isCustomPunchTime) return;
+    const interval = setInterval(() => {
+      setPunchTime(getInitialTimeStr());
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [isCustomPunchTime]);
+
+  const handleSaleDateChange = (newDate) => {
+    setSaleDate(newDate);
+    setFilterDate(newDate); // Automatically switch history view to the date user is punching
+  };
 
   // ⚡ POS Terminal Mode: 'counter' (Cash & UPI) vs 'online' (Swiggy & Zomato)
   const [punchTab, setPunchTab] = useState('counter');
@@ -473,6 +508,15 @@ export default function SalesTracker({
     const discTotal = Number(counterDiscount || 0);
     const orderFinalBill = counterFinalBill;
 
+    // Build real Date object combining saleDate + punchTime (supports past orders & custom punch time)
+    const selectedTimeStr = (isCustomPunchTime && punchTime) ? punchTime : getInitialTimeStr();
+    const [h, m] = selectedTimeStr.split(':');
+    const orderDateObj = new Date(`${saleDate}T${h || '12'}:${m || '00'}:00`);
+    const finalCreatedAt = !isNaN(orderDateObj.getTime()) ? orderDateObj.toISOString() : new Date().toISOString();
+    const formattedDisplayTime = !isNaN(orderDateObj.getTime())
+      ? orderDateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : selectedTimeStr;
+
     const salesBatch = itemsInCart.map((entry, idx) => {
       const itemGross = entry.price * entry.qty;
       const itemDiscShare = totalGross > 0 ? Math.round((itemGross / totalGross) * discTotal) : 0;
@@ -495,7 +539,9 @@ export default function SalesTracker({
         discountAmount: itemDiscShare > 0 ? itemDiscShare : undefined,
         notes: counterNotes.trim() || undefined,
         date: saleDate,
-        createdAt: new Date().toISOString()
+        createdAt: finalCreatedAt,
+        time: formattedDisplayTime,
+        orderTime: formattedDisplayTime
       };
     });
 
@@ -518,7 +564,8 @@ export default function SalesTracker({
         orderToken: token,
         itemsSummary: itemsInCart.map(e => `${e.qty}x ${e.item.name}`).join(', '),
         date: saleDate,
-        createdAt: new Date().toISOString(),
+        createdAt: finalCreatedAt,
+        time: formattedDisplayTime,
         notes: counterNotes.trim() || undefined,
         isSettled: false
       };
@@ -542,7 +589,8 @@ export default function SalesTracker({
       discount: discTotal,
       bill: orderFinalBill,
       date: saleDate,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      time: formattedDisplayTime,
+      createdAt: finalCreatedAt
     };
 
     // Add to live session log tray
@@ -563,7 +611,9 @@ export default function SalesTracker({
         totalAmount: orderFinalBill,
         paymentMethod: counterPaymentMode,
         cashTendered: Number(cashTendered || 0),
-        notes: counterNotes.trim()
+        notes: counterNotes.trim(),
+        date: saleDate,
+        time: formattedDisplayTime
       }, 'bill');
     }
 
@@ -580,6 +630,11 @@ export default function SalesTracker({
     try {
       localStorage.setItem(`cafe_counter_token_${saleDate}`, String(nextTokenNum));
     } catch (e) {}
+
+    // Ensure history filter shows this order's date immediately
+    if (filterDate !== saleDate) {
+      setFilterDate(saleDate);
+    }
 
     if (showToast) {
       showToast(`⚡ Order ${token} Punched (₹${orderFinalBill})!`);
@@ -686,6 +741,15 @@ export default function SalesTracker({
     const token = rawToken.startsWith('#') ? rawToken : `#${rawToken}`;
     const totalGross = onlineSubtotal;
 
+    // Build real Date object combining saleDate + punchTime (supports past orders & custom punch time)
+    const selectedTimeStr = (isCustomPunchTime && punchTime) ? punchTime : getInitialTimeStr();
+    const [h, m] = selectedTimeStr.split(':');
+    const orderDateObj = new Date(`${saleDate}T${h || '12'}:${m || '00'}:00`);
+    const finalCreatedAt = !isNaN(orderDateObj.getTime()) ? orderDateObj.toISOString() : new Date().toISOString();
+    const formattedDisplayTime = !isNaN(orderDateObj.getTime())
+      ? orderDateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : selectedTimeStr;
+
     const salesBatch = itemsInCart.map((entry, idx) => {
       const itemGross = entry.price * entry.qty;
       const itemDiscShare = totalGross > 0 ? Math.round((itemGross / totalGross) * onlineDiscountValue) : 0;
@@ -709,7 +773,9 @@ export default function SalesTracker({
         packagingCharge: idx === 0 && onlinePackaging > 0 ? onlinePackaging : undefined,
         notes: onlineRiderNotes.trim() || undefined,
         date: saleDate,
-        createdAt: new Date().toISOString()
+        createdAt: finalCreatedAt,
+        time: formattedDisplayTime,
+        orderTime: formattedDisplayTime
       };
     });
 
@@ -729,7 +795,9 @@ export default function SalesTracker({
         itemsCount: onlineTotalUnits,
         summary: itemsInCart.map(e => `${e.qty}x ${e.item.name}`).join(', '),
         bill: onlineFinalBill,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        date: saleDate,
+        time: formattedDisplayTime,
+        createdAt: finalCreatedAt
       },
       ...prev
     ]);
@@ -747,6 +815,11 @@ export default function SalesTracker({
     try {
       localStorage.setItem(`cafe_online_token_${onlinePlatform}_${saleDate}`, String(nextTokenNum));
     } catch (e) {}
+
+    // Ensure history filter shows this order's date immediately
+    if (filterDate !== saleDate) {
+      setFilterDate(saleDate);
+    }
   };
 
   // Backward compatible quick sale helpers
@@ -880,14 +953,15 @@ export default function SalesTracker({
       // Group key: platformOrderId if available, or unique fallback for single punches
       const tokenKey = sale.platformOrderId ? `${sale.date}_${sale.platformOrderId}` : `single_${sale.id}`;
 
-      let formattedTime = '—';
-      if (sale.createdAt) {
+      let formattedTime = sale.time || sale.orderTime;
+      if (!formattedTime && sale.createdAt) {
         try {
           formattedTime = new Date(sale.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         } catch (e) {
           formattedTime = '—';
         }
       }
+      if (!formattedTime) formattedTime = '—';
 
       if (!map.has(tokenKey)) {
         map.set(tokenKey, {
@@ -919,12 +993,21 @@ export default function SalesTracker({
       order.totalRevenue += (Number(sale.totalRevenue) || 0);
       order.totalUnits += (Number(sale.quantitySold) || 1);
       order.saleIds.push(sale.id);
-      if (order.time === '—' && formattedTime !== '—') {
+      if ((order.time === '—' || !order.time) && formattedTime !== '—') {
         order.time = formattedTime;
       }
     });
 
-    return Array.from(map.values());
+    const ordersList = Array.from(map.values());
+    // Sort descending: Latest orders first (by timestamp or token number)
+    return ordersList.sort((a, b) => {
+      const timeA = new Date(a.createdAt || `${a.date}T00:00:00`).getTime();
+      const timeB = new Date(b.createdAt || `${b.date}T00:00:00`).getTime();
+      if (!isNaN(timeA) && !isNaN(timeB) && timeA !== timeB) return timeB - timeA;
+      const numA = extractTokenNumber(a.token) || 0;
+      const numB = extractTokenNumber(b.token) || 0;
+      return numB - numA;
+    });
   }, [filteredLogs]);
 
   // Handler to delete an entire Token Order and restore raw material stock for all its items
@@ -1971,14 +2054,70 @@ export default function SalesTracker({
           </div>
         </div>
 
-        {/* Filters Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1">
-          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-            {/* Payment Mode Filter Dropdown */}
+        {/* Filters Bar: Quick Date Filter (Today, Yesterday, All, Custom) + Channels + Search */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-1">
+          
+          {/* Quick Date Tabs: Today by default, Yesterday, All Dates, Custom */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setFilterDate(todayDateStr)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                filterDate === todayDateStr
+                  ? 'bg-amber-500 text-stone-950 font-black shadow-xs'
+                  : 'bg-stone-100 hover:bg-stone-200 text-stone-700'
+              }`}
+              title="Show Present Date Orders (Today)"
+            >
+              <span>📅 Today</span>
+              <span className="text-[10px] opacity-80 font-mono">({todayDateStr.slice(5)})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setFilterDate(yesterdayDateStr)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                filterDate === yesterdayDateStr
+                  ? 'bg-amber-500 text-stone-950 font-black shadow-xs'
+                  : 'bg-stone-100 hover:bg-stone-200 text-stone-700'
+              }`}
+              title="Show Last Day Orders (Yesterday)"
+            >
+              <span>⏪ Yesterday</span>
+              <span className="text-[10px] opacity-80 font-mono">({yesterdayDateStr.slice(5)})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setFilterDate('')}
+              className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                filterDate === ''
+                  ? 'bg-stone-800 text-white font-black shadow-xs'
+                  : 'bg-stone-100 hover:bg-stone-200 text-stone-600'
+              }`}
+              title="Show all historical records without date filter"
+            >
+              All Dates
+            </button>
+
+            <div className="flex items-center gap-1 bg-stone-100 px-2 py-1 rounded-xl border border-stone-200 text-xs">
+              <span className="text-[10px] font-bold text-stone-500 uppercase">Date:</span>
+              <input
+                type="date"
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+                className="bg-transparent font-bold text-stone-800 text-xs focus:outline-none cursor-pointer"
+                title="Choose custom date to view history"
+              />
+            </div>
+          </div>
+
+          {/* Right: Payment Channels & Search Input */}
+          <div className="flex flex-wrap items-center gap-2">
             <select
               value={filterPaymentMode}
               onChange={(e) => setFilterPaymentMode(e.target.value)}
-              className="px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold text-stone-700 focus:outline-none"
+              className="px-2.5 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold text-stone-700 focus:outline-none"
             >
               <option value="All">All Channels</option>
               <option value="Cash">💵 Cash</option>
@@ -1990,25 +2129,19 @@ export default function SalesTracker({
 
             <input
               type="text"
-              placeholder="Search token / item..."
+              placeholder="Search token / dish..."
               value={searchItem}
               onChange={(e) => setSearchItem(e.target.value)}
-              className="flex-1 sm:flex-initial px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs"
+              className="px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs w-36 sm:w-44 focus:outline-none focus:border-amber-500"
             />
-            
-            <input
-              type="date"
-              value={filterDate}
-              onChange={(e) => setFilterDate(e.target.value)}
-              className="px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-semibold"
-            />
-            
-            {(filterDate || filterPaymentMode !== 'All' || searchItem) && (
+
+            {(filterDate !== todayDateStr || filterPaymentMode !== 'All' || searchItem) && (
               <button 
-                onClick={() => { setFilterDate(''); setFilterPaymentMode('All'); setSearchItem(''); }} 
-                className="text-xs text-rose-600 font-bold cursor-pointer"
+                onClick={() => { setFilterDate(todayDateStr); setFilterPaymentMode('All'); setSearchItem(''); }} 
+                className="text-xs text-rose-600 hover:text-rose-700 font-bold cursor-pointer underline px-1"
+                title="Reset to today's orders"
               >
-                Clear
+                Reset
               </button>
             )}
           </div>
@@ -2017,9 +2150,32 @@ export default function SalesTracker({
         {/* 1. TOKEN ORDERS VIEW (GROUPED WITH ITEMS & TIME) */}
         {historyViewMode === 'tokens' ? (
           groupedTokenOrders.length === 0 ? (
-            <p className="text-xs text-stone-400 py-8 text-center">No token orders logged for the selected filter.</p>
+            <div className="bg-stone-50/80 rounded-2xl border border-dashed border-stone-300 p-8 text-center space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-stone-200 text-stone-600 flex items-center justify-center mx-auto text-xl font-bold shadow-inner">
+                🎫
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-stone-800">
+                  No Token Orders on {filterDate === todayDateStr ? "Today" : filterDate === yesterdayDateStr ? "Yesterday" : filterDate || "Selected Filter"}
+                </h4>
+                <p className="text-xs text-stone-500 mt-0.5 max-w-md mx-auto leading-relaxed">
+                  {filterDate === todayDateStr 
+                    ? "Aaj abhi tak koi order punch nahi hua hai. Naya order punch karne par yaha live token card appear hoga."
+                    : `Is date (${filterDate}) par koi order record nahi mila. Agar aapne kisi aur date me punch kiya tha toh upar date choose karein.`}
+                </p>
+              </div>
+              {filterDate !== todayDateStr && (
+                <button
+                  type="button"
+                  onClick={() => setFilterDate(todayDateStr)}
+                  className="px-4 py-1.5 bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold text-xs rounded-xl cursor-pointer transition-colors shadow-xs"
+                >
+                  Show Today's Orders (Present Date)
+                </button>
+              )}
+            </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-3.5">
               {groupedTokenOrders.map((order) => {
                 const mode = (order.paymentMethod || '').toLowerCase();
                 let badgeClass = 'bg-emerald-100 text-emerald-800 border-emerald-200';
@@ -2042,36 +2198,37 @@ export default function SalesTracker({
                 return (
                   <div
                     key={order.orderKey}
-                    className="bg-stone-50/70 hover:bg-stone-50 border border-stone-200 hover:border-amber-400/60 rounded-2xl p-3.5 sm:p-4 transition-all shadow-2xs space-y-2.5"
+                    className="bg-white hover:bg-stone-50/70 border border-stone-200 hover:border-amber-400/80 rounded-2xl p-4 sm:p-5 transition-all shadow-xs hover:shadow-md space-y-3"
                   >
-                    {/* Token Card Header */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-200/60 pb-2.5">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm sm:text-base font-black text-stone-900 bg-white px-2.5 py-1 rounded-xl border border-stone-300 shadow-2xs tracking-tight">
-                          🎫 {order.token}
+                    {/* Token Card Header: Token Number, Channel Badge, Customer Note, Punch Time & Amount */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-stone-100">
+                      <div className="flex items-center gap-2.5 flex-wrap">
+                        <span className="text-sm sm:text-base font-black text-stone-900 bg-stone-100 px-3 py-1 rounded-xl border border-stone-200 tracking-tight flex items-center gap-1.5">
+                          <span className="text-amber-600">🎫</span>
+                          <span>{order.token}</span>
                         </span>
-                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${badgeClass}`}>
+                        <span className={`px-2.5 py-1 rounded-xl text-xs font-bold border ${badgeClass}`}>
                           {badgeLabel}
                         </span>
                         {order.notes && (
-                          <span className="text-[11px] text-stone-500 bg-white px-2 py-0.5 rounded-md border border-stone-200">
+                          <span className="text-xs text-stone-500 bg-stone-50 px-2.5 py-1 rounded-lg border border-stone-200 truncate max-w-xs">
                             Note: {order.notes}
                           </span>
                         )}
                       </div>
 
-                      <div className="flex items-center gap-3 self-end sm:self-auto">
-                        {/* 🕒 TIME OF PUNCH (Showing both exact punch time and date) */}
-                        <div className="flex items-center gap-1.5 text-xs font-bold text-stone-700 bg-white px-2.5 py-1 rounded-xl border border-stone-200 shadow-2xs">
-                          <Clock className="w-3.5 h-3.5 text-amber-600" />
-                          <span className="text-stone-900 font-black">{order.time}</span>
+                      <div className="flex items-center gap-3 justify-between sm:justify-end">
+                        {/* 🕒 TIME OF PUNCH (exact punch time and punch date) */}
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-stone-700 bg-stone-50 px-3 py-1.5 rounded-xl border border-stone-200">
+                          <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                          <span className="text-stone-900 font-extrabold">{order.time}</span>
                           <span className="text-stone-300 font-normal">•</span>
                           <span className="text-stone-500 font-medium">{order.date}</span>
                         </div>
 
                         {/* Bill Amount */}
                         <div className="text-right">
-                          <span className="text-base sm:text-lg font-black text-emerald-700">
+                          <span className="text-base sm:text-lg font-black text-emerald-700 font-mono">
                             ₹{order.totalRevenue}
                           </span>
                         </div>
@@ -2080,34 +2237,35 @@ export default function SalesTracker({
 
                     {/* Items List in this Token Order */}
                     <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 block mb-1">
-                        Order Items ({order.totalUnits} items):
-                      </span>
-                      <div className="flex flex-wrap gap-1.5">
+                      <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-stone-400 mb-2">
+                        <span>Order Items ({order.totalUnits} items):</span>
+                        <span className="text-stone-400 font-medium lowercase">{order.items.length} items</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
                         {order.items.map((it, idx) => (
                           <div
                             key={`${it.saleId}-${idx}`}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-stone-200 rounded-xl text-xs font-bold text-stone-800 shadow-2xs"
+                            className="inline-flex items-center gap-2 px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-semibold text-stone-800 shadow-2xs hover:bg-white transition-colors"
                           >
                             <span className="w-5 h-5 rounded-md bg-amber-100 text-amber-900 flex items-center justify-center text-[11px] font-black">
                               {it.qty}
                             </span>
-                            <span>{it.name}</span>
-                            <span className="text-stone-400 font-normal text-[11px]">
-                              (@₹{it.price}) = <strong className="text-stone-700">₹{it.total}</strong>
+                            <span className="font-bold text-stone-900">{it.name}</span>
+                            <span className="text-stone-400 font-medium text-[11px]">
+                              (@₹{it.price}) = <strong className="text-stone-700 font-bold">₹{it.total}</strong>
                             </span>
                           </div>
                         ))}
                       </div>
                     </div>
 
-                    {/* Action Bar */}
-                    <div className="flex items-center justify-between pt-1 border-t border-stone-200/50 text-xs">
-                      <span className="text-[11px] text-stone-400">
-                        {order.items.length} dishes in this token
-                      </span>
+                    {/* Action Bar Footer */}
+                    <div className="flex items-center justify-between pt-2.5 border-t border-stone-100 text-xs">
+                      <div className="text-[11px] text-stone-500">
+                        Order Status: <strong className="text-emerald-700 font-bold">Completed</strong>
+                      </div>
 
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={() => {
@@ -2126,7 +2284,7 @@ export default function SalesTracker({
                               }, 'bill');
                             }
                           }}
-                          className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-xl font-bold cursor-pointer transition-colors shadow-2xs"
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-xl font-bold cursor-pointer transition-colors shadow-2xs"
                           title="Thermal Receipt Print Karein (58mm / 80mm)"
                         >
                           <Printer className="w-3.5 h-3.5 text-amber-700" />
@@ -2136,7 +2294,7 @@ export default function SalesTracker({
                         <button
                           type="button"
                           onClick={() => handleDeleteTokenOrder(order)}
-                          className="flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl font-bold cursor-pointer transition-colors"
+                          className="flex items-center gap-1 px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl font-bold cursor-pointer transition-colors"
                           title="Delete this order and restore stock"
                         >
                           <Trash2 className="w-3.5 h-3.5 text-rose-600" />
@@ -2193,8 +2351,8 @@ export default function SalesTracker({
                         badgeLabel = '🔴 Zomato';
                       }
 
-                      let saleTime = '—';
-                      if (sale.createdAt) {
+                      let saleTime = sale.time || sale.orderTime || '—';
+                      if (saleTime === '—' && sale.createdAt) {
                         try {
                           saleTime = new Date(sale.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                         } catch (e) {
@@ -2284,8 +2442,8 @@ export default function SalesTracker({
                     badgeLabel = '🔴 Zomato';
                   }
 
-                  let saleTime = '—';
-                  if (sale.createdAt) {
+                  let saleTime = sale.time || sale.orderTime || '—';
+                  if (saleTime === '—' && sale.createdAt) {
                     try {
                       saleTime = new Date(sale.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                     } catch (e) {
