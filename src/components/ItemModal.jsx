@@ -43,6 +43,7 @@ export default function ItemModal({ isOpen, onClose, onSave, editingItem, onDupl
         sellingPrice: editingItem.sellingPrice !== undefined ? editingItem.sellingPrice : '',
         costPrice: editingItem.costPrice !== undefined ? editingItem.costPrice : '',
         unit: editingItem.unit || 'Piece',
+        imageUrl: editingItem.imageUrl || '',
         isAvailable: editingItem.isAvailable !== undefined ? editingItem.isAvailable : true
       });
       setRecipe(Array.isArray(editingItem.recipe) ? JSON.parse(JSON.stringify(editingItem.recipe)) : []);
@@ -55,6 +56,7 @@ export default function ItemModal({ isOpen, onClose, onSave, editingItem, onDupl
         sellingPrice: '',
         costPrice: '',
         unit: 'Piece',
+        imageUrl: '',
         isAvailable: true
       });
       setRecipe([]);
@@ -183,6 +185,7 @@ export default function ItemModal({ isOpen, onClose, onSave, editingItem, onDupl
       sellingPrice: Number(formData.sellingPrice),
       costPrice: Number(formData.costPrice),
       unit: formData.unit.trim(),
+      imageUrl: formData.imageUrl?.trim() || undefined,
       isAvailable: formData.isAvailable,
       recipe: cleanedRecipe
     };
@@ -344,6 +347,53 @@ export default function ItemModal({ isOpen, onClose, onSave, editingItem, onDupl
                 ))}
               </select>
             </div>
+          </div>
+
+          {/* 📸 Item Photo (Optional Image Link) */}
+          <div className="bg-stone-50 p-3 sm:p-4 rounded-2xl border border-stone-200 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-stone-700 uppercase tracking-wider flex items-center gap-1.5">
+                <span>📸 Item Photo (Optional Image Link)</span>
+              </label>
+              <span className="text-[10px] text-amber-700 font-semibold">
+                Khaali chhodne par automatic photo lagegi
+              </span>
+            </div>
+
+            <div className="flex gap-2 items-center">
+              <input
+                type="url"
+                value={formData.imageUrl}
+                onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                placeholder="https://images.unsplash.com/... ya custom photo link paste karein"
+                className="flex-1 px-3.5 py-2 text-xs bg-white border border-stone-300 rounded-xl focus:outline-none font-semibold text-stone-700"
+              />
+              {formData.imageUrl && (
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, imageUrl: '' })}
+                  className="px-2.5 py-2 text-xs text-rose-600 hover:bg-rose-50 rounded-lg font-bold border border-rose-200 cursor-pointer"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
+            {formData.imageUrl && (
+              <div className="flex items-center gap-3 pt-1">
+                <div className="w-12 h-12 rounded-xl overflow-hidden border border-stone-300 bg-white shadow-xs shrink-0">
+                  <img
+                    src={formData.imageUrl}
+                    alt="Preview"
+                    className="w-full h-full object-cover"
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                </div>
+                <span className="text-[11px] text-emerald-700 font-bold">
+                  ✓ Photo URL preview loaded successfully
+                </span>
+              </div>
+            )}
           </div>
 
           {/* 🥘 RECIPE / RAW MATERIAL INGREDIENTS SECTION */}

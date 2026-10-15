@@ -16,6 +16,7 @@ import {
   UtensilsCrossed
 } from 'lucide-react';
 import { checkItemStock } from '../utils/storage';
+import { getItemImageUrl, isItemVeg, DEFAULT_FOOD_IMAGE } from '../utils/foodImages';
 
 export default function CustomerMenuOrderView({
   tableNumber = '1',
@@ -31,6 +32,7 @@ export default function CustomerMenuOrderView({
   const [customerNotes, setCustomerNotes] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [isReviewOpen, setIsReviewOpen] = useState(false);
+  const [previewImageItem, setPreviewImageItem] = useState(null);
   const [orderPlaced, setOrderPlaced] = useState(null); // stores placed order details
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -287,11 +289,13 @@ export default function CustomerMenuOrderView({
             const qtyInCart = cart[item.id] || 0;
             const stockInfo = getItemStockInfo(item);
             const isOut = stockInfo.isOutOfStock;
+            const imageUrl = getItemImageUrl(item);
+            const isVeg = isItemVeg(item);
 
             return (
               <div
                 key={item.id}
-                className={`bg-stone-900/90 rounded-2xl p-3.5 border transition-all flex items-center justify-between gap-3 ${
+                className={`bg-stone-900/90 rounded-2xl p-3.5 sm:p-4 border transition-all flex items-stretch justify-between gap-3 sm:gap-4 shadow-sm ${
                   isOut 
                     ? 'border-stone-800/50 opacity-60' 
                     : qtyInCart > 0 
@@ -299,73 +303,120 @@ export default function CustomerMenuOrderView({
                       : 'border-stone-800/80 hover:border-stone-700'
                 }`}
               >
-                {/* Item Info */}
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-bold text-stone-100 truncate">
+                {/* Left Column: Details */}
+                <div className="min-w-0 flex-1 flex flex-col justify-between py-0.5">
+                  <div>
+                    {/* Veg Icon + Category */}
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <span 
+                        className={`w-3.5 h-3.5 rounded-[3px] border flex items-center justify-center shrink-0 ${
+                          isVeg ? 'border-emerald-500 bg-emerald-950/40' : 'border-rose-600 bg-rose-950/40'
+                        }`}
+                        title={isVeg ? 'Pure Veg' : 'Non-Veg'}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${isVeg ? 'bg-emerald-400' : 'bg-rose-500'}`} />
+                      </span>
+
+                      {item.category && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-stone-800/90 text-stone-400 font-semibold uppercase tracking-wider">
+                          {item.category}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Dish Name */}
+                    <h3 className="text-sm sm:text-base font-bold text-stone-100 leading-snug">
                       {item.name}
                     </h3>
-                    {item.category && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-md bg-stone-800 text-stone-400 font-semibold shrink-0">
-                        {item.category}
+
+                    {/* Price */}
+                    <div className="flex items-baseline gap-2 mt-1.5">
+                      <span className="text-base sm:text-lg font-black text-amber-400">
+                        ₹{item.sellingPrice}
                       </span>
-                    )}
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-base font-extrabold text-amber-400">
-                      ₹{item.sellingPrice}
-                    </span>
-
+                  {/* Stock / Fresh Tag */}
+                  <div className="mt-2.5 flex items-center gap-2 flex-wrap">
                     {isOut ? (
                       <span className="text-[10px] font-bold text-red-400 bg-red-950/60 px-2 py-0.5 rounded border border-red-800/40">
                         Out of Stock
                       </span>
                     ) : stockInfo.maxPortions <= 5 && stockInfo.maxPortions > 0 ? (
-                      <span className="text-[10px] text-amber-400/90 flex items-center gap-1">
+                      <span className="text-[10px] text-amber-400/90 flex items-center gap-1 font-semibold">
                         <Flame className="w-3 h-3 text-amber-500" />
                         Only {stockInfo.maxPortions} left!
                       </span>
-                    ) : null}
+                    ) : (
+                      <span className="text-[10px] text-stone-500 flex items-center gap-1">
+                        <Sparkles className="w-2.5 h-2.5 text-amber-400/80" />
+                        Fresh Made
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                {/* Add / Stepper Button */}
-                <div className="shrink-0">
-                  {isOut ? (
-                    <button
-                      disabled
-                      className="px-3.5 py-1.5 rounded-xl bg-stone-800 text-stone-500 text-xs font-bold cursor-not-allowed"
-                    >
-                      Sold Out
-                    </button>
-                  ) : qtyInCart === 0 ? (
-                    <button
-                      onClick={() => updateQuantity(item, 1)}
-                      className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 active:from-amber-600 text-stone-950 text-xs font-extrabold rounded-xl shadow-md shadow-amber-950/40 transition-all cursor-pointer transform hover:scale-105"
-                    >
-                      <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                      <span>Add</span>
-                    </button>
-                  ) : (
-                    <div className="flex items-center gap-2 bg-stone-800 rounded-xl p-1 border border-stone-700">
-                      <button
-                        onClick={() => updateQuantity(item, -1)}
-                        className="w-7 h-7 rounded-lg bg-stone-700 hover:bg-stone-600 text-white flex items-center justify-center font-extrabold transition-colors cursor-pointer"
-                      >
-                        <Minus className="w-3.5 h-3.5" />
-                      </button>
-                      <span className="w-5 text-center text-xs font-bold text-amber-300">
-                        {qtyInCart}
+                {/* Right Column: Dish Photo Thumbnail & Add Button */}
+                <div className="shrink-0 flex flex-col items-center justify-between w-24 sm:w-28">
+                  <div
+                    onClick={() => setPreviewImageItem(item)}
+                    className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden bg-stone-950 border border-stone-800/80 shadow-md cursor-pointer group relative"
+                    title="Click to view full photo"
+                  >
+                    <img
+                      src={imageUrl}
+                      alt={item.name}
+                      loading="lazy"
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                      onError={(e) => {
+                        e.target.src = DEFAULT_FOOD_IMAGE;
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-stone-950/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-1">
+                      <span className="text-[9px] font-bold text-white bg-black/60 px-1.5 py-0.5 rounded-full backdrop-blur-xs">
+                        View Photo
                       </span>
+                    </div>
+                  </div>
+
+                  {/* Action Button */}
+                  <div className="w-full mt-2">
+                    {isOut ? (
+                      <button
+                        disabled
+                        className="w-full py-1.5 rounded-xl bg-stone-800 text-stone-500 text-xs font-bold cursor-not-allowed text-center"
+                      >
+                        Sold Out
+                      </button>
+                    ) : qtyInCart === 0 ? (
                       <button
                         onClick={() => updateQuantity(item, 1)}
-                        className="w-7 h-7 rounded-lg bg-amber-500 hover:bg-amber-400 text-stone-950 flex items-center justify-center font-extrabold transition-colors cursor-pointer"
+                        className="w-full flex items-center justify-center gap-1 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 active:from-amber-600 text-stone-950 text-xs font-black rounded-xl shadow-md shadow-amber-950/40 transition-all cursor-pointer transform active:scale-95 uppercase tracking-wider"
                       >
-                        <Plus className="w-3.5 h-3.5" />
+                        <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                        <span>Add</span>
                       </button>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="w-full flex items-center justify-between bg-stone-950 rounded-xl p-1 border border-amber-500/50 shadow-md">
+                        <button
+                          onClick={() => updateQuantity(item, -1)}
+                          className="w-6 h-6 rounded-lg bg-stone-800 hover:bg-stone-700 text-white flex items-center justify-center font-black transition-colors cursor-pointer"
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
+                        <span className="text-xs font-black text-amber-300">
+                          {qtyInCart}
+                        </span>
+                        <button
+                          onClick={() => updateQuantity(item, 1)}
+                          className="w-6 h-6 rounded-lg bg-amber-500 hover:bg-amber-400 text-stone-950 flex items-center justify-center font-black transition-colors cursor-pointer"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
               </div>
@@ -434,7 +485,13 @@ export default function CustomerMenuOrderView({
             <div className="p-4 sm:p-5 space-y-3 overflow-y-auto flex-1">
               <div className="space-y-2">
                 {cartSummary.itemsList.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between bg-stone-950/60 p-3 rounded-xl border border-stone-800">
+                  <div key={item.id} className="flex items-center justify-between bg-stone-950/60 p-2.5 sm:p-3 rounded-xl border border-stone-800 gap-2.5">
+                    <img 
+                      src={getItemImageUrl(item)} 
+                      alt={item.name}
+                      className="w-11 h-11 rounded-lg object-cover border border-stone-800 shrink-0"
+                      onError={(e) => { e.target.src = DEFAULT_FOOD_IMAGE; }}
+                    />
                     <div className="min-w-0 flex-1">
                       <div className="text-xs font-bold text-stone-100 truncate">{item.name}</div>
                       <div className="text-[11px] text-amber-400 font-semibold">₹{item.price} each</div>
@@ -537,6 +594,81 @@ export default function CustomerMenuOrderView({
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* Full Photo Preview Modal */}
+      {previewImageItem && (
+        <div 
+          className="fixed inset-0 z-50 bg-stone-950/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-150"
+          onClick={() => setPreviewImageItem(null)}
+        >
+          <div 
+            className="bg-stone-900 border border-stone-800 rounded-3xl max-w-sm w-full overflow-hidden shadow-2xl animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="relative h-60 w-full bg-stone-950 overflow-hidden">
+              <img
+                src={getItemImageUrl(previewImageItem)}
+                alt={previewImageItem.name}
+                className="w-full h-full object-cover"
+                onError={(e) => { e.target.src = DEFAULT_FOOD_IMAGE; }}
+              />
+              <button
+                onClick={() => setPreviewImageItem(null)}
+                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-stone-950/80 text-white flex items-center justify-center font-bold text-sm cursor-pointer shadow-md hover:bg-stone-900"
+              >
+                ✕
+              </button>
+              <div className="absolute bottom-2.5 left-3">
+                <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-stone-950/80 text-amber-300 border border-amber-400/30 backdrop-blur-xs">
+                  {previewImageItem.category || 'Special Dish'}
+                </span>
+              </div>
+            </div>
+
+            <div className="p-4 space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span 
+                      className={`w-3.5 h-3.5 rounded-[3px] border flex items-center justify-center shrink-0 ${
+                        isItemVeg(previewImageItem) ? 'border-emerald-500 bg-emerald-950/40' : 'border-rose-600 bg-rose-950/40'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${isItemVeg(previewImageItem) ? 'bg-emerald-400' : 'bg-rose-500'}`} />
+                    </span>
+                    <span className="text-xs font-semibold text-stone-400">
+                      {isItemVeg(previewImageItem) ? 'Pure Vegetarian' : 'Non-Vegetarian'}
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-bold text-white leading-tight">
+                    {previewImageItem.name}
+                  </h3>
+                </div>
+                <span className="text-xl font-black text-amber-400 shrink-0">
+                  ₹{previewImageItem.sellingPrice}
+                </span>
+              </div>
+
+              <p className="text-xs text-stone-400 leading-relaxed">
+                Prepared fresh with authentic ingredients upon order. Table #{tableNumber} dining special.
+              </p>
+
+              <div className="pt-2 border-t border-stone-800 flex items-center justify-between gap-3">
+                <button
+                  onClick={() => {
+                    updateQuantity(previewImageItem, 1);
+                    setPreviewImageItem(null);
+                  }}
+                  className="flex-1 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 font-extrabold text-xs rounded-xl shadow-lg flex items-center justify-center gap-1.5 cursor-pointer uppercase tracking-wider"
+                >
+                  <Plus className="w-4 h-4 stroke-[3]" />
+                  <span>Add to Order (₹{previewImageItem.sellingPrice})</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
