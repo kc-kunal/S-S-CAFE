@@ -1,13 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  DollarSign, 
-  TrendingUp, 
-  TrendingDown, 
-  PackageCheck, 
-  ShoppingBag, 
-  Calendar, 
-  PieChart, 
-  ArrowUpRight, 
+import {
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  PackageCheck,
+  ShoppingBag,
+  Calendar,
+  PieChart,
+  ArrowUpRight,
   ArrowDownRight,
   Receipt,
   AlertOctagon,
@@ -30,18 +30,18 @@ import {
   CreditCard,
   BookOpen
 } from 'lucide-react';
-import { 
-  calculateAggregatorLedger, 
-  getTodayDateString, 
-  shiftDateStr, 
-  classifySalePaymentMethod, 
-  getUniqueOrderCount 
+import {
+  calculateAggregatorLedger,
+  getTodayDateString,
+  shiftDateStr,
+  classifySalePaymentMethod,
+  getUniqueOrderCount
 } from '../utils/storage';
 
-export default function FinancialDashboard({ 
-  salesLogs = [], 
-  procurementLogs = [], 
-  menuItems = [], 
+export default function FinancialDashboard({
+  salesLogs = [],
+  procurementLogs = [],
+  menuItems = [],
   inventoryItems = [],
   expenses = [],
   wastageLogs = [],
@@ -132,7 +132,7 @@ export default function FinancialDashboard({
     const onlineRevenue = upiRevenue + swiggyRevenue + zomatoRevenue;
     const aggregatorRevenue = swiggyRevenue + zomatoRevenue;
     const aggregatorOrdersCount = swiggyOrdersCount + zomatoOrdersCount;
-    
+
     // 1. Actual Raw Material Consumed (COGS) based on Recipe / Item Cost Price
     const actualMaterialConsumed = sales.reduce((sum, s) => {
       const matchedItem = menuItems.find(m => m.id === s.itemId || m.name === s.itemName);
@@ -260,7 +260,7 @@ export default function FinancialDashboard({
 
   return (
     <div className="space-y-3.5">
-      
+
       {/* 🧭 TOP TIMEFRAME & CONTROLS HEADER */}
       <div className="bg-white rounded-2xl border border-stone-200 p-3 sm:p-3.5 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
         <div>
@@ -305,7 +305,7 @@ export default function FinancialDashboard({
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              
+
               <input
                 type="date"
                 value={selectedDate}
@@ -378,7 +378,7 @@ export default function FinancialDashboard({
 
         {/* 5-Step Formula Ribbon */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-center">
-          
+
           {/* Step 1: Total Sales */}
           <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200 flex flex-col justify-between">
             <span className="text-[9px] font-extrabold uppercase tracking-wider text-emerald-800 block">
@@ -440,11 +440,10 @@ export default function FinancialDashboard({
           </div>
 
           {/* Step 5: True Net Profit Result */}
-          <div className={`p-2.5 rounded-xl col-span-2 md:col-span-1 border flex flex-col justify-between shadow-xs ${
-            filteredData.trueNetProfit >= 0
+          <div className={`p-2.5 rounded-xl col-span-2 md:col-span-1 border flex flex-col justify-between shadow-xs ${filteredData.trueNetProfit >= 0
               ? 'bg-gradient-to-br from-emerald-700 via-emerald-800 to-teal-900 text-white border-emerald-600'
               : 'bg-gradient-to-br from-rose-700 via-rose-800 to-red-900 text-white border-rose-600'
-          }`}>
+            }`}>
             <span className="text-[9px] font-extrabold uppercase tracking-wider text-white/90 block">
               5. (=) ASLI NET MUNAFA
             </span>
@@ -463,7 +462,7 @@ export default function FinancialDashboard({
 
       {/* 4 PRIMARY METRIC CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
-        
+
         {/* 1. Total Sales & Payment Split */}
         <div className="bg-white rounded-2xl p-3.5 border border-stone-200 shadow-xs flex flex-col justify-between">
           <div>
@@ -483,7 +482,7 @@ export default function FinancialDashboard({
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-1.5 pt-2.5 mt-2 border-t border-stone-100 text-[10px] font-bold">
+          {/* <div className="flex flex-wrap items-center gap-1.5 pt-2.5 mt-2 border-t border-stone-100 text-[10px] font-bold">
             <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200" title="Cash Counter Sales">
               💵 ₹{filteredData.cashRevenue.toLocaleString()} ({filteredData.cashOrdersCount} ord)
             </span>
@@ -501,7 +500,7 @@ export default function FinancialDashboard({
                 📒 Khata: ₹{filteredData.khataRevenue.toLocaleString()} ({filteredData.khataOrdersCount} ord)
               </span>
             )}
-          </div>
+          </div> */}
         </div>
 
         {/* 2. Kitchen Food Cost (COGS) */}
@@ -634,8 +633,8 @@ export default function FinancialDashboard({
               </div>
             </div>
             <div className="w-full bg-emerald-200/60 rounded-full h-1 overflow-hidden">
-              <div 
-                className="bg-emerald-600 h-1 rounded-full transition-all" 
+              <div
+                className="bg-emerald-600 h-1 rounded-full transition-all"
                 style={{ width: `${filteredData.totalRevenue > 0 ? Math.min(100, Math.round((filteredData.cashRevenue / filteredData.totalRevenue) * 100)) : 0}%` }}
               />
             </div>
@@ -662,8 +661,8 @@ export default function FinancialDashboard({
               </div>
             </div>
             <div className="w-full bg-sky-200/60 rounded-full h-1 overflow-hidden">
-              <div 
-                className="bg-sky-600 h-1 rounded-full transition-all" 
+              <div
+                className="bg-sky-600 h-1 rounded-full transition-all"
                 style={{ width: `${filteredData.totalRevenue > 0 ? Math.min(100, Math.round((filteredData.upiRevenue / filteredData.totalRevenue) * 100)) : 0}%` }}
               />
             </div>
@@ -690,8 +689,8 @@ export default function FinancialDashboard({
               </div>
             </div>
             <div className="w-full bg-orange-200/60 rounded-full h-1 overflow-hidden">
-              <div 
-                className="bg-[#f48c06] h-1 rounded-full transition-all" 
+              <div
+                className="bg-[#f48c06] h-1 rounded-full transition-all"
                 style={{ width: `${filteredData.totalRevenue > 0 ? Math.min(100, Math.round((filteredData.swiggyRevenue / filteredData.totalRevenue) * 100)) : 0}%` }}
               />
             </div>
@@ -718,8 +717,8 @@ export default function FinancialDashboard({
               </div>
             </div>
             <div className="w-full bg-rose-200/60 rounded-full h-1 overflow-hidden">
-              <div 
-                className="bg-[#e5383b] h-1 rounded-full transition-all" 
+              <div
+                className="bg-[#e5383b] h-1 rounded-full transition-all"
                 style={{ width: `${filteredData.totalRevenue > 0 ? Math.min(100, Math.round((filteredData.zomatoRevenue / filteredData.totalRevenue) * 100)) : 0}%` }}
               />
             </div>
@@ -746,8 +745,8 @@ export default function FinancialDashboard({
               </div>
             </div>
             <div className="w-full bg-amber-200/60 rounded-full h-1 overflow-hidden">
-              <div 
-                className="bg-amber-600 h-1 rounded-full transition-all" 
+              <div
+                className="bg-amber-600 h-1 rounded-full transition-all"
                 style={{ width: `${filteredData.totalRevenue > 0 ? Math.min(100, Math.round((filteredData.khataRevenue / filteredData.totalRevenue) * 100)) : 0}%` }}
               />
             </div>
@@ -760,7 +759,7 @@ export default function FinancialDashboard({
       {(() => {
         const aggLedger = calculateAggregatorLedger(salesLogs, settlements);
         const hasAggregatorSales = aggLedger.Swiggy.totalGross > 0 || aggLedger.Zomato.totalGross > 0;
-        
+
         return (
           <div className="bg-gradient-to-r from-stone-900 via-stone-850 to-stone-950 text-white rounded-2xl p-3.5 sm:p-4 shadow-md border border-stone-800 space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-800 pb-2.5">
@@ -878,7 +877,7 @@ export default function FinancialDashboard({
 
       {/* 2-COLUMN DETAILED ANALYTICS (TOP SELLERS & EXPENSE BREAKDOWN) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
-        
+
         {/* Left: Top Selling Items (Best Sellers) */}
         <div className="bg-white rounded-2xl border border-stone-200 p-3.5 sm:p-4 shadow-xs space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-100 pb-2.5">
@@ -895,11 +894,10 @@ export default function FinancialDashboard({
               <button
                 type="button"
                 onClick={() => setTopItemsSort('qty')}
-                className={`px-2 py-0.5 rounded-lg transition-all cursor-pointer ${
-                  topItemsSort === 'qty'
+                className={`px-2 py-0.5 rounded-lg transition-all cursor-pointer ${topItemsSort === 'qty'
                     ? 'bg-amber-600 text-white shadow-xs'
                     : 'text-stone-600 hover:text-stone-900'
-                }`}
+                  }`}
                 title="Sort by quantity sold"
               >
                 🔥 Most Sold
@@ -907,11 +905,10 @@ export default function FinancialDashboard({
               <button
                 type="button"
                 onClick={() => setTopItemsSort('revenue')}
-                className={`px-2 py-0.5 rounded-lg transition-all cursor-pointer ${
-                  topItemsSort === 'revenue'
+                className={`px-2 py-0.5 rounded-lg transition-all cursor-pointer ${topItemsSort === 'revenue'
                     ? 'bg-amber-600 text-white shadow-xs'
                     : 'text-stone-600 hover:text-stone-900'
-                }`}
+                  }`}
                 title="Sort by revenue generated"
               >
                 💰 Top Revenue
@@ -925,7 +922,7 @@ export default function FinancialDashboard({
             <div className="space-y-2.5">
               {/* Highlight #1 Star Item */}
               {(() => {
-                const sorted = [...filteredData.topItems].sort((a, b) => 
+                const sorted = [...filteredData.topItems].sort((a, b) =>
                   topItemsSort === 'qty' ? b.qty - a.qty : b.revenue - a.revenue
                 );
                 const star = sorted[0];
@@ -976,7 +973,7 @@ export default function FinancialDashboard({
                               )}
                             </div>
                           </div>
-                          
+
                           <div className="text-right shrink-0">
                             <span className="text-xs font-black text-stone-900">
                               {topItemsSort === 'qty' ? `${item.qty} units` : `₹${item.revenue.toLocaleString()}`}
@@ -1038,7 +1035,7 @@ export default function FinancialDashboard({
                       <span className="text-purple-900 font-black">₹{amount.toLocaleString()} ({percentage}%)</span>
                     </div>
                     <div className="w-full bg-stone-200 rounded-full h-1.5 overflow-hidden">
-                      <div 
+                      <div
                         className="bg-purple-600 h-1.5 rounded-full transition-all"
                         style={{ width: `${percentage}%` }}
                       />
@@ -1054,18 +1051,17 @@ export default function FinancialDashboard({
 
       {/* 📋 BOTTOM SECTION: TABBED PURCHASES & WASTAGE LOGS */}
       <div className="bg-white rounded-2xl border border-stone-200 p-3.5 sm:p-4 shadow-xs space-y-3">
-        
+
         {/* Tab Switcher Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-100 pb-2.5">
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setActiveBottomTab('purchases')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                activeBottomTab === 'purchases'
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${activeBottomTab === 'purchases'
                   ? 'bg-amber-600 text-white shadow-xs'
                   : 'bg-stone-100 text-stone-600 hover:text-stone-900'
-              }`}
+                }`}
             >
               <PackageCheck className="w-3.5 h-3.5" />
               <span>Raw Material Purchases ({filteredData.procurement.length})</span>
@@ -1074,11 +1070,10 @@ export default function FinancialDashboard({
             <button
               type="button"
               onClick={() => setActiveBottomTab('wastage')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                activeBottomTab === 'wastage'
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${activeBottomTab === 'wastage'
                   ? 'bg-rose-600 text-white shadow-xs'
                   : 'bg-stone-100 text-stone-600 hover:text-stone-900'
-              }`}
+                }`}
             >
               <AlertOctagon className="w-3.5 h-3.5" />
               <span>Kharab Maal / Wastage ({filteredData.activeWastage.length})</span>
