@@ -286,10 +286,10 @@ export default function FinancialDashboard({
               onChange={(e) => setTimeframe(e.target.value)}
               className="pl-8 pr-8 py-2 bg-stone-100 hover:bg-stone-200/80 border border-stone-200 rounded-xl text-xs font-bold text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 cursor-pointer transition-all shadow-2xs appearance-none"
             >
-              <option value="daily">📅 Today (Daily / Aaj)</option>
-              <option value="weekly">📊 Weekly (Pichhle 7 Din)</option>
-              <option value="monthly">🗓️ Monthly (Is Mahine)</option>
-              <option value="all">🌐 All Time (Sabhi Records)</option>
+              <option value="daily">📅 Today</option>
+              <option value="weekly">📊 Weekly</option>
+              <option value="monthly">🗓️ Monthly</option>
+              <option value="all">🌐 All Time</option>
             </select>
             <ChevronDown className="w-3.5 h-3.5 absolute right-2.5 text-stone-400 pointer-events-none" />
           </div>
@@ -801,7 +801,7 @@ export default function FinancialDashboard({
                     Swiggy
                   </span>
                   <span className="text-[10px] bg-stone-700 text-stone-300 font-bold px-1.5 py-0.2 rounded">
-                    {timeframe !== 'all' ? `${filteredData.swiggyOrdersCount} ord (${timeframe})` : `${aggLedger.Swiggy.totalOrdersCount} ord total`}
+                    {timeframe !== 'all' ? `${filteredData.swiggyOrdersCount} ord (${timeframe === 'daily' ? 'Today' : timeframe})` : `${aggLedger.Swiggy.totalOrdersCount} ord total`}
                   </span>
                 </div>
                 <div>
@@ -830,7 +830,7 @@ export default function FinancialDashboard({
                     Zomato
                   </span>
                   <span className="text-[10px] bg-stone-700 text-stone-300 font-bold px-1.5 py-0.2 rounded">
-                    {timeframe !== 'all' ? `${filteredData.zomatoOrdersCount} ord (${timeframe})` : `${aggLedger.Zomato.totalOrdersCount} ord total`}
+                    {timeframe !== 'all' ? `${filteredData.zomatoOrdersCount} ord (${timeframe === 'daily' ? 'Today' : timeframe})` : `${aggLedger.Zomato.totalOrdersCount} ord total`}
                   </span>
                 </div>
                 <div>
@@ -885,7 +885,7 @@ export default function FinancialDashboard({
             <div>
               <h4 className="text-xs sm:text-sm font-extrabold text-stone-900 flex items-center gap-1.5">
                 <Flame className="w-4 h-4 text-amber-600 fill-amber-500" />
-                <span>🏆 Top Selling Items ({timeframe})</span>
+                <span>🏆 Top Selling Items ({timeframe === 'daily' ? 'Today' : (timeframe === 'weekly' ? 'Weekly' : (timeframe === 'monthly' ? 'Monthly' : 'All Time'))})</span>
               </h4>
               <p className="text-[10px] text-stone-400">Sabse zyada bikne wale aur profit dene wale items</p>
             </div>
