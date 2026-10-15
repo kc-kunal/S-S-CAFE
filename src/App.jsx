@@ -82,30 +82,6 @@ import { PieChart, ShoppingBag, PackageCheck, Coffee, CheckCircle2, Plus, Boxes,
 export default function App() {
   const [activeTab, setActiveTab] = useState('sales'); // 'sales', 'inventory', 'dashboard', 'procurement', 'menu'
 
-  const [menuItems, setMenuItems] = useState([]);
-  const [salesLogs, setSalesLogs] = useState([]);
-  const [procurementLogs, setProcurementLogs] = useState([]);
-  const [inventoryItems, setInventoryItems] = useState([]);
-  const [expenses, setExpenses] = useState([]);
-  const [wastageLogs, setWastageLogs] = useState([]);
-  const [settlements, setSettlements] = useState([]);
-  const [isAggregatorModalOpen, setIsAggregatorModalOpen] = useState(false);
-
-  // 🔒 Priority 1: Staff PIN Lock State
-  const [isStaffMode, setIsStaffMode] = useState(false);
-  const [ownerPin, setOwnerPin] = useState(getStoredOwnerPin('default'));
-  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
-  const [pinModalTargetTab, setPinModalTargetTab] = useState(null);
-
-  // 🌙 Priority 2: Day-End Cash Closing State
-  const [dayClosings, setDayClosings] = useState(getStoredDayClosings('default'));
-  const [isDayClosingModalOpen, setIsDayClosingModalOpen] = useState(false);
-
-  // 📒 Priority 3: Customer Khata / Udhar Ledger State
-  const [khataLedger, setKhataLedger] = useState(getStoredKhata('default'));
-  const [isKhataModalOpen, setIsKhataModalOpen] = useState(false);
-
-
   // Multi-Tenant Cafe & User Auth State
   const [currentUser, setCurrentUser] = useState(null);
   const [isDemoMode, setIsDemoMode] = useState(false);
@@ -132,6 +108,33 @@ export default function App() {
       businessType: 'cafe'
     };
   });
+
+  const activeIdOnBoot = currentCafe?.cafeId || 'default';
+
+  // Synchronously load stored states on boot to ensure zero data loss on page refresh
+  const [menuItems, setMenuItems] = useState(() => getStoredMenu(activeIdOnBoot));
+  const [salesLogs, setSalesLogs] = useState(() => getStoredSales(activeIdOnBoot));
+  const [procurementLogs, setProcurementLogs] = useState(() => getStoredProcurement(activeIdOnBoot));
+  const [inventoryItems, setInventoryItems] = useState(() => getStoredInventory(activeIdOnBoot));
+  const [expenses, setExpenses] = useState(() => getStoredExpenses(activeIdOnBoot));
+  const [wastageLogs, setWastageLogs] = useState(() => getStoredWastage(activeIdOnBoot));
+  const [settlements, setSettlements] = useState([]);
+  const [isAggregatorModalOpen, setIsAggregatorModalOpen] = useState(false);
+
+  // 🔒 Priority 1: Staff PIN Lock State
+  const [isStaffMode, setIsStaffMode] = useState(false);
+  const [ownerPin, setOwnerPin] = useState(() => getStoredOwnerPin(activeIdOnBoot));
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [pinModalTargetTab, setPinModalTargetTab] = useState(null);
+
+  // 🌙 Priority 2: Day-End Cash Closing State
+  const [dayClosings, setDayClosings] = useState(() => getStoredDayClosings(activeIdOnBoot));
+  const [isDayClosingModalOpen, setIsDayClosingModalOpen] = useState(false);
+
+  // 📒 Priority 3: Customer Khata / Udhar Ledger State
+  const [khataLedger, setKhataLedger] = useState(() => getStoredKhata(activeIdOnBoot));
+  const [isKhataModalOpen, setIsKhataModalOpen] = useState(false);
+
   const [userCafes, setUserCafes] = useState([]);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalTab, setAuthModalTab] = useState('login'); // 'login' | 'signup'
@@ -257,8 +260,8 @@ export default function App() {
     let rawProc = getStoredProcurement(activeId);
     let rawInv = getStoredInventory(activeId);
 
-    // If it's KC Grand Hotel or a restaurant, and the catalog is empty or has only the initial 7 pizza cafe items, auto-seed the Hotel Catalog!
-    if (isKcOrRestaurant && (!rawMenu || rawMenu.length === 0 || (rawMenu.length === 7 && rawMenu[0]?.id === 'pizza-1'))) {
+    // If it's KC Grand Hotel or a restaurant, and the catalog is empty, auto-seed the Hotel Catalog!
+    if (isKcOrRestaurant && (!rawMenu || rawMenu.length === 0)) {
       seedHotelRestaurantData(activeId);
       rawMenu = getStoredMenu(activeId);
       rawSales = getStoredSales(activeId);
@@ -338,6 +341,12 @@ export default function App() {
     setOwnerPin(getStoredOwnerPin(activeId));
   };
 
+  // 0. Auto-load stored data on boot for active cafe
+  useEffect(() => {
+    const activeId = currentCafe?.cafeId || 'default';
+    loadCafeData(activeId);
+  }, []);
+
   // 1. Subscribe to Firebase Auth State Changes & Multi-Tenant Profile
   useEffect(() => {
     const unsubAuth = subscribeToAuthChanges(({ user, cafe, cafes }) => {
@@ -347,10 +356,16 @@ export default function App() {
         setCurrentCafe(cafe);
         setUserCafes(cafes);
         loadCafeData(cafe.cafeId);
+      } else if (cafe) {
+        setCurrentCafe(cafe);
+        setUserCafes(cafes || [cafe]);
+        loadCafeData(cafe.cafeId);
       } else if (!user) {
         const urlCafe = getInitialCafeParam();
         if (urlCafe) {
           loadCafeData(urlCafe);
+        } else {
+          loadCafeData(currentCafe?.cafeId || 'default');
         }
       }
     });
@@ -386,8 +401,25 @@ export default function App() {
           if (localInv && localInv.length > 0) syncCloudInventory(localInv, activeId);
         }
         if (cloudData.sales && Array.isArray(cloudData.sales) && cloudData.sales.length > 0) {
-          setSalesLogs(cloudData.sales);
-          saveStoredSales(cloudData.sales, activeId);
+          const localSales = getStoredSales(activeId) || [];
+          const localMap = new Map(localSales.map(s => [s.id, s]));
+          cloudData.sales.forEach(cs => {
+            if (!localMap.has(cs.id)) {
+              localMap.set(cs.id, cs);
+            }
+          });
+          const mergedSales = Array.from(localMap.values()).sort((a, b) => {
+            const timeA = new Date(a.createdAt || `${a.date}T00:00:00`).getTime();
+            const timeB = new Date(b.createdAt || `${b.date}T00:00:00`).getTime();
+            return timeB - timeA;
+          });
+          setSalesLogs(mergedSales);
+          saveStoredSales(mergedSales, activeId);
+        } else {
+          const localSales = getStoredSales(activeId);
+          if (localSales && localSales.length > 0) {
+            syncCloudSales(localSales, activeId);
+          }
         }
         if (cloudData.procurement && Array.isArray(cloudData.procurement) && cloudData.procurement.length > 0) {
           setProcurementLogs(cloudData.procurement);
@@ -419,8 +451,17 @@ export default function App() {
         saveStoredInventory(newInv, activeId);
       },
       onSalesUpdate: (newSales) => {
-        setSalesLogs(newSales);
-        saveStoredSales(newSales, activeId);
+        setSalesLogs(prev => {
+          const prevMap = new Map((prev || []).map(s => [s.id, s]));
+          newSales.forEach(s => prevMap.set(s.id, s));
+          const merged = Array.from(prevMap.values()).sort((a, b) => {
+            const timeA = new Date(a.createdAt || `${a.date}T00:00:00`).getTime();
+            const timeB = new Date(b.createdAt || `${b.date}T00:00:00`).getTime();
+            return timeB - timeA;
+          });
+          saveStoredSales(merged, activeId);
+          return merged;
+        });
       },
       onProcurementUpdate: (newProc) => {
         setProcurementLogs(newProc);

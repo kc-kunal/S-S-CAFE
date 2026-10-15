@@ -31,7 +31,7 @@ import {
   Moon,
   Lock
 } from 'lucide-react';
-import { checkItemStock, calculateAggregatorLedger } from '../utils/storage';
+import { checkItemStock, calculateAggregatorLedger, getTodayDateString } from '../utils/storage';
 import OnlineOrderPunchModal from './OnlineOrderPunchModal';
 import AggregatorSettlementModal from './AggregatorSettlementModal';
 
@@ -54,7 +54,7 @@ export const extractTokenNumber = (tokenStr) => {
 
 // 🎫 Calculate next Counter Token for selected date based on punched salesLogs + localStorage
 export const getNextCounterTokenInfo = (salesLogs = [], targetDate = '') => {
-  const dateStr = String(targetDate || new Date().toISOString().split('T')[0]).trim();
+  const dateStr = String(targetDate || getTodayDateString(0)).trim();
   let maxPunched = 0;
 
   if (Array.isArray(salesLogs)) {
@@ -110,7 +110,7 @@ export const getNextCounterTokenInfo = (salesLogs = [], targetDate = '') => {
 
 // 🛵 Calculate next Online Token for selected date & platform
 export const getNextOnlineTokenInfo = (salesLogs = [], targetDate = '', platform = 'Swiggy') => {
-  const dateStr = targetDate || new Date().toISOString().split('T')[0];
+  const dateStr = String(targetDate || getTodayDateString(0)).trim();
   const prefix = platform === 'Swiggy' ? 'SWG' : 'ZOM';
   let maxPunched = 0;
 
@@ -182,9 +182,8 @@ export default function SalesTracker({
   isStaffMode = false,
   onPromptUnlockStaffMode
 }) {
-  const todayDateStr = new Date().toISOString().split('T')[0];
-  const yesterdayDateObj = new Date(Date.now() - 86400000);
-  const yesterdayDateStr = yesterdayDateObj.toISOString().split('T')[0];
+  const todayDateStr = getTodayDateString(0);
+  const yesterdayDateStr = getTodayDateString(1);
 
   const getInitialTimeStr = () => {
     const now = new Date();

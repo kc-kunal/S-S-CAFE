@@ -11,11 +11,16 @@ const DAY_CLOSING_STORAGE_KEY = 'ss_cafe_day_closing_logs_v1';
 const OWNER_PIN_STORAGE_KEY = 'ss_cafe_owner_pin_v1';
 
 
-// Get today's YYYY-MM-DD string
+// Get today's YYYY-MM-DD string in local user timezone
 export const getTodayDateString = (offsetDays = 0) => {
   const d = new Date();
-  d.setDate(d.getDate() - offsetDays);
-  return d.toISOString().split('T')[0];
+  if (offsetDays) {
+    d.setDate(d.getDate() - offsetDays);
+  }
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 // Initial Raw Materials Inventory
@@ -1069,7 +1074,15 @@ export const seedHotelRestaurantData = (cafeId = currentCafeId) => {
   saveStoredInventory(RESTAURANT_HOTEL_INVENTORY_ITEMS, cafeId);
   saveStoredProcurement(RESTAURANT_HOTEL_PROCUREMENT_LOGS, cafeId);
   saveStoredExpenses(RESTAURANT_HOTEL_EXPENSES, cafeId);
-  saveStoredSales(RESTAURANT_HOTEL_SALES_LOGS, cafeId);
+  
+  // NEVER overwrite user's actual punched sales when seeding hotel data!
+  const existingSales = getStoredSales(cafeId);
+  const isDefaultOrEmpty = !existingSales || existingSales.length === 0 || 
+    (existingSales.length === 4 && existingSales[0]?.id === 'sale-1');
+  if (isDefaultOrEmpty) {
+    saveStoredSales(RESTAURANT_HOTEL_SALES_LOGS, cafeId);
+  }
+  
   saveStoredWastage(RESTAURANT_HOTEL_WASTAGE_LOGS, cafeId);
 };
 
@@ -1079,7 +1092,15 @@ export const seedCafeData = (cafeId = currentCafeId) => {
   saveStoredInventory(INITIAL_INVENTORY_ITEMS, cafeId);
   saveStoredProcurement(INITIAL_PROCUREMENT_LOGS, cafeId);
   saveStoredExpenses(INITIAL_EXPENSES, cafeId);
-  saveStoredSales(INITIAL_SALES_LOGS, cafeId);
+  
+  // NEVER overwrite user's actual punched sales when seeding cafe data!
+  const existingSales = getStoredSales(cafeId);
+  const isDefaultOrEmpty = !existingSales || existingSales.length === 0 || 
+    (existingSales.length === 5 && existingSales[0]?.id === 'sale-h1');
+  if (isDefaultOrEmpty) {
+    saveStoredSales(INITIAL_SALES_LOGS, cafeId);
+  }
+  
   saveStoredWastage(INITIAL_WASTAGE_LOGS, cafeId);
 };
 
@@ -1149,18 +1170,42 @@ export const getStoredSales = (cafeId = currentCafeId) => {
     if (!data && cafeId !== 'default') {
       data = localStorage.getItem(SALES_STORAGE_KEY);
     }
+    // Deep fallback: If still no data found, search all localStorage keys starting with SALES_STORAGE_KEY
+    if (!data) {
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith(SALES_STORAGE_KEY)) {
+            const candidate = localStorage.getItem(k);
+            if (candidate && candidate !== '[]' && candidate.length > 2) {
+              data = candidate;
+              break;
+            }
+          }
+        }
+      } catch (err) {}
+    }
+    if (data) {
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) return parsed;
+    }
     const defaultFallback = isTenantHotelOrRestaurant(cafeId) ? RESTAURANT_HOTEL_SALES_LOGS : INITIAL_SALES_LOGS;
-    return data ? JSON.parse(data) : defaultFallback;
+    return defaultFallback;
   } catch (e) {
     return isTenantHotelOrRestaurant(cafeId) ? RESTAURANT_HOTEL_SALES_LOGS : INITIAL_SALES_LOGS;
   }
 };
 
 export const saveStoredSales = (sales, cafeId = currentCafeId) => {
-  const key = getScopedKey(SALES_STORAGE_KEY, cafeId);
-  localStorage.setItem(key, JSON.stringify(sales));
-  if (cafeId === 'default') {
-    localStorage.setItem(SALES_STORAGE_KEY, JSON.stringify(sales));
+  if (!Array.isArray(sales)) return;
+  try {
+    const key = getScopedKey(SALES_STORAGE_KEY, cafeId);
+    const jsonStr = JSON.stringify(sales);
+    localStorage.setItem(key, jsonStr);
+    // Always mirror to base SALES_STORAGE_KEY so refresh without active tenant NEVER loses punched orders!
+    localStorage.setItem(SALES_STORAGE_KEY, jsonStr);
+  } catch (e) {
+    console.error('Error saving sales logs to localStorage:', e);
   }
 };
 

@@ -599,15 +599,19 @@ export const subscribeToAuthChanges = (callback) => {
 
   return onAuthStateChanged(auth, async (user) => {
     if (!user) {
-      // If there's an active local session, preserve it!
+      // If there's an active local session or active local cafe profile, preserve it!
       const currentLocalUser = getLocalUserSession();
-      if (currentLocalUser) {
-        const localCafe = getLocalActiveCafe();
-        callback({ user: currentLocalUser, cafe: localCafe, cafes: localCafe ? [localCafe] : [], isAuthReady: true });
+      const localCafe = getLocalActiveCafe();
+      if (currentLocalUser || localCafe) {
+        callback({ 
+          user: currentLocalUser || null, 
+          cafe: localCafe || null, 
+          cafes: localCafe ? [localCafe] : [], 
+          isAuthReady: true 
+        });
         return;
       }
 
-      setLocalActiveCafe(null);
       callback({ user: null, cafe: null, cafes: [], isAuthReady: true });
       return;
     }
