@@ -23,6 +23,75 @@ export const getTodayDateString = (offsetDays = 0) => {
   return `${year}-${month}-${day}`;
 };
 
+// Safely add/subtract days from YYYY-MM-DD string without timezone skew
+export const shiftDateStr = (dateStr, offsetDays = 0) => {
+  if (!offsetDays) return dateStr || getTodayDateString(0);
+  const parts = (dateStr || '').split('-').map(Number);
+  if (parts.length !== 3 || parts.some(isNaN)) {
+    return getTodayDateString(offsetDays > 0 ? -offsetDays : Math.abs(offsetDays));
+  }
+  const dt = new Date(parts[0], parts[1] - 1, parts[2] + offsetDays);
+  const year = dt.getFullYear();
+  const month = String(dt.getMonth() + 1).padStart(2, '0');
+  const day = String(dt.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+// Accurately count unique orders/tokens instead of raw item rows
+export const getUniqueOrderCount = (itemsList = []) => {
+  if (!Array.isArray(itemsList) || itemsList.length === 0) return 0;
+  const tokenSet = new Set();
+  let fallbackCount = 0;
+
+  itemsList.forEach(s => {
+    const key = s.platformOrderId || s.token || s.tokenOrBillNo;
+    if (key) {
+      tokenSet.add(`${s.date || ''}_${key}`);
+    } else {
+      fallbackCount++;
+    }
+  });
+
+  return tokenSet.size + fallbackCount;
+};
+
+// Unambiguously classify any sale object into 'swiggy' | 'zomato' | 'khata' | 'cash' | 'upi'
+export const classifySalePaymentMethod = (s) => {
+  if (!s) return 'cash';
+  const pm = String(s.paymentMethod || '').trim().toLowerCase();
+  const pl = String(s.platform || s.channel || s.orderType || '').trim().toLowerCase();
+  const token = String(s.platformOrderId || s.token || s.tokenOrBillNo || '').trim().toLowerCase();
+
+  // 1. Swiggy
+  if (pm === 'swiggy' || pl === 'swiggy' || pl.includes('swiggy') || token.startsWith('#swg') || token.startsWith('swg') || token.includes('swiggy')) {
+    return 'swiggy';
+  }
+
+  // 2. Zomato
+  if (pm === 'zomato' || pl === 'zomato' || pl.includes('zomato') || token.startsWith('#zom') || token.startsWith('zom') || token.includes('zomato')) {
+    return 'zomato';
+  }
+
+  // 3. Khata (Udhar / Credit)
+  if (pm === 'khata' || pm === 'udhar' || pl === 'khata' || pl === 'udhar' || pl.includes('khata') || pl.includes('udhar') || (s.customerName && (pm.includes('khata') || pl.includes('khata')))) {
+    return 'khata';
+  }
+
+  // 4. Cash
+  if (pm === 'cash' || pl === 'cash' || pl.includes('(cash)')) {
+    return 'cash';
+  }
+
+  // 5. UPI / Online (Counter / Dine-In UPI)
+  if (pm === 'online' || pm === 'upi' || pm === 'counter upi' || pl === 'online' || pl === 'upi' || pl.includes('upi') || pm.includes('paytm') || pm.includes('gpay') || pm.includes('phonepe')) {
+    return 'upi';
+  }
+
+  // Fallback
+  return 'cash';
+};
+
+
 // Initial Raw Materials Inventory
 export const INITIAL_INVENTORY_ITEMS = [
   { id: 'inv-1', materialName: 'Pizza Base', category: 'Bakery', currentStock: 40, unit: 'Piece', reorderLevel: 10, unitCost: 15, lastUpdated: getTodayDateString(0) },
@@ -1498,11 +1567,12 @@ export const calculateAggregatorLedger = (salesLogs = [], settlements = []) => {
   const summary = {};
 
   platforms.forEach(plat => {
-    // Total gross sales logged for this platform
-    const platSales = salesLogs.filter(s => (s.paymentMethod || '').toLowerCase() === plat.toLowerCase());
+    const targetPlat = plat.toLowerCase();
+    // Total gross sales logged for this platform using robust classifier
+    const platSales = salesLogs.filter(s => classifySalePaymentMethod(s) === targetPlat);
     const totalMenuValue = platSales.reduce((sum, s) => sum + ((Number(s.sellingPrice) || 0) * (Number(s.quantitySold) || 1)), 0);
     const totalGross = platSales.reduce((sum, s) => sum + (Number(s.totalRevenue) || 0), 0);
-    const totalOrdersCount = platSales.length;
+    const totalOrdersCount = getUniqueOrderCount(platSales);
     const totalUnitsSold = platSales.reduce((sum, s) => sum + (Number(s.quantitySold) || 0), 0);
     const totalDiscountGiven = platSales.reduce((sum, s) => {
       const recorded = Number(s.discountAmount) || 0;
@@ -1511,7 +1581,7 @@ export const calculateAggregatorLedger = (salesLogs = [], settlements = []) => {
     }, 0);
 
     // Settlements for this platform
-    const platSettlements = settlements.filter(set => (set.platform || '').toLowerCase() === plat.toLowerCase());
+    const platSettlements = settlements.filter(set => (set.platform || '').toLowerCase() === targetPlat);
     const totalSettledGross = platSettlements.reduce((sum, set) => sum + (Number(set.grossAmount) || 0), 0);
     const totalBankReceived = platSettlements.reduce((sum, set) => sum + (Number(set.bankAmountReceived) || 0), 0);
     const totalCommissionDeducted = platSettlements.reduce((sum, set) => sum + (Number(set.commissionDeducted) || 0), 0);

@@ -17,7 +17,7 @@ import {
   Wand2,
   Check
 } from 'lucide-react';
-import { calculateAggregatorLedger } from '../utils/storage';
+import { calculateAggregatorLedger, classifySalePaymentMethod } from '../utils/storage';
 
 export default function AggregatorSettlementModal({
   isOpen,
@@ -76,7 +76,7 @@ export default function AggregatorSettlementModal({
   // Filtered sales list for the active platform (newest first)
   const platSales = useMemo(() => {
     return salesLogs
-      .filter(s => (s.paymentMethod || '').toLowerCase() === selectedPlatform.toLowerCase())
+      .filter(s => classifySalePaymentMethod(s) === selectedPlatform.toLowerCase())
       .sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
   }, [salesLogs, selectedPlatform]);
 

@@ -25,9 +25,18 @@ import {
   Layers,
   ArrowRight,
   HelpCircle,
-  ChevronDown
+  ChevronDown,
+  Smartphone,
+  CreditCard,
+  BookOpen
 } from 'lucide-react';
-import { calculateAggregatorLedger } from '../utils/storage';
+import { 
+  calculateAggregatorLedger, 
+  getTodayDateString, 
+  shiftDateStr, 
+  classifySalePaymentMethod, 
+  getUniqueOrderCount 
+} from '../utils/storage';
 
 export default function FinancialDashboard({ 
   salesLogs = [], 
@@ -43,33 +52,27 @@ export default function FinancialDashboard({
   onPromptUnlock
 }) {
   const [timeframe, setTimeframe] = useState('daily'); // 'daily', 'weekly', 'monthly', 'all'
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(() => getTodayDateString(0));
   const [topItemsSort, setTopItemsSort] = useState('qty'); // 'qty' or 'revenue'
   const [activeBottomTab, setActiveBottomTab] = useState('purchases'); // 'purchases' | 'wastage'
 
-  // Date Navigation Helpers for Daily View
+  // Date Navigation Helpers for Daily View (Timezone-safe calendar math)
   const handlePrevDay = () => {
-    const d = new Date(selectedDate);
-    d.setDate(d.getDate() - 1);
-    setSelectedDate(d.toISOString().split('T')[0]);
+    setSelectedDate(prev => shiftDateStr(prev, -1));
   };
 
   const handleNextDay = () => {
-    const d = new Date(selectedDate);
-    d.setDate(d.getDate() + 1);
-    setSelectedDate(d.toISOString().split('T')[0]);
+    setSelectedDate(prev => shiftDateStr(prev, 1));
   };
 
   const handleToday = () => {
-    setSelectedDate(new Date().toISOString().split('T')[0]);
+    setSelectedDate(getTodayDateString(0));
   };
 
-  const isToday = selectedDate === new Date().toISOString().split('T')[0];
+  const isToday = selectedDate === getTodayDateString(0);
 
   // Date filtering logic & Calculations
   const filteredData = useMemo(() => {
-    const now = new Date();
-    
     let sales = [];
     let procurement = [];
     let activeExpenses = [];
@@ -81,16 +84,13 @@ export default function FinancialDashboard({
       activeExpenses = expenses.filter(e => e.date === selectedDate);
       activeWastage = wastageLogs.filter(w => w.date === selectedDate);
     } else if (timeframe === 'weekly') {
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(now.getDate() - 7);
-      const minDateStr = sevenDaysAgo.toISOString().split('T')[0];
-      
+      const minDateStr = shiftDateStr(getTodayDateString(0), -7);
       sales = salesLogs.filter(s => s.date >= minDateStr);
       procurement = procurementLogs.filter(p => p.date >= minDateStr);
       activeExpenses = expenses.filter(e => e.date >= minDateStr);
       activeWastage = wastageLogs.filter(w => w.date >= minDateStr);
     } else if (timeframe === 'monthly') {
-      const currentYearMonth = now.toISOString().slice(0, 7); // YYYY-MM
+      const currentYearMonth = getTodayDateString(0).slice(0, 7); // YYYY-MM
       sales = salesLogs.filter(s => s.date && s.date.startsWith(currentYearMonth));
       procurement = procurementLogs.filter(p => p.date && p.date.startsWith(currentYearMonth));
       activeExpenses = expenses.filter(e => e.date && e.date.startsWith(currentYearMonth));
@@ -104,27 +104,34 @@ export default function FinancialDashboard({
 
     // Calculations
     const totalRevenue = sales.reduce((sum, s) => sum + Number(s.totalRevenue || 0), 0);
-    const totalOrdersCount = sales.length;
+    const totalOrdersCount = getUniqueOrderCount(sales);
     const totalUnitsSold = sales.reduce((sum, s) => sum + Number(s.quantitySold || 1), 0);
     const avgOrderValue = totalOrdersCount > 0 ? Math.round(totalRevenue / totalOrdersCount) : 0;
 
-    const cashRevenue = sales.reduce((sum, s) => {
-      const mode = (s.paymentMethod || '').toLowerCase();
-      return sum + (mode === 'cash' ? Number(s.totalRevenue || 0) : 0);
-    }, 0);
-    const upiRevenue = sales.reduce((sum, s) => {
-      const mode = (s.paymentMethod || '').toLowerCase();
-      return sum + (mode === 'online' || mode === 'upi' ? Number(s.totalRevenue || 0) : 0);
-    }, 0);
-    const swiggyRevenue = sales.reduce((sum, s) => {
-      const mode = (s.paymentMethod || '').toLowerCase();
-      return sum + (mode === 'swiggy' ? Number(s.totalRevenue || 0) : 0);
-    }, 0);
-    const zomatoRevenue = sales.reduce((sum, s) => {
-      const mode = (s.paymentMethod || '').toLowerCase();
-      return sum + (mode === 'zomato' ? Number(s.totalRevenue || 0) : 0);
-    }, 0);
+    // Channel-wise Breakdown (100% Reconciled Across Cash, UPI, Swiggy, Zomato, Khata)
+    const cashSales = sales.filter(s => classifySalePaymentMethod(s) === 'cash');
+    const cashRevenue = cashSales.reduce((sum, s) => sum + Number(s.totalRevenue || 0), 0);
+    const cashOrdersCount = getUniqueOrderCount(cashSales);
+
+    const upiSales = sales.filter(s => classifySalePaymentMethod(s) === 'upi');
+    const upiRevenue = upiSales.reduce((sum, s) => sum + Number(s.totalRevenue || 0), 0);
+    const upiOrdersCount = getUniqueOrderCount(upiSales);
+
+    const swiggySales = sales.filter(s => classifySalePaymentMethod(s) === 'swiggy');
+    const swiggyRevenue = swiggySales.reduce((sum, s) => sum + Number(s.totalRevenue || 0), 0);
+    const swiggyOrdersCount = getUniqueOrderCount(swiggySales);
+
+    const zomatoSales = sales.filter(s => classifySalePaymentMethod(s) === 'zomato');
+    const zomatoRevenue = zomatoSales.reduce((sum, s) => sum + Number(s.totalRevenue || 0), 0);
+    const zomatoOrdersCount = getUniqueOrderCount(zomatoSales);
+
+    const khataSales = sales.filter(s => classifySalePaymentMethod(s) === 'khata');
+    const khataRevenue = khataSales.reduce((sum, s) => sum + Number(s.totalRevenue || 0), 0);
+    const khataOrdersCount = getUniqueOrderCount(khataSales);
+
     const onlineRevenue = upiRevenue + swiggyRevenue + zomatoRevenue;
+    const aggregatorRevenue = swiggyRevenue + zomatoRevenue;
+    const aggregatorOrdersCount = swiggyOrdersCount + zomatoOrdersCount;
     
     // 1. Actual Raw Material Consumed (COGS) based on Recipe / Item Cost Price
     const actualMaterialConsumed = sales.reduce((sum, s) => {
@@ -196,10 +203,18 @@ export default function FinancialDashboard({
       totalUnitsSold,
       avgOrderValue,
       cashRevenue,
+      cashOrdersCount,
       upiRevenue,
+      upiOrdersCount,
       swiggyRevenue,
+      swiggyOrdersCount,
       zomatoRevenue,
+      zomatoOrdersCount,
+      khataRevenue,
+      khataOrdersCount,
       onlineRevenue,
+      aggregatorRevenue,
+      aggregatorOrdersCount,
       actualMaterialConsumed,
       grossProfit,
       grossMargin,
@@ -468,16 +483,22 @@ export default function FinancialDashboard({
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-1 pt-2.5 mt-2 border-t border-stone-100 text-[10px] font-bold">
-            <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-              💵 ₹{filteredData.cashRevenue.toLocaleString()}
+          <div className="flex flex-wrap items-center gap-1.5 pt-2.5 mt-2 border-t border-stone-100 text-[10px] font-bold">
+            <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200" title="Cash Counter Sales">
+              💵 ₹{filteredData.cashRevenue.toLocaleString()} ({filteredData.cashOrdersCount} ord)
             </span>
-            <span className="text-sky-700 bg-sky-50 px-1.5 py-0.2 rounded border border-sky-200">
-              📱 ₹{filteredData.upiRevenue.toLocaleString()}
+            <span className="text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded border border-sky-200" title="Counter UPI / QR Sales">
+              📱 ₹{filteredData.upiRevenue.toLocaleString()} ({filteredData.upiOrdersCount} ord)
             </span>
-            {(filteredData.swiggyRevenue > 0 || filteredData.zomatoRevenue > 0) && (
-              <span className="text-amber-800 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
-                🛵 ₹{(filteredData.swiggyRevenue + filteredData.zomatoRevenue).toLocaleString()}
+            <span className="text-orange-900 bg-orange-50 px-1.5 py-0.5 rounded border border-orange-200 font-extrabold" title="Swiggy Online Delivery">
+              🟠 Swiggy: ₹{filteredData.swiggyRevenue.toLocaleString()} ({filteredData.swiggyOrdersCount} ord)
+            </span>
+            <span className="text-rose-900 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 font-extrabold" title="Zomato Online Delivery">
+              🔴 Zomato: ₹{filteredData.zomatoRevenue.toLocaleString()} ({filteredData.zomatoOrdersCount} ord)
+            </span>
+            {filteredData.khataRevenue > 0 && (
+              <span className="text-amber-900 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-300 font-extrabold" title="Khata / Udhar Sales">
+                📒 Khata: ₹{filteredData.khataRevenue.toLocaleString()} ({filteredData.khataOrdersCount} ord)
               </span>
             )}
           </div>
@@ -562,6 +583,179 @@ export default function FinancialDashboard({
 
       </div>
 
+      {/* 💳 ALL PAYMENT MODES & CHANNELS BREAKDOWN (Cash, UPI, Swiggy, Zomato, Khata) */}
+      <div className="bg-white rounded-2xl border border-stone-200 p-3.5 sm:p-4 shadow-xs space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-100 pb-2.5">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
+              <CreditCard className="w-4 h-4" />
+            </div>
+            <div>
+              <h4 className="text-xs sm:text-sm font-extrabold text-stone-900 flex items-center gap-2">
+                <span>Payment Mode & Channel Wise Hisaab</span>
+                <span className="text-[10px] font-bold text-stone-500 bg-stone-100 px-2 py-0.2 rounded-full border border-stone-200">
+                  {timeframe === 'daily' ? `Selected Date: ${selectedDate}` : timeframe === 'weekly' ? 'Weekly' : timeframe === 'monthly' ? 'Monthly' : 'All Time'}
+                </span>
+              </h4>
+              <p className="text-[10px] text-stone-400">
+                Cash, Counter UPI, Swiggy, Zomato aur Khata (Udhar) ka exact orders count aur aamdani
+              </p>
+            </div>
+          </div>
+
+          <div className="text-right">
+            <span className="text-[10px] font-bold text-stone-400 block uppercase">Reconciled Total</span>
+            <span className="text-xs sm:text-sm font-black text-stone-900">
+              ₹{filteredData.totalRevenue.toLocaleString()} ({filteredData.totalOrdersCount} Orders)
+            </span>
+          </div>
+        </div>
+
+        {/* 5 Channel Cards Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+          {/* 1. Cash Card */}
+          <div className="p-3 rounded-xl bg-emerald-50/70 border border-emerald-200/90 flex flex-col justify-between space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black text-emerald-900 flex items-center gap-1.5">
+                <span>💵</span>
+                <span>Counter Cash</span>
+              </span>
+              <span className="text-[10px] font-extrabold bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded">
+                {filteredData.cashOrdersCount} orders
+              </span>
+            </div>
+            <div>
+              <span className="text-lg font-black text-emerald-950 block">
+                ₹{filteredData.cashRevenue.toLocaleString()}
+              </span>
+              <div className="flex items-center justify-between text-[10px] font-bold text-emerald-700 mt-0.5">
+                <span>{filteredData.totalRevenue > 0 ? Math.round((filteredData.cashRevenue / filteredData.totalRevenue) * 100) : 0}% of sales</span>
+                <span className="text-[9px] bg-emerald-200/60 px-1 rounded">In Till (Galla)</span>
+              </div>
+            </div>
+            <div className="w-full bg-emerald-200/60 rounded-full h-1 overflow-hidden">
+              <div 
+                className="bg-emerald-600 h-1 rounded-full transition-all" 
+                style={{ width: `${filteredData.totalRevenue > 0 ? Math.min(100, Math.round((filteredData.cashRevenue / filteredData.totalRevenue) * 100)) : 0}%` }}
+              />
+            </div>
+          </div>
+
+          {/* 2. Counter UPI Card */}
+          <div className="p-3 rounded-xl bg-sky-50/70 border border-sky-200/90 flex flex-col justify-between space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black text-sky-900 flex items-center gap-1.5">
+                <span>📱</span>
+                <span>Counter UPI</span>
+              </span>
+              <span className="text-[10px] font-extrabold bg-sky-100 text-sky-800 px-1.5 py-0.2 rounded">
+                {filteredData.upiOrdersCount} orders
+              </span>
+            </div>
+            <div>
+              <span className="text-lg font-black text-sky-950 block">
+                ₹{filteredData.upiRevenue.toLocaleString()}
+              </span>
+              <div className="flex items-center justify-between text-[10px] font-bold text-sky-700 mt-0.5">
+                <span>{filteredData.totalRevenue > 0 ? Math.round((filteredData.upiRevenue / filteredData.totalRevenue) * 100) : 0}% of sales</span>
+                <span className="text-[9px] bg-sky-200/60 px-1 rounded">Direct Bank</span>
+              </div>
+            </div>
+            <div className="w-full bg-sky-200/60 rounded-full h-1 overflow-hidden">
+              <div 
+                className="bg-sky-600 h-1 rounded-full transition-all" 
+                style={{ width: `${filteredData.totalRevenue > 0 ? Math.min(100, Math.round((filteredData.upiRevenue / filteredData.totalRevenue) * 100)) : 0}%` }}
+              />
+            </div>
+          </div>
+
+          {/* 3. Swiggy Online Delivery Card */}
+          <div className="p-3 rounded-xl bg-orange-50/70 border border-orange-300 flex flex-col justify-between space-y-2 ring-1 ring-orange-400/30">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black text-orange-950 flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#f48c06]"></span>
+                <span>Swiggy Delivery</span>
+              </span>
+              <span className="text-[10px] font-extrabold bg-orange-100 text-orange-900 px-1.5 py-0.2 rounded">
+                {filteredData.swiggyOrdersCount} orders
+              </span>
+            </div>
+            <div>
+              <span className="text-lg font-black text-orange-950 block">
+                ₹{filteredData.swiggyRevenue.toLocaleString()}
+              </span>
+              <div className="flex items-center justify-between text-[10px] font-bold text-orange-800 mt-0.5">
+                <span>{filteredData.totalRevenue > 0 ? Math.round((filteredData.swiggyRevenue / filteredData.totalRevenue) * 100) : 0}% of sales</span>
+                <span className="text-[9px] bg-orange-200/60 px-1 rounded">Swiggy Payout</span>
+              </div>
+            </div>
+            <div className="w-full bg-orange-200/60 rounded-full h-1 overflow-hidden">
+              <div 
+                className="bg-[#f48c06] h-1 rounded-full transition-all" 
+                style={{ width: `${filteredData.totalRevenue > 0 ? Math.min(100, Math.round((filteredData.swiggyRevenue / filteredData.totalRevenue) * 100)) : 0}%` }}
+              />
+            </div>
+          </div>
+
+          {/* 4. Zomato Online Delivery Card */}
+          <div className="p-3 rounded-xl bg-rose-50/70 border border-rose-300 flex flex-col justify-between space-y-2 ring-1 ring-rose-400/30">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black text-rose-950 flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#e5383b]"></span>
+                <span>Zomato Delivery</span>
+              </span>
+              <span className="text-[10px] font-extrabold bg-rose-100 text-rose-900 px-1.5 py-0.2 rounded">
+                {filteredData.zomatoOrdersCount} orders
+              </span>
+            </div>
+            <div>
+              <span className="text-lg font-black text-rose-950 block">
+                ₹{filteredData.zomatoRevenue.toLocaleString()}
+              </span>
+              <div className="flex items-center justify-between text-[10px] font-bold text-rose-800 mt-0.5">
+                <span>{filteredData.totalRevenue > 0 ? Math.round((filteredData.zomatoRevenue / filteredData.totalRevenue) * 100) : 0}% of sales</span>
+                <span className="text-[9px] bg-rose-200/60 px-1 rounded">Zomato Payout</span>
+              </div>
+            </div>
+            <div className="w-full bg-rose-200/60 rounded-full h-1 overflow-hidden">
+              <div 
+                className="bg-[#e5383b] h-1 rounded-full transition-all" 
+                style={{ width: `${filteredData.totalRevenue > 0 ? Math.min(100, Math.round((filteredData.zomatoRevenue / filteredData.totalRevenue) * 100)) : 0}%` }}
+              />
+            </div>
+          </div>
+
+          {/* 5. Khata (Udhar) Card */}
+          <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-300 flex flex-col justify-between space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black text-amber-950 flex items-center gap-1.5">
+                <span>📒</span>
+                <span>Khata (Udhar)</span>
+              </span>
+              <span className="text-[10px] font-extrabold bg-amber-100 text-amber-900 px-1.5 py-0.2 rounded">
+                {filteredData.khataOrdersCount} orders
+              </span>
+            </div>
+            <div>
+              <span className="text-lg font-black text-amber-950 block">
+                ₹{filteredData.khataRevenue.toLocaleString()}
+              </span>
+              <div className="flex items-center justify-between text-[10px] font-bold text-amber-800 mt-0.5">
+                <span>{filteredData.totalRevenue > 0 ? Math.round((filteredData.khataRevenue / filteredData.totalRevenue) * 100) : 0}% of sales</span>
+                <span className="text-[9px] bg-amber-200/60 px-1 rounded">Receivable</span>
+              </div>
+            </div>
+            <div className="w-full bg-amber-200/60 rounded-full h-1 overflow-hidden">
+              <div 
+                className="bg-amber-600 h-1 rounded-full transition-all" 
+                style={{ width: `${filteredData.totalRevenue > 0 ? Math.min(100, Math.round((filteredData.khataRevenue / filteredData.totalRevenue) * 100)) : 0}%` }}
+              />
+            </div>
+          </div>
+
+        </div>
+      </div>
+
       {/* 🛵 SWIGGY & ZOMATO AGGREGATOR PAYOUT STATUS */}
       {(() => {
         const aggLedger = calculateAggregatorLedger(salesLogs, settlements);
@@ -600,20 +794,26 @@ export default function FinancialDashboard({
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               {/* Swiggy Box */}
-              <div className="bg-stone-800/80 p-3 rounded-xl border border-orange-500/30 flex flex-col justify-between">
+              <div className="bg-stone-800/80 p-3 rounded-xl border border-orange-500/30 flex flex-col justify-between space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-extrabold text-orange-400 flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-[#f48c06]"></span>
                     Swiggy
                   </span>
                   <span className="text-[10px] bg-stone-700 text-stone-300 font-bold px-1.5 py-0.2 rounded">
-                    {aggLedger.Swiggy.totalOrdersCount} orders
+                    {timeframe !== 'all' ? `${filteredData.swiggyOrdersCount} ord (${timeframe})` : `${aggLedger.Swiggy.totalOrdersCount} ord total`}
                   </span>
                 </div>
-                <div className="my-1.5">
-                  <span className="text-[9px] text-stone-400 uppercase font-semibold">Bank me aana baaki hai:</span>
-                  <div className="text-lg font-black text-white">
-                    ₹{aggLedger.Swiggy.pendingUnsettled.toLocaleString()}
+                <div>
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-[9px] text-stone-400 uppercase font-semibold">Is Timeframe Me Sales:</span>
+                    <span className="text-xs font-black text-orange-300">₹{filteredData.swiggyRevenue.toLocaleString()}</span>
+                  </div>
+                  <div className="my-1">
+                    <span className="text-[9px] text-stone-400 uppercase font-semibold">Bank me aana baaki hai:</span>
+                    <div className="text-lg font-black text-white">
+                      ₹{aggLedger.Swiggy.pendingUnsettled.toLocaleString()}
+                    </div>
                   </div>
                 </div>
                 <div className="text-[10px] text-stone-400 flex justify-between border-t border-stone-700/60 pt-1">
@@ -623,20 +823,26 @@ export default function FinancialDashboard({
               </div>
 
               {/* Zomato Box */}
-              <div className="bg-stone-800/80 p-3 rounded-xl border border-rose-500/30 flex flex-col justify-between">
+              <div className="bg-stone-800/80 p-3 rounded-xl border border-rose-500/30 flex flex-col justify-between space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-extrabold text-rose-400 flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-[#e5383b]"></span>
                     Zomato
                   </span>
                   <span className="text-[10px] bg-stone-700 text-stone-300 font-bold px-1.5 py-0.2 rounded">
-                    {aggLedger.Zomato.totalOrdersCount} orders
+                    {timeframe !== 'all' ? `${filteredData.zomatoOrdersCount} ord (${timeframe})` : `${aggLedger.Zomato.totalOrdersCount} ord total`}
                   </span>
                 </div>
-                <div className="my-1.5">
-                  <span className="text-[9px] text-stone-400 uppercase font-semibold">Bank me aana baaki hai:</span>
-                  <div className="text-lg font-black text-white">
-                    ₹{aggLedger.Zomato.pendingUnsettled.toLocaleString()}
+                <div>
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-[9px] text-stone-400 uppercase font-semibold">Is Timeframe Me Sales:</span>
+                    <span className="text-xs font-black text-rose-300">₹{filteredData.zomatoRevenue.toLocaleString()}</span>
+                  </div>
+                  <div className="my-1">
+                    <span className="text-[9px] text-stone-400 uppercase font-semibold">Bank me aana baaki hai:</span>
+                    <div className="text-lg font-black text-white">
+                      ₹{aggLedger.Zomato.pendingUnsettled.toLocaleString()}
+                    </div>
                   </div>
                 </div>
                 <div className="text-[10px] text-stone-400 flex justify-between border-t border-stone-700/60 pt-1">

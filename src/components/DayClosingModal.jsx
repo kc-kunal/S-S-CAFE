@@ -17,7 +17,7 @@ import {
   ArrowDownRight,
   ArrowUpRight
 } from 'lucide-react';
-import { getTodayDateString } from '../utils/storage';
+import { getTodayDateString, classifySalePaymentMethod } from '../utils/storage';
 
 export default function DayClosingModal({
   isOpen,
@@ -65,12 +65,12 @@ export default function DayClosingModal({
     logs.forEach(s => {
       const rev = Number(s.totalRevenue) || 0;
       totalRevenue += rev;
-      const mode = (s.paymentMethod || '').toLowerCase();
-      if (mode === 'cash') cashSales += rev;
-      else if (mode === 'online' || mode === 'upi') upiSales += rev;
-      else if (mode === 'swiggy') swiggySales += rev;
-      else if (mode === 'zomato') zomatoSales += rev;
-      else if (mode === 'khata' || mode === 'udhar') khataSales += rev;
+      const method = classifySalePaymentMethod(s);
+      if (method === 'cash') cashSales += rev;
+      else if (method === 'upi') upiSales += rev;
+      else if (method === 'swiggy') swiggySales += rev;
+      else if (method === 'zomato') zomatoSales += rev;
+      else if (method === 'khata') khataSales += rev;
       else cashSales += rev; // fallback
     });
 

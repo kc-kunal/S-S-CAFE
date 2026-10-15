@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { classifySalePaymentMethod } from './storage';
 
 /**
  * Filter data by timeframe
@@ -137,20 +138,19 @@ export function exportCafeDataToExcel({
   if (reportType === 'all' || reportType === 'pnl') {
     const totalRevenue = filteredSales.reduce((sum, s) => sum + (Number(s.totalRevenue) || 0), 0);
     const cashRevenue = filteredSales.reduce((sum, s) => {
-      const mode = (s.paymentMethod || '').toLowerCase();
-      return sum + (mode === 'cash' ? Number(s.totalRevenue || 0) : 0);
+      return sum + (classifySalePaymentMethod(s) === 'cash' ? Number(s.totalRevenue || 0) : 0);
     }, 0);
     const upiRevenue = filteredSales.reduce((sum, s) => {
-      const mode = (s.paymentMethod || '').toLowerCase();
-      return sum + (mode === 'online' || mode === 'upi' ? Number(s.totalRevenue || 0) : 0);
+      return sum + (classifySalePaymentMethod(s) === 'upi' ? Number(s.totalRevenue || 0) : 0);
     }, 0);
     const swiggyRevenue = filteredSales.reduce((sum, s) => {
-      const mode = (s.paymentMethod || '').toLowerCase();
-      return sum + (mode === 'swiggy' ? Number(s.totalRevenue || 0) : 0);
+      return sum + (classifySalePaymentMethod(s) === 'swiggy' ? Number(s.totalRevenue || 0) : 0);
     }, 0);
     const zomatoRevenue = filteredSales.reduce((sum, s) => {
-      const mode = (s.paymentMethod || '').toLowerCase();
-      return sum + (mode === 'zomato' ? Number(s.totalRevenue || 0) : 0);
+      return sum + (classifySalePaymentMethod(s) === 'zomato' ? Number(s.totalRevenue || 0) : 0);
+    }, 0);
+    const khataRevenue = filteredSales.reduce((sum, s) => {
+      return sum + (classifySalePaymentMethod(s) === 'khata' ? Number(s.totalRevenue || 0) : 0);
     }, 0);
     const onlineRevenue = upiRevenue + swiggyRevenue + zomatoRevenue;
     const totalUnitsSold = filteredSales.reduce((sum, s) => sum + (Number(s.quantitySold) || 0), 0);
@@ -197,6 +197,7 @@ export function exportCafeDataToExcel({
       ['     - Counter Direct UPI / QR', fmt(upiRevenue), fmtPct(upiRevenue, totalRevenue)],
       ['     - Swiggy Online Orders', fmt(swiggyRevenue), fmtPct(swiggyRevenue, totalRevenue)],
       ['     - Zomato Online Orders', fmt(zomatoRevenue), fmtPct(zomatoRevenue, totalRevenue)],
+      ['     - Khata / Udhar Credit', fmt(khataRevenue), fmtPct(khataRevenue, totalRevenue)],
       ['   Total Food Portions / Items Sold', totalUnitsSold, '—'],
 
       ['', '', ''],

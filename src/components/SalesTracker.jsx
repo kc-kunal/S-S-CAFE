@@ -31,7 +31,7 @@ import {
   Moon,
   Lock
 } from 'lucide-react';
-import { checkItemStock, calculateAggregatorLedger, getTodayDateString } from '../utils/storage';
+import { checkItemStock, calculateAggregatorLedger, getTodayDateString, classifySalePaymentMethod } from '../utils/storage';
 import OnlineOrderPunchModal from './OnlineOrderPunchModal';
 import AggregatorSettlementModal from './AggregatorSettlementModal';
 
@@ -844,28 +844,23 @@ export default function SalesTracker({
     
     // Breakdown by payment channel
     const cashRevenue = logs.reduce((sum, s) => {
-      const mode = (s.paymentMethod || '').toLowerCase();
-      return sum + (mode === 'cash' ? (Number(s.totalRevenue) || 0) : 0);
+      return sum + (classifySalePaymentMethod(s) === 'cash' ? (Number(s.totalRevenue) || 0) : 0);
     }, 0);
 
     const upiRevenue = logs.reduce((sum, s) => {
-      const mode = (s.paymentMethod || '').toLowerCase();
-      return sum + (mode === 'online' || mode === 'upi' ? (Number(s.totalRevenue) || 0) : 0);
+      return sum + (classifySalePaymentMethod(s) === 'upi' ? (Number(s.totalRevenue) || 0) : 0);
     }, 0);
 
     const swiggyRevenue = logs.reduce((sum, s) => {
-      const mode = (s.paymentMethod || '').toLowerCase();
-      return sum + (mode === 'swiggy' ? (Number(s.totalRevenue) || 0) : 0);
+      return sum + (classifySalePaymentMethod(s) === 'swiggy' ? (Number(s.totalRevenue) || 0) : 0);
     }, 0);
 
     const zomatoRevenue = logs.reduce((sum, s) => {
-      const mode = (s.paymentMethod || '').toLowerCase();
-      return sum + (mode === 'zomato' ? (Number(s.totalRevenue) || 0) : 0);
+      return sum + (classifySalePaymentMethod(s) === 'zomato' ? (Number(s.totalRevenue) || 0) : 0);
     }, 0);
 
     const khataRevenue = logs.reduce((sum, s) => {
-      const mode = (s.paymentMethod || '').toLowerCase();
-      return sum + (mode === 'khata' || mode === 'udhar' ? (Number(s.totalRevenue) || 0) : 0);
+      return sum + (classifySalePaymentMethod(s) === 'khata' ? (Number(s.totalRevenue) || 0) : 0);
     }, 0);
     
     const totalCost = logs.reduce((sum, s) => sum + (Number(s.totalCost) || 0), 0);
@@ -930,12 +925,12 @@ export default function SalesTracker({
     
     let matchesMode = true;
     if (filterPaymentMode !== 'All') {
-      const mode = (s.paymentMethod || '').toLowerCase();
-      if (filterPaymentMode === 'Cash') matchesMode = mode === 'cash';
-      else if (filterPaymentMode === 'Online') matchesMode = mode === 'online' || mode === 'upi';
-      else if (filterPaymentMode === 'Swiggy') matchesMode = mode === 'swiggy';
-      else if (filterPaymentMode === 'Zomato') matchesMode = mode === 'zomato';
-      else if (filterPaymentMode === 'Khata') matchesMode = mode === 'khata' || mode === 'udhar';
+      const method = classifySalePaymentMethod(s);
+      if (filterPaymentMode === 'Cash') matchesMode = method === 'cash';
+      else if (filterPaymentMode === 'Online') matchesMode = method === 'upi';
+      else if (filterPaymentMode === 'Swiggy') matchesMode = method === 'swiggy';
+      else if (filterPaymentMode === 'Zomato') matchesMode = method === 'zomato';
+      else if (filterPaymentMode === 'Khata') matchesMode = method === 'khata';
     }
 
     return matchesDate && matchesSearch && matchesMode;
@@ -2176,7 +2171,7 @@ export default function SalesTracker({
           ) : (
             <div className="space-y-3.5">
               {groupedTokenOrders.map((order) => {
-                const mode = (order.paymentMethod || '').toLowerCase();
+                const mode = classifySalePaymentMethod(order);
                 let badgeClass = 'bg-emerald-100 text-emerald-800 border-emerald-200';
                 let badgeLabel = '💵 Cash';
 
@@ -2331,7 +2326,7 @@ export default function SalesTracker({
                   </thead>
                   <tbody className="divide-y divide-stone-200 text-stone-700">
                     {filteredLogs.map((sale) => {
-                      const mode = (sale.paymentMethod || '').toLowerCase();
+                      const mode = classifySalePaymentMethod(sale);
                       
                       let badgeClass = 'bg-emerald-100 text-emerald-800 border-emerald-200';
                       let badgeLabel = '💵 Cash';
@@ -2423,7 +2418,7 @@ export default function SalesTracker({
               {/* Mobile Cards View */}
               <div className="md:hidden space-y-2.5">
                 {filteredLogs.map((sale) => {
-                  const mode = (sale.paymentMethod || '').toLowerCase();
+                  const mode = classifySalePaymentMethod(sale);
                   let badgeClass = 'bg-emerald-100 text-emerald-800';
                   let badgeLabel = '💵 Cash';
 
