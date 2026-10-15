@@ -24,7 +24,8 @@ import {
   Percent,
   Layers,
   ArrowRight,
-  HelpCircle
+  HelpCircle,
+  ChevronDown
 } from 'lucide-react';
 import { calculateAggregatorLedger } from '../utils/storage';
 
@@ -262,44 +263,20 @@ export default function FinancialDashboard({
         </div>
 
         <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
-          {/* Timeframe selector tabs */}
-          <div className="flex items-center bg-stone-100 p-1 rounded-xl border border-stone-200 text-xs font-bold">
-            <button
-              type="button"
-              onClick={() => setTimeframe('daily')}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                timeframe === 'daily' ? 'bg-amber-600 text-white shadow-xs' : 'text-stone-600 hover:text-stone-900'
-              }`}
+          {/* Timeframe Dropdown (Today / Weekly / Monthly / All Time) */}
+          <div className="relative flex items-center">
+            <Calendar className="w-3.5 h-3.5 absolute left-3 text-stone-500 pointer-events-none" />
+            <select
+              value={timeframe}
+              onChange={(e) => setTimeframe(e.target.value)}
+              className="pl-8 pr-8 py-2 bg-stone-100 hover:bg-stone-200/80 border border-stone-200 rounded-xl text-xs font-bold text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 cursor-pointer transition-all shadow-2xs appearance-none"
             >
-              Aaj (Daily)
-            </button>
-            <button
-              type="button"
-              onClick={() => setTimeframe('weekly')}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                timeframe === 'weekly' ? 'bg-amber-600 text-white shadow-xs' : 'text-stone-600 hover:text-stone-900'
-              }`}
-            >
-              7 Din (Weekly)
-            </button>
-            <button
-              type="button"
-              onClick={() => setTimeframe('monthly')}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                timeframe === 'monthly' ? 'bg-amber-600 text-white shadow-xs' : 'text-stone-600 hover:text-stone-900'
-              }`}
-            >
-              Mahina (Monthly)
-            </button>
-            <button
-              type="button"
-              onClick={() => setTimeframe('all')}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                timeframe === 'all' ? 'bg-amber-600 text-white shadow-xs' : 'text-stone-600 hover:text-stone-900'
-              }`}
-            >
-              All Time
-            </button>
+              <option value="daily">📅 Today (Daily / Aaj)</option>
+              <option value="weekly">📊 Weekly (Pichhle 7 Din)</option>
+              <option value="monthly">🗓️ Monthly (Is Mahine)</option>
+              <option value="all">🌐 All Time (Sabhi Records)</option>
+            </select>
+            <ChevronDown className="w-3.5 h-3.5 absolute right-2.5 text-stone-400 pointer-events-none" />
           </div>
 
           {/* Daily Date Selector with Prev / Today / Next buttons */}
