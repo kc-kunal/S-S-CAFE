@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Plus, 
   Minus,
@@ -34,6 +34,120 @@ import {
 import { checkItemStock, calculateAggregatorLedger } from '../utils/storage';
 import OnlineOrderPunchModal from './OnlineOrderPunchModal';
 import AggregatorSettlementModal from './AggregatorSettlementModal';
+
+// 🔢 Helper to extract integer token number from token string (e.g. "#C-103" -> 103, "SWG-102" -> 102, "101" -> 101)
+export const extractTokenNumber = (tokenStr) => {
+  if (!tokenStr) return null;
+  const str = String(tokenStr).trim();
+  const cMatch = str.match(/(?:C|SWG|ZOM)-?(\d+)/i);
+  if (cMatch && cMatch[1]) {
+    const num = parseInt(cMatch[1], 10);
+    if (!isNaN(num)) return num;
+  }
+  const anyNum = str.match(/(\d+)/);
+  if (anyNum && anyNum[1]) {
+    const num = parseInt(anyNum[1], 10);
+    if (!isNaN(num)) return num;
+  }
+  return null;
+};
+
+// 🎫 Calculate next Counter Token for selected date based on punched salesLogs + localStorage
+export const getNextCounterTokenInfo = (salesLogs = [], targetDate = '') => {
+  const dateStr = targetDate || new Date().toISOString().split('T')[0];
+  let maxPunched = 0;
+
+  if (Array.isArray(salesLogs)) {
+    salesLogs.forEach(s => {
+      if (s.date === dateStr && s.platformOrderId) {
+        const isCounterOrder = !s.paymentMethod || 
+          ['cash', 'online', 'upi', 'khata', 'udhar'].includes(String(s.paymentMethod).toLowerCase()) ||
+          /C-/i.test(s.platformOrderId);
+          
+        if (isCounterOrder) {
+          const num = extractTokenNumber(s.platformOrderId);
+          if (num !== null && num > maxPunched && num < 100000) {
+            maxPunched = num;
+          }
+        }
+      }
+    });
+  }
+
+  let storedNext = 0;
+  try {
+    const stored = localStorage.getItem(`cafe_counter_token_${dateStr}`);
+    if (stored) {
+      const parsed = parseInt(stored, 10);
+      if (!isNaN(parsed) && parsed > 0 && parsed < 100000) {
+        storedNext = parsed;
+      }
+    }
+  } catch (e) {
+    // ignore localStorage errors
+  }
+
+  let nextNum = 101;
+  if (maxPunched > 0) {
+    nextNum = Math.max(maxPunched + 1, storedNext);
+  } else if (storedNext > 0) {
+    nextNum = storedNext;
+  }
+
+  return {
+    nextNum,
+    tokenStr: `C-${nextNum}`
+  };
+};
+
+// 🛵 Calculate next Online Token for selected date & platform
+export const getNextOnlineTokenInfo = (salesLogs = [], targetDate = '', platform = 'Swiggy') => {
+  const dateStr = targetDate || new Date().toISOString().split('T')[0];
+  const prefix = platform === 'Swiggy' ? 'SWG' : 'ZOM';
+  let maxPunched = 0;
+
+  if (Array.isArray(salesLogs)) {
+    salesLogs.forEach(s => {
+      if (s.date === dateStr && s.platformOrderId) {
+        const isPlatform = s.paymentMethod && 
+          String(s.paymentMethod).toLowerCase() === platform.toLowerCase();
+        const hasPrefix = new RegExp(prefix, 'i').test(s.platformOrderId);
+
+        if (isPlatform || hasPrefix) {
+          const num = extractTokenNumber(s.platformOrderId);
+          if (num !== null && num > maxPunched && num < 100000) {
+            maxPunched = num;
+          }
+        }
+      }
+    });
+  }
+
+  let storedNext = 0;
+  try {
+    const stored = localStorage.getItem(`cafe_online_token_${platform}_${dateStr}`);
+    if (stored) {
+      const parsed = parseInt(stored, 10);
+      if (!isNaN(parsed) && parsed > 0 && parsed < 100000) {
+        storedNext = parsed;
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  let nextNum = 101;
+  if (maxPunched > 0) {
+    nextNum = Math.max(maxPunched + 1, storedNext);
+  } else if (storedNext > 0) {
+    nextNum = storedNext;
+  }
+
+  return {
+    nextNum,
+    tokenStr: `${prefix}-${nextNum}`
+  };
+};
 
 export default function SalesTracker({ 
   menuItems = [], 
@@ -76,8 +190,12 @@ export default function SalesTracker({
   const [counterPaymentMode, setCounterPaymentMode] = useState('Cash'); // 'Cash', 'Online' (Counter UPI), or 'Khata' (Udhar)
   const [khataCustomerName, setKhataCustomerName] = useState('');
   const [khataCustomerPhone, setKhataCustomerPhone] = useState('');
-  const [counterTokenNum, setCounterTokenNum] = useState(101);
-  const [counterToken, setCounterToken] = useState('C-101');
+  const [counterTokenNum, setCounterTokenNum] = useState(() => {
+    return getNextCounterTokenInfo(salesLogs, new Date().toISOString().split('T')[0]).nextNum;
+  });
+  const [counterToken, setCounterToken] = useState(() => {
+    return getNextCounterTokenInfo(salesLogs, new Date().toISOString().split('T')[0]).tokenStr;
+  });
   const [counterNotes, setCounterNotes] = useState('');
   const [counterDiscount, setCounterDiscount] = useState(0);
   const [counterCart, setCounterCart] = useState({}); // { [itemId]: { item, qty, price } }
@@ -85,13 +203,44 @@ export default function SalesTracker({
 
   // 🛵 Online Aggregator (Swiggy / Zomato) State
   const [onlinePlatform, setOnlinePlatform] = useState('Swiggy'); // 'Swiggy' or 'Zomato'
-  const [onlineTokenNum, setOnlineTokenNum] = useState(101);
-  const [onlineToken, setOnlineToken] = useState('SWG-101');
+  const [onlineTokenNum, setOnlineTokenNum] = useState(() => {
+    return getNextOnlineTokenInfo(salesLogs, new Date().toISOString().split('T')[0], 'Swiggy').nextNum;
+  });
+  const [onlineToken, setOnlineToken] = useState(() => {
+    return getNextOnlineTokenInfo(salesLogs, new Date().toISOString().split('T')[0], 'Swiggy').tokenStr;
+  });
   const [onlineRiderNotes, setOnlineRiderNotes] = useState('');
   const [onlineDiscountType, setOnlineDiscountType] = useState('none');
   const [onlineCustomDiscount, setOnlineCustomDiscount] = useState('');
   const [onlinePackaging, setOnlinePackaging] = useState(0);
   const [onlineCart, setOnlineCart] = useState({}); // { [itemId]: { item, qty, price } }
+
+  // 🔄 Sync Counter Token automatically with today's punched orders & localStorage
+  const lastCounterDateRef = useRef(saleDate);
+  useEffect(() => {
+    const dateChanged = lastCounterDateRef.current !== saleDate;
+    lastCounterDateRef.current = saleDate;
+
+    const info = getNextCounterTokenInfo(salesLogs, saleDate);
+    if (dateChanged || counterTokenNum < info.nextNum) {
+      setCounterTokenNum(info.nextNum);
+      setCounterToken(info.tokenStr);
+    }
+  }, [salesLogs, saleDate]);
+
+  // 🔄 Sync Online Token automatically with today's punched online orders & localStorage
+  const lastOnlineKeyRef = useRef(`${saleDate}_${onlinePlatform}`);
+  useEffect(() => {
+    const key = `${saleDate}_${onlinePlatform}`;
+    const keyChanged = lastOnlineKeyRef.current !== key;
+    lastOnlineKeyRef.current = key;
+
+    const info = getNextOnlineTokenInfo(salesLogs, saleDate, onlinePlatform);
+    if (keyChanged || onlineTokenNum < info.nextNum) {
+      setOnlineTokenNum(info.nextNum);
+      setOnlineToken(info.tokenStr);
+    }
+  }, [salesLogs, saleDate, onlinePlatform]);
 
   // Live session punch history
   const [sessionPunchedOrders, setSessionPunchedOrders] = useState([]);
@@ -428,6 +577,9 @@ export default function SalesTracker({
     const nextTokenNum = counterTokenNum + 1;
     setCounterTokenNum(nextTokenNum);
     setCounterToken(`C-${nextTokenNum}`);
+    try {
+      localStorage.setItem(`cafe_counter_token_${saleDate}`, String(nextTokenNum));
+    } catch (e) {}
 
     if (showToast) {
       showToast(`⚡ Order ${token} Punched (₹${orderFinalBill})!`);
@@ -592,6 +744,9 @@ export default function SalesTracker({
     setOnlineTokenNum(nextTokenNum);
     const nextPrefix = onlinePlatform === 'Swiggy' ? 'SWG' : 'ZOM';
     setOnlineToken(`${nextPrefix}-${nextTokenNum}`);
+    try {
+      localStorage.setItem(`cafe_online_token_${onlinePlatform}_${saleDate}`, String(nextTokenNum));
+    } catch (e) {}
   };
 
   // Backward compatible quick sale helpers
@@ -963,7 +1118,17 @@ export default function SalesTracker({
                   <input
                     type="text"
                     value={counterToken}
-                    onChange={(e) => setCounterToken(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCounterToken(val);
+                      const parsed = extractTokenNumber(val);
+                      if (parsed) {
+                        setCounterTokenNum(parsed);
+                        try {
+                          localStorage.setItem(`cafe_counter_token_${saleDate}`, String(parsed));
+                        } catch (err) {}
+                      }
+                    }}
                     className="w-16 text-xs font-black text-stone-900 focus:outline-none uppercase"
                     placeholder="C-101"
                   />
@@ -973,6 +1138,9 @@ export default function SalesTracker({
                       const next = counterTokenNum + 1;
                       setCounterTokenNum(next);
                       setCounterToken(`C-${next}`);
+                      try {
+                        localStorage.setItem(`cafe_counter_token_${saleDate}`, String(next));
+                      } catch (err) {}
                     }}
                     className="text-[10px] font-extrabold bg-stone-100 hover:bg-stone-200 text-stone-700 px-1 py-0.2 rounded cursor-pointer"
                     title="Next Token"
@@ -1037,9 +1205,9 @@ export default function SalesTracker({
                   type="button"
                   onClick={() => {
                     setOnlinePlatform('Swiggy');
-                    if (onlineToken === '101' || onlineToken.startsWith('ZOM-')) {
-                      setOnlineToken(`SWG-${onlineTokenNum}`);
-                    }
+                    const info = getNextOnlineTokenInfo(salesLogs, saleDate, 'Swiggy');
+                    setOnlineTokenNum(info.nextNum);
+                    setOnlineToken(info.tokenStr);
                   }}
                   className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     onlinePlatform === 'Swiggy'
@@ -1055,9 +1223,9 @@ export default function SalesTracker({
                   type="button"
                   onClick={() => {
                     setOnlinePlatform('Zomato');
-                    if (onlineToken === '101' || onlineToken.startsWith('SWG-')) {
-                      setOnlineToken(`ZOM-${onlineTokenNum}`);
-                    }
+                    const info = getNextOnlineTokenInfo(salesLogs, saleDate, 'Zomato');
+                    setOnlineTokenNum(info.nextNum);
+                    setOnlineToken(info.tokenStr);
                   }}
                   className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     onlinePlatform === 'Zomato'
@@ -1076,7 +1244,17 @@ export default function SalesTracker({
                   <input
                     type="text"
                     value={onlineToken}
-                    onChange={(e) => setOnlineToken(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setOnlineToken(val);
+                      const parsed = extractTokenNumber(val);
+                      if (parsed) {
+                        setOnlineTokenNum(parsed);
+                        try {
+                          localStorage.setItem(`cafe_online_token_${onlinePlatform}_${saleDate}`, String(parsed));
+                        } catch (err) {}
+                      }
+                    }}
                     className="w-20 text-xs font-black text-stone-900 focus:outline-none uppercase"
                     placeholder="5894"
                   />
@@ -1086,6 +1264,9 @@ export default function SalesTracker({
                       const next = onlineTokenNum + 1;
                       setOnlineTokenNum(next);
                       setOnlineToken(String(next));
+                      try {
+                        localStorage.setItem(`cafe_online_token_${onlinePlatform}_${saleDate}`, String(next));
+                      } catch (err) {}
                     }}
                     className="text-[10px] font-extrabold bg-stone-100 hover:bg-stone-200 text-stone-700 px-1 py-0.2 rounded cursor-pointer"
                     title="Next Token"
