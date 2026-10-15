@@ -95,289 +95,403 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
   }, [inventoryItems, searchQuery, categoryFilter, statusFilter]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3.5">
       
-      {/* Metrics Bar */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+      {/* 4-KPI Summary Strip */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
         
-        <div className="bg-white rounded-2xl p-3.5 sm:p-4 border border-stone-200 shadow-sm flex items-center justify-between">
-          <div>
-            <p className="text-[10px] sm:text-[11px] font-bold text-stone-400 uppercase">Items</p>
-            <h3 className="text-xl sm:text-2xl font-extrabold text-stone-900 mt-1">{totalItems}</h3>
+        {/* Total Items */}
+        <button
+          type="button"
+          onClick={() => setStatusFilter('ALL')}
+          className={`bg-white rounded-2xl p-3 sm:p-3.5 border transition-all text-left cursor-pointer group shadow-xs ${
+            statusFilter === 'ALL'
+              ? 'border-amber-500 ring-2 ring-amber-500/10'
+              : 'border-stone-200 hover:border-stone-300'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-stone-500">
+              Total Materials
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center group-hover:bg-amber-100 transition-colors">
+              <Package className="w-4 h-4" />
+            </div>
           </div>
-          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center">
-            <Package className="w-4 sm:w-5 h-4 sm:h-5" />
+          <div className="mt-1 flex items-baseline gap-1.5">
+            <h3 className="text-xl sm:text-2xl font-black text-stone-900">{totalItems}</h3>
+            <span className="text-[11px] font-semibold text-stone-400">items</span>
+          </div>
+        </button>
+
+        {/* Total Stock Valuation */}
+        <div className="bg-white rounded-2xl p-3 sm:p-3.5 border border-stone-200 shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-stone-500">
+              Stock Valuation
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
+              <Layers className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-1 flex items-baseline gap-1">
+            <h3 className="text-xl sm:text-2xl font-black text-amber-900">₹{Math.round(totalValuation).toLocaleString()}</h3>
+            <span className="text-[10px] font-bold text-stone-400">est.</span>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-3.5 sm:p-4 border border-stone-200 shadow-sm flex items-center justify-between">
-          <div>
-            <p className="text-[10px] sm:text-[11px] font-bold text-stone-400 uppercase">Stock Valuation</p>
-            <h3 className="text-xl sm:text-2xl font-extrabold text-amber-900 mt-1">₹{totalValuation.toLocaleString()}</h3>
+        {/* Low Stock Alerts */}
+        <button
+          type="button"
+          onClick={() => setStatusFilter(statusFilter === 'LOW' ? 'ALL' : 'LOW')}
+          className={`bg-white rounded-2xl p-3 sm:p-3.5 border transition-all text-left cursor-pointer group shadow-xs ${
+            statusFilter === 'LOW'
+              ? 'border-amber-500 ring-2 ring-amber-500/10 bg-amber-50/20'
+              : 'border-stone-200 hover:border-stone-300'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-stone-500">
+              Low Alerts
+            </span>
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${
+              lowStockCount > 0 ? 'bg-amber-100 text-amber-800 animate-pulse' : 'bg-stone-100 text-stone-400'
+            }`}>
+              <AlertTriangle className="w-4 h-4" />
+            </div>
           </div>
-          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
-            <Layers className="w-4 sm:w-5 h-4 sm:h-5" />
+          <div className="mt-1 flex items-baseline gap-1.5">
+            <h3 className={`text-xl sm:text-2xl font-black ${lowStockCount > 0 ? 'text-amber-700' : 'text-stone-900'}`}>
+              {lowStockCount}
+            </h3>
+            {lowStockCount > 0 && (
+              <span className="text-[10px] font-extrabold text-amber-700 bg-amber-100 px-1.5 py-0.2 rounded-md">
+                Reorder
+              </span>
+            )}
           </div>
-        </div>
+        </button>
 
-        <div className="bg-white rounded-2xl p-3.5 sm:p-4 border border-stone-200 shadow-sm flex items-center justify-between">
-          <div>
-            <p className="text-[10px] sm:text-[11px] font-bold text-stone-400 uppercase">Low Alerts</p>
-            <h3 className="text-xl sm:text-2xl font-extrabold text-amber-700 mt-1">{lowStockCount}</h3>
+        {/* Out of Stock */}
+        <button
+          type="button"
+          onClick={() => setStatusFilter(statusFilter === 'OUT' ? 'ALL' : 'OUT')}
+          className={`bg-white rounded-2xl p-3 sm:p-3.5 border transition-all text-left cursor-pointer group shadow-xs ${
+            statusFilter === 'OUT'
+              ? 'border-rose-500 ring-2 ring-rose-500/10 bg-rose-50/20'
+              : 'border-stone-200 hover:border-stone-300'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-stone-500">
+              Out of Stock
+            </span>
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${
+              outOfStockCount > 0 ? 'bg-rose-100 text-rose-700' : 'bg-stone-100 text-stone-400'
+            }`}>
+              <XCircle className="w-4 h-4" />
+            </div>
           </div>
-          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center">
-            <AlertTriangle className="w-4 sm:w-5 h-4 sm:h-5" />
+          <div className="mt-1 flex items-baseline gap-1.5">
+            <h3 className={`text-xl sm:text-2xl font-black ${outOfStockCount > 0 ? 'text-rose-700' : 'text-stone-900'}`}>
+              {outOfStockCount}
+            </h3>
+            {outOfStockCount > 0 && (
+              <span className="text-[10px] font-extrabold text-rose-700 bg-rose-100 px-1.5 py-0.2 rounded-md">
+                Urgent
+              </span>
+            )}
           </div>
-        </div>
-
-        <div className="bg-white rounded-2xl p-3.5 sm:p-4 border border-stone-200 shadow-sm flex items-center justify-between">
-          <div>
-            <p className="text-[10px] sm:text-[11px] font-bold text-stone-400 uppercase">Out of Stock</p>
-            <h3 className="text-xl sm:text-2xl font-extrabold text-rose-700 mt-1">{outOfStockCount}</h3>
-          </div>
-          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center">
-            <XCircle className="w-4 sm:w-5 h-4 sm:h-5" />
-          </div>
-        </div>
+        </button>
 
       </div>
 
-      {/* Control Bar: Search & Add Item */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-3.5 sm:p-4 shadow-sm space-y-3 sm:space-y-4">
-        <div className="flex flex-col lg:flex-row gap-2.5 sm:gap-3 items-stretch lg:items-center justify-between">
+      {/* Control Bar: Search & Action Controls */}
+      <div className="bg-white rounded-2xl border border-stone-200 p-3 sm:p-3.5 shadow-xs">
+        <div className="flex flex-col lg:flex-row gap-2.5 items-stretch lg:items-center justify-between">
           
-          <div className="w-full lg:w-80 relative">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
+          {/* Search Box */}
+          <div className="w-full lg:w-72 relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search inventory material..."
-              className="w-full pl-10 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-semibold focus:outline-none"
+              placeholder="Search raw materials..."
+              className="w-full pl-9 pr-8 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-semibold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 text-xs font-bold"
+              >
+                ✕
+              </button>
+            )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full lg:w-auto">
+          {/* Filters & Action Buttons */}
+          <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+            
+            {/* Category Filter */}
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="flex-1 sm:flex-initial bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-xs font-semibold text-stone-700"
+              className="flex-1 sm:flex-initial bg-stone-50 border border-stone-200 rounded-xl px-2.5 py-2 text-xs font-bold text-stone-700 focus:outline-none focus:ring-2 focus:ring-amber-500/20 cursor-pointer"
             >
               <option value="ALL">All Categories</option>
               {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
 
+            {/* Status Filter */}
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="flex-1 sm:flex-initial bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-xs font-semibold text-stone-700"
+              className="flex-1 sm:flex-initial bg-stone-50 border border-stone-200 rounded-xl px-2.5 py-2 text-xs font-bold text-stone-700 focus:outline-none focus:ring-2 focus:ring-amber-500/20 cursor-pointer"
             >
               <option value="ALL">All Stock Status</option>
               <option value="OK">In Stock Only</option>
-              <option value="LOW">Low Stock Alerts Only</option>
-              <option value="OUT">Out of Stock Only</option>
+              <option value="LOW">Low Stock Alerts</option>
+              <option value="OUT">Out of Stock</option>
             </select>
 
+            {/* Log Purchase Button */}
             {onNavigateToProcurement && (
               <button
                 type="button"
                 onClick={onNavigateToProcurement}
-                className="w-full sm:w-auto px-4 py-2 bg-stone-900 hover:bg-stone-800 text-amber-300 text-xs font-bold rounded-xl shadow transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-stone-700"
+                className="w-full sm:w-auto px-3.5 py-2 bg-stone-900 hover:bg-stone-800 text-amber-300 text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-stone-700 active:scale-95"
                 title="Khareeda hua maal log karein aur stock badhayein"
               >
-                <PackageCheck className="w-4 h-4 text-emerald-400" />
-                <span>+ Log Purchase (Maal Khareedo)</span>
+                <PackageCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span>+ Log Purchase</span>
               </button>
             )}
 
+            {/* Add Raw Material Button */}
             <button
+              type="button"
               onClick={handleOpenAdd}
-              className="w-full sm:w-auto px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-xl shadow transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              className="w-full sm:w-auto px-3.5 py-2 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white text-xs font-bold rounded-xl shadow-md shadow-amber-600/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
             >
               <Plus className="w-4 h-4" />
-              <span>Add Raw Material Item</span>
+              <span>Add Raw Material</span>
             </button>
           </div>
 
         </div>
       </div>
 
-      {/* Inventory List Container */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-4 sm:p-6 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-          <div>
-            <h3 className="text-sm sm:text-base font-bold text-stone-900">Stock Levels & Inventory Status</h3>
-            <p className="text-[11px] text-stone-500 mt-0.5">
-              💡 <strong>Purchases</strong> tab me jo bhi maal khareedte hain, wo automatically yahan stock me jud jata hai.
-            </p>
+      {/* Main Stock List Card */}
+      <div className="bg-white rounded-2xl border border-stone-200 p-3.5 sm:p-4 shadow-xs">
+        
+        {/* Table/List Subheader */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 mb-3 border-b border-stone-100">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="text-sm font-extrabold text-stone-900">Inventory Stock Levels</h3>
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-stone-100 text-stone-600 border border-stone-200">
+              {filteredItems.length} items
+            </span>
+            <span className="text-[11px] text-stone-400 hidden lg:inline">
+              • Purchases tab me add kiya maal auto-stock update karta hai
+            </span>
           </div>
+
           {onNavigateToProcurement && (
             <button
               type="button"
               onClick={onNavigateToProcurement}
-              className="text-xs text-amber-800 hover:text-amber-900 font-bold underline flex items-center gap-1 cursor-pointer self-start sm:self-auto"
+              className="text-xs text-amber-700 hover:text-amber-800 font-bold underline flex items-center gap-1 cursor-pointer self-start sm:self-auto"
             >
-              <span>View All Purchase Bills →</span>
+              <span>View Purchase Bills →</span>
             </button>
           )}
         </div>
 
         {filteredItems.length === 0 ? (
-          <p className="text-xs text-stone-400 py-8 text-center">No inventory items match the current filter.</p>
+          <div className="text-center py-10 px-4">
+            <div className="w-12 h-12 rounded-2xl bg-stone-100 text-stone-400 mx-auto flex items-center justify-center mb-2">
+              <Package className="w-6 h-6" />
+            </div>
+            <p className="text-xs font-bold text-stone-700">No inventory materials found</p>
+            <p className="text-[11px] text-stone-400 mt-0.5">Try clearing filters or search term, or click "+ Add Raw Material" above.</p>
+          </div>
         ) : (
           <>
             {/* Desktop Table View */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-left border-collapse text-sm">
-            <thead>
-              <tr className="bg-stone-950 text-amber-100 text-xs font-bold uppercase tracking-wider">
-                <th className="py-3 px-4">Material Name</th>
-                <th className="py-3 px-4">Category</th>
-                <th className="py-3 px-4 text-center">Current Stock</th>
-                <th className="py-3 px-4 text-center">Reorder Level</th>
-                <th className="py-3 px-4 text-right">Est. Unit Cost</th>
-                <th className="py-3 px-4 text-right">Total Value</th>
-                <th className="py-3 px-4 text-center">Stock Status</th>
-                <th className="py-3 px-4 text-center">Quick Stock Adjust</th>
-                <th className="py-3 px-4 text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-stone-200 text-stone-700">
-              {filteredItems.map(item => {
-                const stockVal = item.currentStock * (item.unitCost || 0);
-                const isOut = item.currentStock <= 0;
-                const isLow = item.currentStock > 0 && item.currentStock <= item.reorderLevel;
-
-                return (
-                  <tr key={item.id} className="hover:bg-amber-50/40 transition-colors">
-                    <td className="py-3.5 px-4 font-bold text-stone-900">{item.materialName}</td>
-                    <td className="py-3.5 px-4">
-                      <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-stone-100 border border-stone-200">
-                        {item.category}
-                      </span>
-                    </td>
-                    
-                    {/* Current Stock */}
-                    <td className="py-3.5 px-4 text-center font-extrabold text-base text-stone-900">
-                      {item.currentStock} <span className="text-xs font-normal text-stone-500">{item.unit}</span>
-                    </td>
-
-                    {/* Reorder Threshold */}
-                    <td className="py-3.5 px-4 text-center text-xs font-semibold text-stone-500">
-                      {item.reorderLevel} {item.unit}
-                    </td>
-
-                    {/* Unit Cost */}
-                    <td className="py-3.5 px-4 text-right text-xs font-semibold text-stone-600">
-                      ₹{item.unitCost || 0}
-                    </td>
-
-                    {/* Total Value */}
-                    <td className="py-3.5 px-4 text-right font-extrabold text-amber-900">
-                      ₹{stockVal.toLocaleString()}
-                    </td>
-
-                    {/* Stock Status Badge */}
-                    <td className="py-3.5 px-4 text-center">
-                      {isOut ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800">
-                          <XCircle className="w-3.5 h-3.5 text-rose-600" />
-                          <span>Out of Stock</span>
-                        </span>
-                      ) : isLow ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900">
-                          <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-                          <span>Low Stock</span>
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>In Stock</span>
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Quick Adjust Buttons */}
-                    <td className="py-3.5 px-4 text-center">
-                      <div className="flex items-center justify-center space-x-1">
-                        <button
-                          onClick={() => onAdjustStock(item.id, -1)}
-                          className="w-7 h-7 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold flex items-center justify-center border border-stone-300"
-                          title="Decrease Stock (-1)"
-                        >
-                          -
-                        </button>
-                        <button
-                          onClick={() => onAdjustStock(item.id, 1)}
-                          className="w-7 h-7 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold flex items-center justify-center border border-stone-300"
-                          title="Increase Stock (+1)"
-                        >
-                          +
-                        </button>
-                        <button
-                          onClick={() => onAdjustStock(item.id, 5)}
-                          className="px-2 py-0.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold text-xs border border-stone-300"
-                          title="Add +5 Stock"
-                        >
-                          +5
-                        </button>
-                      </div>
-                    </td>
-
-                    {/* Actions */}
-                    <td className="py-3.5 px-4 text-center space-x-1">
-                      <button
-                        onClick={() => handleOpenEdit(item)}
-                        className="p-1.5 text-stone-600 hover:text-amber-800 hover:bg-amber-50 rounded-lg cursor-pointer"
-                        title="Edit Item"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => onDeleteItem(item.id)}
-                        className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer"
-                        title="Delete Item"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-
+            <div className="hidden md:block overflow-x-auto rounded-xl border border-stone-200">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-stone-50/90 text-stone-600 font-extrabold uppercase tracking-wider text-[10px] border-b border-stone-200">
+                    <th className="py-2.5 px-3.5">Material</th>
+                    <th className="py-2.5 px-3">Category</th>
+                    <th className="py-2.5 px-3 text-center">Current Stock</th>
+                    <th className="py-2.5 px-3 text-center">Alert Level</th>
+                    <th className="py-2.5 px-3 text-right">Unit Cost</th>
+                    <th className="py-2.5 px-3 text-right">Est. Value</th>
+                    <th className="py-2.5 px-3 text-center">Status</th>
+                    <th className="py-2.5 px-3 text-center">Quick Adjust</th>
+                    <th className="py-2.5 px-3 text-center">Actions</th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody className="divide-y divide-stone-100 text-stone-700">
+                  {filteredItems.map(item => {
+                    const stockVal = item.currentStock * (item.unitCost || 0);
+                    const isOut = item.currentStock <= 0;
+                    const isLow = item.currentStock > 0 && item.currentStock <= item.reorderLevel;
+
+                    return (
+                      <tr key={item.id} className="hover:bg-amber-50/40 transition-colors">
+                        
+                        {/* Material Name */}
+                        <td className="py-2.5 px-3.5 font-bold text-stone-900">
+                          {item.materialName}
+                        </td>
+
+                        {/* Category */}
+                        <td className="py-2.5 px-3">
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-stone-100 text-stone-600 border border-stone-200">
+                            {item.category}
+                          </span>
+                        </td>
+                        
+                        {/* Current Stock */}
+                        <td className="py-2.5 px-3 text-center">
+                          <span className={`font-black text-sm ${
+                            isOut ? 'text-rose-600' : isLow ? 'text-amber-700' : 'text-stone-900'
+                          }`}>
+                            {item.currentStock}
+                          </span>
+                          <span className="text-[11px] font-semibold text-stone-500 ml-1">{item.unit}</span>
+                        </td>
+
+                        {/* Reorder Threshold */}
+                        <td className="py-2.5 px-3 text-center text-stone-500 font-semibold">
+                          {item.reorderLevel} {item.unit}
+                        </td>
+
+                        {/* Unit Cost */}
+                        <td className="py-2.5 px-3 text-right font-medium text-stone-600">
+                          ₹{Number(item.unitCost || 0).toFixed(1)}
+                        </td>
+
+                        {/* Total Value */}
+                        <td className="py-2.5 px-3 text-right font-black text-amber-900">
+                          ₹{Math.round(stockVal).toLocaleString()}
+                        </td>
+
+                        {/* Stock Status Badge */}
+                        <td className="py-2.5 px-3 text-center">
+                          {isOut ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-800">
+                              <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
+                              <span>Out of Stock</span>
+                            </span>
+                          ) : isLow ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
+                              <span>Low Stock</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                              <span>In Stock</span>
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Quick Adjust Buttons */}
+                        <td className="py-2.5 px-3 text-center">
+                          <div className="flex items-center justify-center space-x-1">
+                            <button
+                              type="button"
+                              onClick={() => onAdjustStock(item.id, -1)}
+                              className="w-6 h-6 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold flex items-center justify-center border border-stone-300 cursor-pointer active:scale-95 transition-all"
+                              title="Decrease (-1)"
+                            >
+                              -1
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onAdjustStock(item.id, 1)}
+                              className="w-6 h-6 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold flex items-center justify-center border border-stone-300 cursor-pointer active:scale-95 transition-all"
+                              title="Increase (+1)"
+                            >
+                              +1
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onAdjustStock(item.id, 5)}
+                              className="px-1.5 h-6 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold text-[10px] border border-stone-300 cursor-pointer active:scale-95 transition-all"
+                              title="Add +5"
+                            >
+                              +5
+                            </button>
+                          </div>
+                        </td>
+
+                        {/* Actions */}
+                        <td className="py-2.5 px-3 text-center">
+                          <div className="flex items-center justify-center space-x-1">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEdit(item)}
+                              className="p-1 text-stone-600 hover:text-amber-800 hover:bg-amber-50 rounded-lg cursor-pointer transition-colors"
+                              title="Edit Material"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onDeleteItem(item.id)}
+                              className="p-1 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
+                              title="Delete Material"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
 
             {/* Mobile Cards View */}
-            <div className="md:hidden space-y-3">
+            <div className="md:hidden space-y-2.5">
               {filteredItems.map(item => {
                 const stockVal = item.currentStock * (item.unitCost || 0);
                 const isOut = item.currentStock <= 0;
                 const isLow = item.currentStock > 0 && item.currentStock <= item.reorderLevel;
 
                 return (
-                  <div key={item.id} className="p-3.5 bg-stone-50/70 border border-stone-200 rounded-2xl space-y-2.5 shadow-2xs">
+                  <div key={item.id} className="p-3 bg-stone-50/70 border border-stone-200 rounded-xl space-y-2 shadow-2xs">
+                    
                     {/* Header */}
                     <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <h4 className="font-bold text-stone-900 text-sm truncate">{item.materialName}</h4>
-                        <span className="text-[10px] font-semibold text-stone-600 bg-white px-2 py-0.5 rounded-full border border-stone-200 shrink-0">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <h4 className="font-bold text-stone-900 text-xs truncate">{item.materialName}</h4>
+                        <span className="text-[10px] font-semibold text-stone-600 bg-white px-2 py-0.2 rounded-md border border-stone-200 shrink-0">
                           {item.category}
                         </span>
                       </div>
 
                       <div className="flex items-center space-x-1 shrink-0">
                         <button
+                          type="button"
                           onClick={() => handleOpenEdit(item)}
-                          className="p-1.5 text-stone-600 hover:text-amber-800 hover:bg-amber-50 rounded-lg cursor-pointer"
+                          className="p-1 text-stone-600 hover:text-amber-800 hover:bg-amber-50 rounded-lg cursor-pointer"
                           title="Edit Item"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
+                          type="button"
                           onClick={() => onDeleteItem(item.id)}
-                          className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer"
+                          className="p-1 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer"
                           title="Delete Item"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -385,34 +499,34 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
                       </div>
                     </div>
 
-                    {/* Stock Details Grid */}
-                    <div className="grid grid-cols-3 gap-2 bg-white p-2.5 rounded-xl border border-stone-200/80 text-center">
+                    {/* Stock Details 3-Box Strip */}
+                    <div className="grid grid-cols-3 gap-1.5 bg-white p-2 rounded-xl border border-stone-200/80 text-center">
                       <div>
-                        <span className="text-[10px] text-stone-400 font-bold block uppercase">Current Stock</span>
-                        <span className={`text-sm font-extrabold ${isOut ? 'text-rose-600' : isLow ? 'text-amber-700' : 'text-stone-900'}`}>
+                        <span className="text-[9px] text-stone-400 font-extrabold block uppercase">Current</span>
+                        <span className={`text-xs font-black ${isOut ? 'text-rose-600' : isLow ? 'text-amber-700' : 'text-stone-900'}`}>
                           {item.currentStock} {item.unit}
                         </span>
                       </div>
                       <div>
-                        <span className="text-[10px] text-stone-400 font-bold block uppercase">Unit Cost</span>
+                        <span className="text-[9px] text-stone-400 font-extrabold block uppercase">Unit Cost</span>
                         <span className="text-xs font-bold text-stone-700">₹{Number(item.unitCost || 0).toFixed(1)}</span>
                       </div>
                       <div>
-                        <span className="text-[10px] text-stone-400 font-bold block uppercase">Total Value</span>
-                        <span className="text-xs font-extrabold text-amber-900">₹{Math.round(stockVal).toLocaleString()}</span>
+                        <span className="text-[9px] text-stone-400 font-extrabold block uppercase">Value</span>
+                        <span className="text-xs font-black text-amber-900">₹{Math.round(stockVal).toLocaleString()}</span>
                       </div>
                     </div>
 
                     {/* Status & Quick Adjust Footer */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 border-t border-stone-200/50">
-                      <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-stone-200/60">
+                      <div>
                         {isOut ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-800">
-                            🚫 Out of Stock
+                            🚫 Out
                           </span>
                         ) : isLow ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800">
-                            ⚡ Low ({item.reorderLevel} alert)
+                            ⚡ Low ({item.reorderLevel})
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
@@ -421,25 +535,27 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
                         )}
                       </div>
 
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-bold text-stone-400 uppercase mr-1">Adjust:</span>
+                      <div className="flex items-center gap-1">
                         <button
+                          type="button"
                           onClick={() => onAdjustStock(item.id, -1)}
-                          className="w-7 h-7 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold flex items-center justify-center border border-stone-300 cursor-pointer active:scale-95"
+                          className="w-6 h-6 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold flex items-center justify-center border border-stone-300 cursor-pointer active:scale-95 text-xs"
                           title="-1"
                         >
                           -1
                         </button>
                         <button
+                          type="button"
                           onClick={() => onAdjustStock(item.id, 1)}
-                          className="w-7 h-7 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold flex items-center justify-center border border-stone-300 cursor-pointer active:scale-95"
+                          className="w-6 h-6 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold flex items-center justify-center border border-stone-300 cursor-pointer active:scale-95 text-xs"
                           title="+1"
                         >
                           +1
                         </button>
                         <button
+                          type="button"
                           onClick={() => onAdjustStock(item.id, 5)}
-                          className="px-2 h-7 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold text-xs border border-stone-300 cursor-pointer active:scale-95"
+                          className="px-1.5 h-6 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold text-[10px] border border-stone-300 cursor-pointer active:scale-95"
                           title="+5"
                         >
                           +5
@@ -456,42 +572,52 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
 
       {/* Add / Edit Inventory Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-stone-200 w-full max-w-md overflow-hidden">
-            <div className="bg-stone-950 text-amber-100 px-6 py-4 flex items-center justify-between">
-              <h3 className="text-base font-bold font-serif-title">
-                {editingItem ? 'Edit Inventory Item' : 'Add Inventory Item'}
-              </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-stone-400 hover:text-white">✕</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/60 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-stone-200 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            
+            <div className="bg-stone-950 text-white px-5 py-3.5 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-black text-amber-300">
+                  {editingItem ? 'Edit Raw Material' : 'Add Raw Material'}
+                </h3>
+                <p className="text-[10px] text-stone-400">Inventory & Recipe tracking stock unit</p>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setIsModalOpen(false)} 
+                className="text-stone-400 hover:text-white text-sm font-bold w-6 h-6 flex items-center justify-center rounded-lg hover:bg-stone-800 cursor-pointer"
+              >
+                ✕
+              </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="p-4 sm:p-5 space-y-3.5">
               <div>
-                <label className="block text-xs font-bold text-stone-700 uppercase mb-1">Material Name *</label>
+                <label className="block text-[11px] font-extrabold text-stone-700 uppercase mb-1">Material Name *</label>
                 <input
                   type="text"
                   required
                   value={formData.materialName}
                   onChange={(e) => setFormData({ ...formData, materialName: e.target.value })}
-                  placeholder="e.g. Whole Milk, Coffee Beans"
-                  className="w-full px-3.5 py-2 border rounded-xl text-sm bg-stone-50 focus:outline-none"
+                  placeholder="e.g. Whole Milk, Coffee Beans, Burger Buns"
+                  className="w-full px-3 py-2 border border-stone-300 rounded-xl text-xs font-semibold bg-stone-50 text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-stone-700 uppercase mb-1">Category *</label>
+                <label className="block text-[11px] font-extrabold text-stone-700 uppercase mb-1">Category *</label>
                 <select
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="w-full px-3.5 py-2 border rounded-xl text-sm font-semibold bg-stone-50"
+                  className="w-full px-3 py-2 border border-stone-300 rounded-xl text-xs font-bold bg-stone-50 text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                 >
                   {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="block text-xs font-bold text-stone-700 uppercase mb-1">Current Stock *</label>
+                  <label className="block text-[11px] font-extrabold text-stone-700 uppercase mb-1">Current Stock *</label>
                   <input
                     type="number"
                     required
@@ -499,48 +625,59 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
                     value={formData.currentStock}
                     onChange={(e) => setFormData({ ...formData, currentStock: e.target.value })}
                     placeholder="10"
-                    className="w-full px-3.5 py-2 border rounded-xl text-sm bg-stone-50"
+                    className="w-full px-3 py-2 border border-stone-300 rounded-xl text-xs font-semibold bg-stone-50 text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-stone-700 uppercase mb-1">Unit *</label>
+                  <label className="block text-[11px] font-extrabold text-stone-700 uppercase mb-1">Unit *</label>
                   <select
                     value={formData.unit}
                     onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-xl text-xs font-semibold bg-stone-50"
+                    className="w-full px-2.5 py-2 border border-stone-300 rounded-xl text-xs font-bold bg-stone-50 text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                   >
                     {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                   </select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="block text-xs font-bold text-stone-700 uppercase mb-1">Reorder Alert Level *</label>
+                  <label className="block text-[11px] font-extrabold text-stone-700 uppercase mb-1">Low Alert Level *</label>
                   <input
                     type="number"
                     required
                     value={formData.reorderLevel}
                     onChange={(e) => setFormData({ ...formData, reorderLevel: e.target.value })}
                     placeholder="5"
-                    className="w-full px-3.5 py-2 border rounded-xl text-sm bg-stone-50"
+                    className="w-full px-3 py-2 border border-stone-300 rounded-xl text-xs font-semibold bg-stone-50 text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-stone-700 uppercase mb-1">Unit Cost (₹)</label>
+                  <label className="block text-[11px] font-extrabold text-stone-700 uppercase mb-1">Unit Cost (₹)</label>
                   <input
                     type="number"
                     value={formData.unitCost}
                     onChange={(e) => setFormData({ ...formData, unitCost: e.target.value })}
                     placeholder="50"
-                    className="w-full px-3.5 py-2 border rounded-xl text-sm bg-stone-50"
+                    className="w-full px-3 py-2 border border-stone-300 rounded-xl text-xs font-semibold bg-stone-50 text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-3">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm text-stone-600 font-medium">Cancel</button>
-                <button type="submit" className="px-5 py-2 text-sm bg-amber-600 text-white font-bold rounded-xl shadow">Save Inventory</button>
+              <div className="flex justify-end gap-2 pt-2 border-t border-stone-100">
+                <button 
+                  type="button" 
+                  onClick={() => setIsModalOpen(false)} 
+                  className="px-3.5 py-1.5 text-xs text-stone-600 font-bold hover:bg-stone-100 rounded-xl cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="px-4 py-1.5 text-xs bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl shadow cursor-pointer active:scale-95 transition-all"
+                >
+                  Save Material
+                </button>
               </div>
             </form>
           </div>

@@ -116,13 +116,29 @@ export default function DiningManager({
     });
   }, [diningOrders, statusFilter]);
 
-  // Active orders count for badge
+  // Active orders counts & revenue for badges & KPI ribbon
   const pendingCount = useMemo(() => {
     return diningOrders.filter(o => o.status === 'pending').length;
   }, [diningOrders]);
 
+  const preparingCount = useMemo(() => {
+    return diningOrders.filter(o => o.status === 'preparing').length;
+  }, [diningOrders]);
+
+  const servedCount = useMemo(() => {
+    return diningOrders.filter(o => o.status === 'served').length;
+  }, [diningOrders]);
+
+  const billedCount = useMemo(() => {
+    return diningOrders.filter(o => o.status === 'billed').length;
+  }, [diningOrders]);
+
   const activeTotalCount = useMemo(() => {
     return diningOrders.filter(o => o.status === 'pending' || o.status === 'preparing' || o.status === 'served').length;
+  }, [diningOrders]);
+
+  const dineInRevenue = useMemo(() => {
+    return diningOrders.reduce((sum, o) => sum + (Number(o.totalAmount) || 0), 0);
   }, [diningOrders]);
 
   // Meesho Order Alert controls
@@ -182,126 +198,122 @@ export default function DiningManager({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3.5">
 
-      {/* Header & Sub-Navigation */}
-      <div className="bg-white rounded-3xl p-4 sm:p-6 border border-stone-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
+      {/* 🛎️ TOP CONTROL & ACTION HEADER */}
+      <div className="bg-white rounded-2xl p-3 sm:p-4 border border-stone-200 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+        {/* Left: Title & Sub-tabs */}
+        <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-amber-600 text-white flex items-center justify-center shadow-lg shadow-amber-600/30">
-              <QrCode className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 text-white flex items-center justify-center shadow-md shadow-amber-600/20">
+              <Utensils className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-lg sm:text-xl font-bold text-stone-900 flex items-center gap-2">
-                <span>Dine-In QR Ordering & Kitchen Screen</span>
-                {pendingCount > 0 && (
-                  <span className="text-xs bg-red-600 text-white font-extrabold px-2 py-0.5 rounded-full animate-pulse">
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm sm:text-base font-extrabold text-stone-900">Dine-In & Tables</h2>
+                {pendingCount > 0 ? (
+                  <span className="text-[10px] bg-red-600 text-white font-black px-2 py-0.5 rounded-full animate-pulse shadow-xs">
                     {pendingCount} New
                   </span>
+                ) : (
+                  <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
+                    {activeTotalCount} Active
+                  </span>
                 )}
-              </h2>
-              <p className="text-xs text-stone-500">
-                Customers scan table QR code to order directly • Instant counter & Telegram alerts
+              </div>
+              <p className="text-[11px] text-stone-500 hidden sm:block">
+                Table QR ordering & real-time counter / kitchen display
               </p>
             </div>
           </div>
+
+          {/* Sub-Tabs: Live Orders vs Table QR Stands */}
+          <div className="flex items-center bg-stone-100 p-1 rounded-xl border border-stone-200 text-xs font-bold">
+            <button
+              type="button"
+              onClick={() => setActiveSubTab('orders')}
+              className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeSubTab === 'orders'
+                  ? 'bg-white text-stone-900 shadow-xs'
+                  : 'text-stone-600 hover:text-stone-900'
+              }`}
+            >
+              <Utensils className="w-3.5 h-3.5 text-amber-600" />
+              <span>Live Orders ({activeTotalCount})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveSubTab('qrcodes')}
+              className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeSubTab === 'qrcodes'
+                  ? 'bg-white text-stone-900 shadow-xs'
+                  : 'text-stone-600 hover:text-stone-900'
+              }`}
+            >
+              <QrCode className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Table QR Stands</span>
+            </button>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
-          {/* Sound Alert Toggle (Meesho / Soundbox style) */}
+        {/* Right: Quick Alert Controls & Preview */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Meesho Voice Alert Pill */}
           <button
             type="button"
             onClick={handleToggleSound}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
               alertSettings.enabled
-                ? 'bg-amber-500/10 text-amber-900 border-amber-300 hover:bg-amber-500/20'
+                ? 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100'
                 : 'bg-stone-100 text-stone-500 border-stone-200 hover:bg-stone-200'
             }`}
-            title="Toggle Meesho Voice & Tone Alert"
+            title="Toggle Voice Order Alert"
           >
             {alertSettings.enabled ? (
               <>
-                <Volume2 className="w-4 h-4 text-amber-600 animate-pulse" />
-                <span>Meesho Voice Alert: ON</span>
+                <Volume2 className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
+                <span className="text-[11px]">Voice Alert: ON</span>
               </>
             ) : (
               <>
-                <VolumeX className="w-4 h-4 text-stone-400" />
-                <span>Alert: Muted</span>
+                <VolumeX className="w-3.5 h-3.5 text-stone-400" />
+                <span className="text-[11px]">Alert: OFF</span>
               </>
             )}
           </button>
 
-          {/* Test Meesho Alert Button */}
+          {/* Test Voice Alert */}
           <button
             type="button"
             onClick={handleTestAlert}
-            className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer active:scale-95"
-            title="Test Tone + Voice ('Dine-in ka order aaya hai, check karein')"
+            className="flex items-center gap-1 px-2.5 py-1.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white rounded-xl text-[11px] font-bold shadow-xs transition-all cursor-pointer active:scale-95"
+            title="Test Voice Announcement"
           >
-            <Megaphone className="w-3.5 h-3.5 text-amber-200" />
-            <span>🗣️ Test Meesho Alert</span>
+            <Megaphone className="w-3 h-3 text-amber-200" />
+            <span>Test Sound</span>
           </button>
 
-          {/* Alert Settings Gear */}
+          {/* Alert Settings */}
           <button
             type="button"
             onClick={() => setIsAlertModalOpen(true)}
-            className="p-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl transition-colors cursor-pointer border border-stone-200"
-            title="Configure Meesho Tone & Voice Announcement"
+            className="p-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl transition-colors cursor-pointer border border-stone-200"
+            title="Configure Alert Settings"
           >
-            <Settings2 className="w-4 h-4 text-stone-600" />
+            <Settings2 className="w-3.5 h-3.5 text-stone-600" />
           </button>
 
-          {/* Customer View Preview Button */}
+          {/* Customer Preview */}
           {onPreviewCustomerView && (
             <button
               onClick={() => onPreviewCustomerView('1')}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-bold rounded-xl border border-stone-800 transition-all cursor-pointer shadow-sm"
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-stone-900 hover:bg-stone-800 text-amber-300 text-[11px] font-bold rounded-xl border border-stone-800 transition-all cursor-pointer shadow-xs"
               title="Preview Customer Mobile Menu for Table 1"
             >
-              <Eye className="w-4 h-4 text-amber-400" />
-              <span>Preview Customer View</span>
+              <Eye className="w-3 h-3 text-amber-400" />
+              <span>Mobile Menu</span>
             </button>
           )}
-        </div>
-      </div>
-
-      {/* Sub Tabs Selector */}
-      <div className="flex items-center justify-between bg-stone-100 p-1.5 rounded-2xl border border-stone-200">
-        <div className="flex items-center space-x-1 sm:space-x-2">
-          
-          <button
-            onClick={() => setActiveSubTab('orders')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-              activeSubTab === 'orders'
-                ? 'bg-white text-stone-900 shadow-sm'
-                : 'text-stone-600 hover:text-stone-900'
-            }`}
-          >
-            <Utensils className="w-4 h-4 text-amber-600" />
-            <span>Live Table Orders</span>
-            {activeTotalCount > 0 && (
-              <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold ${
-                pendingCount > 0 ? 'bg-red-500 text-white' : 'bg-stone-200 text-stone-800'
-              }`}>
-                {activeTotalCount}
-              </span>
-            )}
-          </button>
-
-          <button
-            onClick={() => setActiveSubTab('qrcodes')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-              activeSubTab === 'qrcodes'
-                ? 'bg-white text-stone-900 shadow-sm'
-                : 'text-stone-600 hover:text-stone-900'
-            }`}
-          >
-            <QrCode className="w-4 h-4 text-emerald-600" />
-            <span>Table QR Codes & Print Stands</span>
-          </button>
-
         </div>
       </div>
 
@@ -309,30 +321,85 @@ export default function DiningManager({
       {/* SUB-TAB 1: LIVE TABLE ORDERS (KITCHEN & COUNTER DISPLAY) */}
       {/* ========================================================================= */}
       {activeSubTab === 'orders' && (
-        <div className="space-y-4">
+        <div className="space-y-3.5">
           
-          {/* Status Filter Bar */}
-          <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar py-1">
+          {/* 📊 KPI METRICS STRIP */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <div 
+              onClick={() => setStatusFilter('active')}
+              className="bg-white rounded-2xl p-3 border border-stone-200 shadow-2xs cursor-pointer hover:border-amber-400 transition-all"
+            >
+              <p className="text-[10px] font-bold text-stone-400 uppercase">Active Tables</p>
+              <div className="flex items-center justify-between mt-0.5">
+                <span className="text-xl font-black text-stone-900">{activeTotalCount}</span>
+                <span className="w-7 h-7 rounded-lg bg-amber-50 text-amber-700 font-bold flex items-center justify-center text-xs">
+                  🍽️
+                </span>
+              </div>
+            </div>
+
+            <div 
+              onClick={() => setStatusFilter('pending')}
+              className={`bg-white rounded-2xl p-3 border shadow-2xs cursor-pointer transition-all ${
+                pendingCount > 0 ? 'border-red-300 ring-2 ring-red-400/20 bg-red-50/30' : 'border-stone-200 hover:border-amber-400'
+              }`}
+            >
+              <p className="text-[10px] font-bold text-stone-400 uppercase">New / Pending</p>
+              <div className="flex items-center justify-between mt-0.5">
+                <span className={`text-xl font-black ${pendingCount > 0 ? 'text-red-600' : 'text-stone-900'}`}>{pendingCount}</span>
+                <span className="w-7 h-7 rounded-lg bg-red-100 text-red-700 font-bold flex items-center justify-center text-xs">
+                  🔔
+                </span>
+              </div>
+            </div>
+
+            <div 
+              onClick={() => setStatusFilter('preparing')}
+              className="bg-white rounded-2xl p-3 border border-stone-200 shadow-2xs cursor-pointer hover:border-blue-400 transition-all"
+            >
+              <p className="text-[10px] font-bold text-stone-400 uppercase">In Kitchen</p>
+              <div className="flex items-center justify-between mt-0.5">
+                <span className="text-xl font-black text-blue-700">{preparingCount}</span>
+                <span className="w-7 h-7 rounded-lg bg-blue-50 text-blue-700 font-bold flex items-center justify-center text-xs">
+                  👨‍🍳
+                </span>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl p-3 border border-stone-200 shadow-2xs">
+              <p className="text-[10px] font-bold text-stone-400 uppercase">Table Revenue</p>
+              <div className="flex items-center justify-between mt-0.5">
+                <span className="text-xl font-black text-emerald-700">₹{dineInRevenue.toLocaleString()}</span>
+                <span className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 font-bold flex items-center justify-center text-xs">
+                  ₹
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* 🔍 FILTER PILLS BAR */}
+          <div className="bg-white rounded-2xl p-2.5 border border-stone-200 shadow-2xs flex items-center gap-1.5 overflow-x-auto no-scrollbar">
             {[
               { id: 'active', label: 'Active Orders', count: activeTotalCount },
-              { id: 'pending', label: 'Pending (New)', count: pendingCount },
-              { id: 'preparing', label: 'In Kitchen', count: diningOrders.filter(o => o.status === 'preparing').length },
-              { id: 'served', label: 'Served', count: diningOrders.filter(o => o.status === 'served').length },
-              { id: 'billed', label: 'Billed / Completed', count: diningOrders.filter(o => o.status === 'billed').length },
+              { id: 'pending', label: '🟡 New Orders', count: pendingCount },
+              { id: 'preparing', label: '🔵 In Kitchen', count: preparingCount },
+              { id: 'served', label: '🟣 Served', count: servedCount },
+              { id: 'billed', label: '🟢 Billed & Paid', count: billedCount },
               { id: 'all', label: 'All Orders', count: diningOrders.length }
             ].map(tab => (
               <button
                 key={tab.id}
+                type="button"
                 onClick={() => setStatusFilter(tab.id)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                   statusFilter === tab.id
-                    ? 'bg-amber-600 text-white shadow-sm'
-                    : 'bg-white text-stone-600 hover:bg-stone-100 border border-stone-200'
+                    ? 'bg-amber-600 text-white shadow-xs font-black'
+                    : 'bg-stone-50 text-stone-600 hover:bg-stone-100 hover:text-stone-900 border border-stone-200/80'
                 }`}
               >
                 <span>{tab.label}</span>
                 <span className={`text-[10px] px-1.5 py-0.2 rounded-md ${
-                  statusFilter === tab.id ? 'bg-amber-700 text-white' : 'bg-stone-100 text-stone-600'
+                  statusFilter === tab.id ? 'bg-amber-700 text-white' : 'bg-stone-200/80 text-stone-700 font-bold'
                 }`}>
                   {tab.count}
                 </span>
@@ -340,19 +407,19 @@ export default function DiningManager({
             ))}
           </div>
 
-          {/* Orders Grid */}
+          {/* 🍽️ ORDERS GRID */}
           {filteredOrders.length === 0 ? (
-            <div className="bg-white rounded-3xl p-12 text-center border border-stone-200 shadow-sm space-y-3">
-              <div className="w-16 h-16 rounded-full bg-amber-50 text-amber-600 mx-auto flex items-center justify-center">
-                <Utensils className="w-8 h-8 stroke-[1.5]" />
+            <div className="bg-white rounded-2xl p-8 text-center border border-stone-200 shadow-2xs space-y-2">
+              <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 mx-auto flex items-center justify-center text-xl">
+                🍽️
               </div>
-              <h3 className="text-base font-bold text-stone-900">No Orders in this Status</h3>
+              <h3 className="text-sm font-bold text-stone-900">No Orders in this Status</h3>
               <p className="text-xs text-stone-500 max-w-sm mx-auto">
-                When customers scan the table QR code and tap "Place Order", new orders will appear here automatically with bell chime sound!
+                Customers scan the table QR code and tap "Place Order" to submit orders directly here with instant alert sound!
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {filteredOrders.map(order => {
                 const isPending = order.status === 'pending';
                 const isPreparing = order.status === 'preparing';
@@ -362,21 +429,29 @@ export default function DiningManager({
                 return (
                   <div
                     key={order.id}
-                    className={`bg-white rounded-3xl p-5 border transition-all flex flex-col justify-between shadow-sm relative overflow-hidden ${
+                    className={`bg-white rounded-2xl p-4 border transition-all flex flex-col justify-between shadow-xs relative overflow-hidden ${
                       isPending 
-                        ? 'border-amber-400 ring-2 ring-amber-400/20 shadow-amber-500/10'
+                        ? 'border-amber-400 ring-2 ring-amber-400/25 shadow-amber-500/10'
                         : isPreparing
-                          ? 'border-blue-300'
+                          ? 'border-blue-300 ring-1 ring-blue-300/40'
                           : isServed
                             ? 'border-purple-300'
-                            : 'border-stone-200 opacity-75'
+                            : 'border-stone-200 opacity-80'
                     }`}
                   >
-                    {/* Top Order Badge & Table */}
+                    {/* Top Row: Table Badge & Status */}
                     <div>
-                      <div className="flex items-center justify-between gap-2 pb-3 border-b border-stone-100">
-                        <div className="flex items-center space-x-2">
-                          <span className="w-10 h-10 rounded-2xl bg-amber-600 text-white font-black text-sm flex items-center justify-center shadow-md shadow-amber-600/20">
+                      <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-stone-100">
+                        <div className="flex items-center gap-2">
+                          <span className={`w-9 h-9 rounded-xl font-black text-xs flex items-center justify-center shadow-xs ${
+                            isPending 
+                              ? 'bg-amber-500 text-stone-950 font-black' 
+                              : isPreparing
+                              ? 'bg-blue-600 text-white'
+                              : isServed
+                              ? 'bg-purple-600 text-white'
+                              : 'bg-emerald-600 text-white'
+                          }`}>
                             #{order.tableNumber}
                           </span>
                           <div>
@@ -390,35 +465,35 @@ export default function DiningManager({
 
                         {/* Status Badge */}
                         <div className="text-right">
-                          <span className={`text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full ${
+                          <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
                             isPending
-                              ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
+                              ? 'bg-amber-100 text-amber-900 border border-amber-300 animate-pulse'
                               : isPreparing
                                 ? 'bg-blue-100 text-blue-800 border border-blue-200'
                                 : isServed
                                   ? 'bg-purple-100 text-purple-800 border border-purple-200'
                                   : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                           }`}>
-                            {isPending ? '🟡 New Order' : isPreparing ? '🔵 In Kitchen' : isServed ? '🟣 Served' : '🟢 Billed & Paid'}
+                            {isPending ? '🟡 New Order' : isPreparing ? '🔵 In Kitchen' : isServed ? '🟣 Served' : '🟢 Billed'}
                           </span>
                         </div>
                       </div>
 
                       {/* Customer Note if any */}
                       {order.customerNotes && (
-                        <div className="my-2.5 p-2.5 bg-amber-50/70 border border-amber-200/80 rounded-xl text-xs text-amber-900">
+                        <div className="my-2 p-2 bg-amber-50 border border-amber-200/80 rounded-xl text-xs text-amber-900">
                           <strong className="text-[10px] uppercase font-bold text-amber-800 block">Customer Request:</strong>
                           "{order.customerNotes}"
                         </div>
                       )}
 
                       {/* Items Ordered List */}
-                      <div className="py-3 space-y-2 border-b border-stone-100 text-xs">
+                      <div className="py-2.5 space-y-1.5 border-b border-stone-100 text-xs">
                         {order.items.map((item, idx) => (
                           <div key={idx} className="flex items-center justify-between text-stone-800">
-                            <span className="font-semibold">
-                              <span className="inline-block w-5 text-amber-700 font-extrabold">{item.quantity}x</span>
-                              {item.name}
+                            <span className="font-semibold flex items-center gap-1.5">
+                              <span className="inline-block px-1.5 py-0.2 bg-amber-100 text-amber-900 text-[10px] rounded font-extrabold">{item.quantity}x</span>
+                              <span className="truncate max-w-[180px]">{item.name}</span>
                             </span>
                             <span className="font-bold text-stone-700">₹{item.total || (item.price * item.quantity)}</span>
                           </div>
@@ -427,28 +502,28 @@ export default function DiningManager({
 
                       {/* Total Amount */}
                       <div className="flex items-center justify-between py-2 text-xs">
-                        <span className="font-bold text-stone-500">Total Bill Amount:</span>
-                        <span className="text-base font-black text-amber-700">₹{order.totalAmount}</span>
+                        <span className="font-bold text-stone-500">Bill Amount:</span>
+                        <span className="text-sm font-black text-amber-700">₹{order.totalAmount}</span>
                       </div>
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="pt-3 border-t border-stone-100 space-y-2">
-                      <div className="flex items-center gap-2">
+                    <div className="pt-2.5 border-t border-stone-100 space-y-1.5">
+                      <div className="flex items-center gap-1.5">
                         {isPending && (
                           <button
                             onClick={() => onUpdateOrderStatus(order.id, 'preparing')}
-                            className="flex-1 py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                            className="flex-1 py-1.5 px-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer shadow-xs active:scale-95"
                           >
                             <ChefHat className="w-3.5 h-3.5" />
-                            <span>Prepare (Kitchen)</span>
+                            <span>Prepare in Kitchen</span>
                           </button>
                         )}
 
                         {isPreparing && (
                           <button
                             onClick={() => onUpdateOrderStatus(order.id, 'served')}
-                            className="flex-1 py-2 px-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                            className="flex-1 py-1.5 px-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer shadow-xs active:scale-95"
                           >
                             <Utensils className="w-3.5 h-3.5" />
                             <span>Mark Served</span>
@@ -458,7 +533,7 @@ export default function DiningManager({
                         {!isBilled && (
                           <button
                             onClick={() => setSettlingOrder(order)}
-                            className="flex-1 py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                            className="flex-1 py-1.5 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer shadow-xs active:scale-95"
                           >
                             <Receipt className="w-3.5 h-3.5" />
                             <span>Punch Bill (₹{order.totalAmount})</span>
@@ -467,20 +542,20 @@ export default function DiningManager({
 
                         {isBilled && (
                           <div className="w-full text-center py-1.5 bg-emerald-50 text-emerald-800 font-bold text-xs rounded-xl border border-emerald-200 flex items-center justify-center gap-1.5">
-                            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                            <span>Billed & Deducted from Stock</span>
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Billed & Stock Deducted</span>
                           </div>
                         )}
                       </div>
 
-                      {/* Print KOT and Print Bill Quick Action Buttons */}
-                      <div className="flex items-center justify-between pt-1 border-t border-stone-100">
+                      {/* Quick Print & Cancel Row */}
+                      <div className="flex items-center justify-between pt-1">
                         <div className="flex items-center gap-1.5">
                           <button
                             type="button"
                             onClick={() => onOpenReceiptPrinter && onOpenReceiptPrinter(order, 'kot')}
-                            className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
-                            title="Print Kitchen Order Ticket (KOT) for chef"
+                            className="px-2 py-0.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                            title="Print Kitchen Order Ticket (KOT)"
                           >
                             <ChefHat className="w-3 h-3 text-amber-700" />
                             <span>KOT</span>
@@ -488,8 +563,8 @@ export default function DiningManager({
                           <button
                             type="button"
                             onClick={() => onOpenReceiptPrinter && onOpenReceiptPrinter(order, 'bill')}
-                            className="px-2.5 py-1 bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-200 rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
-                            title="Print Thermal Customer Bill Slip"
+                            className="px-2 py-0.5 bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-200 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                            title="Print Thermal Bill Slip"
                           >
                             <Printer className="w-3 h-3 text-stone-700" />
                             <span>Bill Slip</span>
@@ -499,11 +574,12 @@ export default function DiningManager({
                         {!isBilled && (
                           <button
                             onClick={() => {
-                              if (confirm(`Table #${order.tableNumber} ka ye order cancel/delete karna chahte hain?`)) {
+                              if (confirm(`Table #${order.tableNumber} ka order cancel/delete karna chahte hain?`)) {
                                 onDeleteOrder(order.id);
                               }
                             }}
-                            className="text-[11px] text-stone-400 hover:text-red-600 flex items-center gap-1 transition-colors cursor-pointer"
+                            className="text-[10px] text-stone-400 hover:text-red-600 flex items-center gap-0.5 cursor-pointer"
+                            title="Cancel Order"
                           >
                             <Trash2 className="w-3 h-3" />
                             <span>Cancel</span>
@@ -525,14 +601,14 @@ export default function DiningManager({
       {/* SUB-TAB 2: TABLE QR CODE GENERATOR & PRINT STANDS */}
       {/* ========================================================================= */}
       {activeSubTab === 'qrcodes' && (
-        <div className="space-y-6">
+        <div className="space-y-3.5">
           
           {/* Settings Bar */}
-          <div className="bg-white rounded-3xl p-5 border border-stone-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="bg-white rounded-2xl p-3.5 sm:p-4 border border-stone-200 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
             
-            <div className="flex flex-wrap items-center gap-4">
+            <div className="flex flex-wrap items-center gap-3">
               <div>
-                <label className="text-xs font-bold text-stone-600 block mb-1">Number of Tables</label>
+                <label className="text-[10px] font-extrabold uppercase text-stone-500 block mb-1">Number of Tables</label>
                 <div className="flex items-center gap-2">
                   <input
                     type="number"
@@ -540,20 +616,20 @@ export default function DiningManager({
                     max="30"
                     value={tableCount}
                     onChange={(e) => setTableCount(e.target.value)}
-                    className="w-20 bg-stone-50 border border-stone-300 rounded-xl px-3 py-1.5 text-xs font-bold text-stone-800 text-center focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                    className="w-18 bg-stone-50 border border-stone-300 rounded-xl px-2.5 py-1.5 text-xs font-black text-stone-900 text-center focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                   />
-                  <span className="text-xs text-stone-500 font-semibold">tables in cafe</span>
+                  <span className="text-xs text-stone-500 font-semibold">tables</span>
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-bold text-stone-600 block mb-1">Cafe Website / Host URL</label>
+                <label className="text-[10px] font-extrabold uppercase text-stone-500 block mb-1">Cafe Website / Host URL</label>
                 <input
                   type="text"
                   value={qrBaseUrl}
                   onChange={(e) => setQrBaseUrl(e.target.value)}
                   placeholder="https://yourcafe.com"
-                  className="w-64 bg-stone-50 border border-stone-300 rounded-xl px-3 py-1.5 text-xs font-semibold text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                  className="w-60 sm:w-72 bg-stone-50 border border-stone-300 rounded-xl px-3 py-1.5 text-xs font-semibold text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                 />
               </div>
             </div>
@@ -561,35 +637,35 @@ export default function DiningManager({
             <div className="flex items-center gap-2 w-full md:w-auto">
               <button
                 onClick={handlePrintQrCards}
-                className="flex-1 md:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-bold text-xs rounded-xl shadow-lg shadow-amber-600/20 border border-amber-500/30 transition-all cursor-pointer transform hover:-translate-y-0.5"
+                className="flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-bold text-xs rounded-xl shadow-md shadow-amber-600/20 border border-amber-500/30 transition-all cursor-pointer transform active:scale-95"
               >
                 <Printer className="w-4 h-4" />
-                <span>Print Table QR Stand Cards</span>
+                <span>Print All Stand Cards</span>
               </button>
             </div>
 
           </div>
 
           {/* QR Cards Grid (Formatted for both screen preview & high-quality printing) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 print:grid-cols-2 print:gap-6" id="printable-qr-grid">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 print:grid-cols-2 print:gap-6" id="printable-qr-grid">
             {generatedQrs.map((item) => (
               <div
                 key={item.tableNumber}
-                className="bg-white rounded-3xl p-5 border-2 border-stone-300 shadow-md text-center flex flex-col items-center justify-between space-y-3 relative group hover:border-amber-500 transition-all print:border-2 print:border-black print:shadow-none print:break-inside-avoid"
+                className="bg-white rounded-2xl p-4 border-2 border-stone-200 shadow-xs text-center flex flex-col items-center justify-between space-y-2.5 relative group hover:border-amber-500 transition-all print:border-2 print:border-black print:shadow-none print:break-inside-avoid"
               >
                 {/* Header */}
                 <div className="w-full">
-                  <div className="flex items-center justify-center gap-2 mb-1">
-                    <img src="/logo.jpg" alt="Logo" className="w-6 h-6 rounded-full" onError={(e) => e.target.style.display = 'none'} />
-                    <span className="font-serif-title font-bold text-sm tracking-tight text-stone-900">S&S Cafe</span>
+                  <div className="flex items-center justify-center gap-1.5 mb-1">
+                    <img src="/logo.jpg" alt="Logo" className="w-5 h-5 rounded-full" onError={(e) => e.target.style.display = 'none'} />
+                    <span className="font-bold text-xs tracking-tight text-stone-900">{currentCafe?.cafeName || 'S&S Cafe'}</span>
                   </div>
-                  <div className="inline-block bg-stone-900 text-amber-300 text-xs font-black uppercase px-3 py-1 rounded-full shadow-sm">
+                  <div className="inline-block bg-stone-950 text-amber-300 text-xs font-black uppercase px-3 py-0.5 rounded-full shadow-2xs">
                     TABLE #{item.tableNumber}
                   </div>
                 </div>
 
                 {/* QR Code Image */}
-                <div className="w-44 h-44 bg-white p-2 rounded-2xl border border-stone-200 flex items-center justify-center shadow-inner">
+                <div className="w-40 h-40 bg-white p-2 rounded-xl border border-stone-200 flex items-center justify-center shadow-inner">
                   {item.dataUrl && (
                     <img 
                       src={item.dataUrl} 
@@ -600,13 +676,13 @@ export default function DiningManager({
                 </div>
 
                 {/* Instructions */}
-                <div className="w-full space-y-1">
-                  <div className="text-[11px] font-extrabold text-stone-900 flex items-center justify-center gap-1">
+                <div className="w-full space-y-0.5">
+                  <div className="text-[11px] font-black text-stone-900 flex items-center justify-center gap-1">
                     <Smartphone className="w-3.5 h-3.5 text-amber-600" />
                     <span>Scan with Mobile Camera</span>
                   </div>
                   <p className="text-[10px] text-stone-500">
-                    View Digital Menu & Place Dine-In Order
+                    View Digital Menu & Place Order
                   </p>
                 </div>
 
@@ -618,7 +694,7 @@ export default function DiningManager({
                     className="text-[11px] text-stone-600 hover:text-amber-600 font-bold flex items-center gap-1 transition-colors"
                   >
                     <Download className="w-3 h-3" />
-                    <span>Download PNG</span>
+                    <span>PNG</span>
                   </a>
 
                   {onPreviewCustomerView && (
