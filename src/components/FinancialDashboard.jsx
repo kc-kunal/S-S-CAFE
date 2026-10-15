@@ -811,7 +811,7 @@ export default function FinancialDashboard({
                   </div>
                   <div className="my-1">
                     <span className="text-[9px] text-stone-400 uppercase font-semibold">Bank me aana baaki hai:</span>
-                    <div className="text-lg font-black text-white">
+                    <div className="text-lg font-black text-amber-300">
                       ₹{aggLedger.Swiggy.pendingUnsettled.toLocaleString()}
                     </div>
                   </div>
@@ -840,7 +840,7 @@ export default function FinancialDashboard({
                   </div>
                   <div className="my-1">
                     <span className="text-[9px] text-stone-400 uppercase font-semibold">Bank me aana baaki hai:</span>
-                    <div className="text-lg font-black text-white">
+                    <div className="text-lg font-black text-rose-300">
                       ₹{aggLedger.Zomato.pendingUnsettled.toLocaleString()}
                     </div>
                   </div>

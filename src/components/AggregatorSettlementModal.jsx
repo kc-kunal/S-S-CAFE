@@ -82,22 +82,12 @@ export default function AggregatorSettlementModal({
 
   // Compute settled vs pending status for each sale accurately
   const salesWithSettledStatus = useMemo(() => {
-    let remainingSettled = Number(platLedger.totalSettledGross) || 0;
-    const isAllSettled = platLedger.pendingUnsettled === 0 && platLedger.totalSettledGross > 0;
-
-    // Process from oldest to newest to match settlement consumption, then reverse back to newest first
-    return [...platSales].reverse().map(sale => {
-      const rev = Number(sale.totalRevenue) || 0;
-      let isSettled = false;
-      if (isAllSettled) {
-        isSettled = true;
-      } else if (remainingSettled >= rev && rev > 0) {
-        isSettled = true;
-        remainingSettled -= rev;
-      }
-      return { ...sale, isSettled };
-    }).reverse();
-  }, [platSales, platLedger.totalSettledGross, platLedger.pendingUnsettled]);
+    const settledSet = new Set(platLedger.settledSaleIds || []);
+    return platSales.map(sale => ({
+      ...sale,
+      isSettled: settledSet.has(sale.id)
+    }));
+  }, [platSales, platLedger.settledSaleIds]);
 
   // Filtered sales matching search query
   const filteredSales = useMemo(() => {
@@ -159,6 +149,11 @@ export default function AggregatorSettlementModal({
       return;
     }
 
+    const settledSet = new Set(platLedger.settledSaleIds || []);
+    const newlySettledSaleIds = platSales
+      .filter(s => !settledSet.has(s.id))
+      .map(s => s.id);
+
     const newSettlement = {
       id: `settle-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
       platform: selectedPlatform,
@@ -168,6 +163,7 @@ export default function AggregatorSettlementModal({
       bankAmountReceived: net,
       referenceNo: `Bank Credit - ${settlementDate}`,
       notes: `${selectedPlatform} Weekly Payout Settled`,
+      settledSaleIds: newlySettledSaleIds,
       expenseLogged: calculatedCommission > 0,
       createdAt: new Date().toISOString()
     };

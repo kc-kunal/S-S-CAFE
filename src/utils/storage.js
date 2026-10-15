@@ -1394,10 +1394,26 @@ export const getStoredSettlements = (cafeId = currentCafeId) => {
     if (!data) return INITIAL_AGGREGATOR_SETTLEMENTS;
     const parsed = JSON.parse(data);
     if (!Array.isArray(parsed)) return INITIAL_AGGREGATOR_SETTLEMENTS;
-    // Auto-remove dummy settlement seeded in earlier version so real sales are never suppressed
-    const cleaned = parsed.filter(s => s && s.id !== 'settle-swiggy-1');
+    
+    // Auto-remove dummy or orphaned test settlements so real sales are never suppressed
+    const cleaned = parsed.filter(s => {
+      if (!s) return false;
+      if (s.id === 'settle-swiggy-1') return false;
+      const recd = Number(s.bankAmountReceived);
+      const comm = Number(s.commissionDeducted);
+      const gross = Number(s.grossAmount);
+      // Filter out legacy dummy test settlement (Recd: 260, Comm: 10, Gross: 270)
+      if (recd === 260 && comm === 10 && gross === 270) return false;
+      if (recd === 260 && gross === 270) return false;
+      if (s.id && typeof s.id === 'string' && s.id.includes('settle-swiggy') && recd === 260) return false;
+      return true;
+    });
+
     if (cleaned.length !== parsed.length) {
       localStorage.setItem(key, JSON.stringify(cleaned));
+      if (cafeId === 'default') {
+        localStorage.setItem(AGGREGATOR_SETTLEMENTS_STORAGE_KEY, JSON.stringify(cleaned));
+      }
     }
     return cleaned;
   } catch (e) {
@@ -1582,12 +1598,84 @@ export const calculateAggregatorLedger = (salesLogs = [], settlements = []) => {
 
     // Settlements for this platform
     const platSettlements = settlements.filter(set => (set.platform || '').toLowerCase() === targetPlat);
-    const totalSettledGross = platSettlements.reduce((sum, set) => sum + (Number(set.grossAmount) || 0), 0);
-    const totalBankReceived = platSettlements.reduce((sum, set) => sum + (Number(set.bankAmountReceived) || 0), 0);
-    const totalCommissionDeducted = platSettlements.reduce((sum, set) => sum + (Number(set.commissionDeducted) || 0), 0);
 
-    // Pending Unsettled Amount (Gross not yet settled)
-    const pendingUnsettled = Math.max(0, totalGross - totalSettledGross);
+    // Sort settlements chronologically (oldest first)
+    const sortedSettlements = [...platSettlements].sort((a, b) => {
+      const tA = new Date(a.createdAt || (a.settlementDate ? `${a.settlementDate}T00:00:00` : 0)).getTime();
+      const tB = new Date(b.createdAt || (b.settlementDate ? `${b.settlementDate}T00:00:00` : 0)).getTime();
+      return tA - tB;
+    });
+
+    // Sort sales chronologically (oldest first)
+    const sortedSales = [...platSales].sort((a, b) => {
+      const tA = new Date(a.createdAt || (a.date ? `${a.date}T00:00:00` : 0)).getTime();
+      const tB = new Date(b.createdAt || (b.date ? `${b.date}T00:00:00` : 0)).getTime();
+      return tA - tB;
+    });
+
+    // Track which sales are settled
+    const settledSaleIds = new Set();
+    let totalSettledGross = 0;
+    let totalBankReceived = 0;
+    let totalCommissionDeducted = 0;
+
+    sortedSettlements.forEach(settlement => {
+      let remainingGross = Number(settlement.grossAmount) || 0;
+      const setTime = new Date(
+        settlement.createdAt || 
+        (settlement.settlementDate ? `${settlement.settlementDate}T23:59:59` : 0)
+      ).getTime();
+
+      let matchedInThisSettlement = 0;
+
+      // 1. Direct match by settledSaleIds if present
+      if (Array.isArray(settlement.settledSaleIds) && settlement.settledSaleIds.length > 0) {
+        settlement.settledSaleIds.forEach(id => {
+          const matchedSale = sortedSales.find(s => s.id === id);
+          if (matchedSale && !settledSaleIds.has(id)) {
+            settledSaleIds.add(id);
+            matchedInThisSettlement += (Number(matchedSale.totalRevenue) || 0);
+          }
+        });
+      } else {
+        // 2. Chronological matching: settlements can ONLY settle orders created at or before the settlement timestamp
+        for (const sale of sortedSales) {
+          if (remainingGross <= 0) break;
+          if (settledSaleIds.has(sale.id)) continue;
+
+          const saleTime = new Date(
+            sale.createdAt || 
+            (sale.date ? `${sale.date}T00:00:00` : 0)
+          ).getTime();
+
+          // A settlement created in the past can NEVER settle a future order!
+          if (saleTime > setTime) continue;
+
+          const rev = Number(sale.totalRevenue) || 0;
+          if (rev > 0 && remainingGross >= rev) {
+            settledSaleIds.add(sale.id);
+            remainingGross -= rev;
+            matchedInThisSettlement += rev;
+          }
+        }
+      }
+
+      // Record bank received and commission ONLY if this settlement actually settled sales in the system
+      if (matchedInThisSettlement > 0) {
+        totalSettledGross += matchedInThisSettlement;
+        totalBankReceived += Number(settlement.bankAmountReceived) || 0;
+        totalCommissionDeducted += Number(settlement.commissionDeducted) || 0;
+      }
+    });
+
+    // Sanity caps: settled gross & bank received can never exceed totalGross
+    totalSettledGross = Math.min(totalGross, totalSettledGross);
+    totalBankReceived = Math.min(totalGross, totalBankReceived);
+
+    // Unsettled sales = sales that have not been settled
+    const unsettledSales = platSales.filter(s => !settledSaleIds.has(s.id));
+    const pendingUnsettled = unsettledSales.reduce((sum, s) => sum + (Number(s.totalRevenue) || 0), 0);
+    const pendingOrdersCount = getUniqueOrderCount(unsettledSales);
 
     summary[plat] = {
       platform: plat,
@@ -1600,11 +1688,14 @@ export const calculateAggregatorLedger = (salesLogs = [], settlements = []) => {
       totalBankReceived,
       totalCommissionDeducted,
       pendingUnsettled,
+      pendingOrdersCount,
+      settledSaleIds: Array.from(settledSaleIds),
       settlementsCount: platSettlements.length
     };
   });
 
   const overallPending = summary.Swiggy.pendingUnsettled + summary.Zomato.pendingUnsettled;
+  const overallPendingOrders = summary.Swiggy.pendingOrdersCount + summary.Zomato.pendingOrdersCount;
   const overallGross = summary.Swiggy.totalGross + summary.Zomato.totalGross;
   const overallBankReceived = summary.Swiggy.totalBankReceived + summary.Zomato.totalBankReceived;
   const overallCommission = summary.Swiggy.totalCommissionDeducted + summary.Zomato.totalCommissionDeducted;
@@ -1613,6 +1704,7 @@ export const calculateAggregatorLedger = (salesLogs = [], settlements = []) => {
     ...summary,
     overall: {
       pendingUnsettled: overallPending,
+      pendingOrdersCount: overallPendingOrders,
       totalGross: overallGross,
       totalBankReceived: overallBankReceived,
       totalCommission: overallCommission
