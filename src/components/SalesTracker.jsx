@@ -783,285 +783,188 @@ export default function SalesTracker({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3.5">
       
-      {/* ⚡ COMPACT SALE POS UTILITY HEADER (Replaces old heavy dashboard box) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 sm:p-4 rounded-2xl border border-stone-200 shadow-xs">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-600 to-blue-600 text-white flex items-center justify-center shadow-xs">
-            <Zap className="w-5 h-5 fill-amber-300 text-amber-300" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-base font-black text-stone-900 tracking-tight">Sale POS Terminal</h2>
-              <span className="text-[10px] bg-emerald-50 text-emerald-700 font-extrabold px-2 py-0.5 rounded-full border border-emerald-200">
-                Live Billing
-              </span>
-            </div>
-            <p className="text-[11px] text-stone-500">
-              Counter, UPI & delivery order punch screen
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Date Picker */}
-          <div className="flex items-center gap-1.5 bg-stone-100 px-3 py-1.5 rounded-xl border border-stone-200 text-xs font-bold text-stone-700">
-            <span className="text-[10px] uppercase text-stone-500 font-bold">Date:</span>
-            <input
-              type="date"
-              value={saleDate}
-              onChange={(e) => setSaleDate(e.target.value)}
-              className="bg-transparent text-xs font-bold text-stone-900 focus:outline-none cursor-pointer"
-            />
-          </div>
-
-          {/* Aggregator Settlement / Ledger Button */}
-          <button
-            type="button"
-            onClick={() => {
-              setSettlementPlatform('Swiggy');
-              setIsSettlementModalOpen(true);
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl text-xs font-bold transition-all border border-stone-200 cursor-pointer"
-            title="Manage Swiggy & Zomato Weekly Payouts & Commission Settlements"
-          >
-            <Clock className="w-3.5 h-3.5 text-amber-600" />
-            <span>Online Payouts</span>
-            {aggLedger.overall.pendingUnsettled > 0 && (
-              <span className="bg-amber-500 text-stone-950 px-1.5 py-0.2 rounded-full text-[10px] font-black">
-                ₹{aggLedger.overall.pendingUnsettled.toLocaleString()}
-              </span>
-            )}
-          </button>
-
-          {/* 🌙 Day-End Cash Closing (Z-Report) */}
-          {onOpenDayClosingModal && (
-            <button
-              type="button"
-              onClick={onOpenDayClosingModal}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-xl text-xs font-bold transition-all border border-amber-200 cursor-pointer shadow-2xs"
-              title="Shift & Day-End Cash Drawer Reconciliation (Z-Report)"
-            >
-              <Moon className="w-3.5 h-3.5 text-amber-600" />
-              <span>Day Closing</span>
-            </button>
-          )}
-
-          {/* 📒 Customer Khata (Udhar) */}
-          {onOpenKhataModal && (
-            <button
-              type="button"
-              onClick={onOpenKhataModal}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-xl text-xs font-bold transition-all border border-amber-200 cursor-pointer shadow-2xs"
-              title="Customer Khata & Credit Ledger"
-            >
-              <BookOpen className="w-3.5 h-3.5 text-amber-600" />
-              <span>Khata</span>
-            </button>
-          )}
-
-          {/* Excel Export Button */}
-          {onOpenExportModal && (
-            <button
-              type="button"
-              onClick={onOpenExportModal}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
-              title="Export Monthly / Weekly Sales to Excel"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-100" />
-              <span className="hidden xs:inline">Excel</span>
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* ⚡ UNIFIED MULTI-ITEM POS ORDER PUNCH STATION */}
-      <div id="pos-order-punch-station" className="bg-white rounded-3xl border border-stone-200 shadow-md overflow-hidden space-y-0 scroll-mt-6">
+      {/* ⚡ UNIFIED STREAMLINED POS ORDER PUNCH STATION */}
+      <div id="pos-order-punch-station" className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden scroll-mt-4">
         
-        {/* Station Top Bar & Mode Tabs (Tab 1: Cash/UPI Counter, Tab 2: Swiggy/Zomato Online) */}
-        <div className="bg-gradient-to-r from-stone-900 via-stone-850 to-stone-950 text-white p-4 sm:p-5 border-b border-stone-800">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center shadow-lg shadow-amber-500/10">
-                <Zap className="w-5 h-5 fill-amber-400 text-amber-400" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-base sm:text-lg font-bold font-serif-title text-amber-100">
-                    Quick POS Order Punch Station
-                  </h3>
-                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-extrabold px-2 py-0.5 rounded-full border border-emerald-500/30">
-                    Multi-Item Order
-                  </span>
-                </div>
-                <p className="text-xs text-stone-400">
-                  Ek customer ke multiple items ek hi Order ID / Token me add karein
-                </p>
-              </div>
-            </div>
-
-            {/* Session Stats Badge */}
-            {sessionPunchedOrders.length > 0 && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-stone-800/80 border border-stone-700 rounded-2xl text-xs text-stone-300 font-bold self-start sm:self-auto">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                <span>{sessionPunchedOrders.length} Orders Punched Session Me</span>
-              </div>
-            )}
-          </div>
-
-          {/* THE TWO MAIN CHANNELS TABS */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            
-            {/* TAB 1: 💵 Counter Orders (Cash & UPI) */}
+        {/* Top Header Bar: Channel Tabs (Left) + Integrated Utilities (Date, Payouts, Closing, Khata, Excel) (Right) */}
+        <div className="bg-stone-900 text-white px-3 sm:px-4 py-2 border-b border-stone-800 flex flex-wrap items-center justify-between gap-2.5">
+          
+          {/* Left: Quick Channel Switcher (Counter vs Delivery) */}
+          <div className="flex items-center gap-1.5 bg-stone-800/90 p-1 rounded-xl border border-stone-700/80">
+            {/* Tab 1: Counter Walk-in */}
             <button
               type="button"
               onClick={() => setPunchTab('counter')}
-              className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between gap-3 ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 punchTab === 'counter'
-                  ? `${currentTheme.tabActive} text-white`
-                  : 'bg-stone-850/60 border-stone-800 text-stone-400 hover:text-stone-200 hover:bg-stone-800/60'
+                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-stone-950 shadow-sm font-black'
+                  : 'text-stone-300 hover:text-white hover:bg-stone-700/50'
               }`}
             >
-              <div className="flex items-center gap-3">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm ${
-                  punchTab === 'counter' ? currentTheme.tabIcon : 'bg-stone-800 text-stone-400'
-                }`}>
-                  {counterPaymentMode === 'Cash' ? <Banknote className="w-5 h-5" /> : <Smartphone className="w-5 h-5" />}
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-extrabold text-white">
-                      {counterPaymentMode === 'Cash' ? '💵 Cash' : '📱 Counter UPI'} (Counter Walk-in)
-                    </span>
-                    {counterTotalUnits > 0 && (
-                      <span className={`${punchTab === 'counter' ? currentTheme.cartQtyPill : 'bg-stone-700 text-white'} px-2 py-0.2 rounded-full text-[10px] font-black animate-pulse`}>
-                        {counterTotalUnits} in Cart
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-[11px] text-stone-400">
-                    {counterPaymentMode === 'Cash' ? 'Galle ka Cash' : 'Direct Bank QR'} (Token #{counterToken})
-                  </p>
-                </div>
-              </div>
-              <div className="text-right shrink-0">
-                <span className={`text-xs font-bold px-2.5 py-1 rounded-xl border ${
-                  punchTab === 'counter'
-                    ? currentTheme.tabBadge
-                    : 'bg-stone-800 text-stone-500 border-stone-700'
-                }`}>
-                  {punchTab === 'counter' ? 'Active' : 'Select'}
+              <Banknote className="w-3.5 h-3.5" />
+              <span>💵 Counter Walk-in</span>
+              {counterTotalUnits > 0 && (
+                <span className="ml-1 px-1.5 py-0.2 bg-stone-950 text-amber-300 rounded-full text-[10px] font-black">
+                  {counterTotalUnits} in Cart
                 </span>
-              </div>
+              )}
             </button>
 
-            {/* TAB 2: 🛵 Swiggy & Zomato (Online Orders) */}
+            {/* Tab 2: Swiggy / Zomato */}
             <button
               type="button"
               onClick={() => setPunchTab('online')}
-              className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between gap-3 ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 punchTab === 'online'
-                  ? `${currentTheme.tabActive} text-white`
-                  : 'bg-stone-850/60 border-stone-800 text-stone-400 hover:text-stone-200 hover:bg-stone-800/60'
+                  ? 'bg-gradient-to-r from-orange-500 to-rose-600 text-white shadow-sm font-black'
+                  : 'text-stone-300 hover:text-white hover:bg-stone-700/50'
               }`}
             >
-              <div className="flex items-center gap-3">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm ${
-                  punchTab === 'online' ? currentTheme.tabIcon : 'bg-stone-800 text-stone-400'
-                }`}>
-                  <Bike className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-extrabold text-white">
-                      {onlinePlatform === 'Swiggy' ? '🟠 Swiggy' : '🔴 Zomato'} (Delivery)
-                    </span>
-                    {onlineTotalUnits > 0 && (
-                      <span className={`${punchTab === 'online' ? currentTheme.cartQtyPill : 'bg-stone-700 text-white'} px-2 py-0.2 rounded-full text-[10px] font-black animate-pulse`}>
-                        {onlineTotalUnits} in Cart
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-[11px] text-stone-400">
-                    {onlinePlatform} delivery, custom pricing & offers
-                  </p>
-                </div>
-              </div>
-              <div className="text-right shrink-0">
-                <span className={`text-xs font-bold px-2.5 py-1 rounded-xl border ${
-                  punchTab === 'online'
-                    ? currentTheme.tabBadge
-                    : 'bg-stone-800 text-stone-500 border-stone-700'
-                }`}>
-                  {punchTab === 'online' ? 'Active' : 'Select'}
+              <Bike className="w-3.5 h-3.5" />
+              <span>🛵 Swiggy / Zomato</span>
+              {onlineTotalUnits > 0 && (
+                <span className="ml-1 px-1.5 py-0.2 bg-stone-950 text-orange-300 rounded-full text-[10px] font-black">
+                  {onlineTotalUnits} in Cart
                 </span>
-              </div>
+              )}
+            </button>
+          </div>
+
+          {/* Right: Integrated POS Utilities (Date, Payouts, Day Closing, Khata, Excel) */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            {/* Date Picker */}
+            <div className="flex items-center gap-1 bg-stone-800 px-2 py-1 rounded-lg border border-stone-700 text-[11px] font-bold text-stone-300">
+              <span className="text-[10px] uppercase text-stone-400 font-bold">Date:</span>
+              <input
+                type="date"
+                value={saleDate}
+                onChange={(e) => setSaleDate(e.target.value)}
+                className="bg-transparent text-[11px] font-bold text-white focus:outline-none cursor-pointer"
+              />
+            </div>
+
+            {/* Online Payouts */}
+            <button
+              type="button"
+              onClick={() => {
+                setSettlementPlatform('Swiggy');
+                setIsSettlementModalOpen(true);
+              }}
+              className="flex items-center gap-1 px-2.5 py-1 bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-lg text-[11px] font-bold transition-all border border-stone-700 cursor-pointer"
+              title="Manage Swiggy & Zomato Weekly Payouts"
+            >
+              <Clock className="w-3 h-3 text-amber-400" />
+              <span className="hidden sm:inline">Payouts</span>
+              {aggLedger.overall.pendingUnsettled > 0 && (
+                <span className="bg-amber-500 text-stone-950 px-1 py-0.1 rounded text-[9px] font-black">
+                  ₹{aggLedger.overall.pendingUnsettled.toLocaleString()}
+                </span>
+              )}
             </button>
 
+            {/* Day Closing */}
+            {onOpenDayClosingModal && (
+              <button
+                type="button"
+                onClick={onOpenDayClosingModal}
+                className="flex items-center gap-1 px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 rounded-lg text-[11px] font-bold transition-all border border-amber-500/30 cursor-pointer"
+                title="Shift & Day-End Cash Drawer Reconciliation (Z-Report)"
+              >
+                <Moon className="w-3 h-3 text-amber-400" />
+                <span>Day Closing</span>
+              </button>
+            )}
+
+            {/* Khata */}
+            {onOpenKhataModal && (
+              <button
+                type="button"
+                onClick={onOpenKhataModal}
+                className="flex items-center gap-1 px-2.5 py-1 bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-lg text-[11px] font-bold transition-all border border-stone-700 cursor-pointer"
+                title="Customer Khata & Credit Ledger"
+              >
+                <BookOpen className="w-3 h-3 text-amber-400" />
+                <span>Khata</span>
+              </button>
+            )}
+
+            {/* Excel Export */}
+            {onOpenExportModal && (
+              <button
+                type="button"
+                onClick={onOpenExportModal}
+                className="flex items-center gap-1 px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[11px] font-bold transition-all cursor-pointer"
+                title="Export Sales to Excel"
+              >
+                <FileSpreadsheet className="w-3 h-3 text-emerald-100" />
+                <span className="hidden md:inline">Excel</span>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* CONTROLS STRIP (SUB-HEADER ACCORDING TO ACTIVE TAB) */}
-        <div className="bg-stone-50 border-b border-stone-200 px-4 sm:px-6 py-3">
+        {/* Slim Controls Strip: Payment Mode / Platform, Token ID & Notes */}
+        <div className="bg-stone-100/90 border-b border-stone-200 px-3 sm:px-4 py-2">
           {punchTab === 'counter' ? (
-            /* COUNTER SUB-BAR: Cash/UPI Toggle, Token Number, Customer/Table Note */
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-extrabold text-stone-500 uppercase">Payment Mode:</span>
+            /* COUNTER CONTROLS */
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[11px] font-extrabold text-stone-500 uppercase tracking-wide">Pay Mode:</span>
                 
                 {/* Cash */}
                 <button
                   type="button"
                   onClick={() => setCounterPaymentMode('Cash')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     counterPaymentMode === 'Cash'
-                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30 ring-2 ring-emerald-500'
-                      : 'bg-white text-stone-700 hover:bg-stone-100 border border-stone-200'
+                      ? 'bg-emerald-600 text-white shadow-xs font-black'
+                      : 'bg-white text-stone-700 hover:bg-stone-50 border border-stone-200'
                   }`}
                 >
                   <Banknote className="w-3.5 h-3.5" />
-                  <span>💵 Cash (Galla)</span>
+                  <span>💵 Cash</span>
                 </button>
 
                 {/* Counter UPI */}
                 <button
                   type="button"
                   onClick={() => setCounterPaymentMode('Online')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     counterPaymentMode === 'Online'
-                      ? 'bg-sky-600 text-white shadow-md shadow-sky-600/30 ring-2 ring-sky-500'
-                      : 'bg-white text-stone-700 hover:bg-stone-100 border border-stone-200'
+                      ? 'bg-sky-600 text-white shadow-xs font-black'
+                      : 'bg-white text-stone-700 hover:bg-stone-50 border border-stone-200'
                   }`}
                 >
                   <Smartphone className="w-3.5 h-3.5" />
-                  <span>📱 Counter UPI (Bank QR)</span>
+                  <span>📱 UPI</span>
                 </button>
 
                 {/* Khata (Udhar) */}
                 <button
                   type="button"
                   onClick={() => setCounterPaymentMode('Khata')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     counterPaymentMode === 'Khata'
-                      ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30 ring-2 ring-amber-500'
-                      : 'bg-white text-stone-700 hover:bg-stone-100 border border-stone-200'
+                      ? 'bg-amber-600 text-white shadow-xs font-black'
+                      : 'bg-white text-stone-700 hover:bg-stone-50 border border-stone-200'
                   }`}
                 >
                   <BookOpen className="w-3.5 h-3.5" />
-                  <span>📒 Khata (Udhar)</span>
+                  <span>📒 Khata</span>
                 </button>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
                 {/* Token ID */}
-                <div className="flex items-center gap-1.5 bg-white border border-stone-200 px-2.5 py-1 rounded-xl shadow-2xs">
-                  <span className="text-[11px] font-extrabold text-stone-500 uppercase">Order Token:</span>
+                <div className="flex items-center gap-1 bg-white border border-stone-200 px-2 py-0.5 rounded-lg shadow-2xs">
+                  <span className="text-[10px] font-extrabold text-stone-500 uppercase">Token:</span>
                   <input
                     type="text"
                     value={counterToken}
                     onChange={(e) => setCounterToken(e.target.value)}
-                    className="w-20 text-xs font-black text-stone-900 focus:outline-none uppercase"
+                    className="w-16 text-xs font-black text-stone-900 focus:outline-none uppercase"
                     placeholder="C-101"
                   />
                   <button
@@ -1071,7 +974,7 @@ export default function SalesTracker({
                       setCounterTokenNum(next);
                       setCounterToken(`C-${next}`);
                     }}
-                    className="text-[10px] font-extrabold bg-stone-100 hover:bg-stone-200 text-stone-700 px-1.5 py-0.5 rounded cursor-pointer"
+                    className="text-[10px] font-extrabold bg-stone-100 hover:bg-stone-200 text-stone-700 px-1 py-0.2 rounded cursor-pointer"
                     title="Next Token"
                   >
                     +1
@@ -1081,19 +984,19 @@ export default function SalesTracker({
                 {/* Table / Customer Name (Optional) */}
                 <input
                   type="text"
-                  placeholder="Table # / Notes (Optional)..."
+                  placeholder="Table # / Notes..."
                   value={counterNotes}
                   onChange={(e) => setCounterNotes(e.target.value)}
-                  className="w-44 px-2.5 py-1.5 bg-white border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  className="w-36 px-2.5 py-1 bg-white border border-stone-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
                 />
               </div>
 
               {/* Customer Khata Info Bar (Active when Khata selected) */}
               {counterPaymentMode === 'Khata' && (
-                <div className="w-full flex flex-wrap items-center gap-2 bg-amber-50 border border-amber-200 p-2.5 rounded-2xl animate-in fade-in">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900 shrink-0">
-                    <BookOpen className="w-4 h-4 text-amber-700" />
-                    <span>Customer Details:</span>
+                <div className="w-full flex flex-wrap items-center gap-2 bg-amber-50 border border-amber-200 p-2 rounded-xl animate-in fade-in">
+                  <div className="flex items-center gap-1 text-xs font-bold text-amber-900 shrink-0">
+                    <BookOpen className="w-3.5 h-3.5 text-amber-700" />
+                    <span>Customer:</span>
                   </div>
                   <input
                     type="text"
@@ -1105,7 +1008,7 @@ export default function SalesTracker({
                       if (found && found.customerPhone) setKhataCustomerPhone(found.customerPhone);
                     }}
                     placeholder="Customer Name (e.g. Rahul Sharma) *"
-                    className="flex-1 min-w-[150px] px-3 py-1.5 bg-white border border-amber-300 rounded-xl text-xs font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    className="flex-1 min-w-[140px] px-2.5 py-1 bg-white border border-amber-300 rounded-lg text-xs font-bold text-stone-900 focus:outline-none focus:ring-1 focus:ring-amber-500"
                     required
                   />
                   <datalist id="khata-customer-names-list">
@@ -1118,25 +1021,16 @@ export default function SalesTracker({
                     value={khataCustomerPhone}
                     onChange={(e) => setKhataCustomerPhone(e.target.value)}
                     placeholder="Mobile No. (Optional)"
-                    className="w-36 px-3 py-1.5 bg-white border border-amber-300 rounded-xl text-xs font-mono font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    className="w-32 px-2.5 py-1 bg-white border border-amber-300 rounded-lg text-xs font-mono font-bold text-stone-900 focus:outline-none focus:ring-1 focus:ring-amber-500"
                   />
-                  {onOpenKhataModal && (
-                    <button
-                      type="button"
-                      onClick={onOpenKhataModal}
-                      className="px-2.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-[11px] font-bold cursor-pointer shrink-0"
-                    >
-                      Khata Ledger
-                    </button>
-                  )}
                 </div>
               )}
             </div>
           ) : (
-            /* ONLINE SUB-BAR: Swiggy/Zomato Toggle, Aggregator Order ID, Rider Note */
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-extrabold text-stone-500 uppercase">Platform:</span>
+            /* ONLINE CONTROLS */
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[11px] font-extrabold text-stone-500 uppercase tracking-wide">Platform:</span>
                 
                 {/* Swiggy */}
                 <button
@@ -1147,10 +1041,10 @@ export default function SalesTracker({
                       setOnlineToken(`SWG-${onlineTokenNum}`);
                     }
                   }}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     onlinePlatform === 'Swiggy'
-                      ? 'bg-[#f48c06] text-white shadow-md shadow-orange-600/30 ring-2 ring-orange-500'
-                      : 'bg-white text-stone-700 hover:bg-stone-100 border border-stone-200'
+                      ? 'bg-[#f48c06] text-white shadow-xs font-black'
+                      : 'bg-white text-stone-700 hover:bg-stone-50 border border-stone-200'
                   }`}
                 >
                   <span>🟠 Swiggy</span>
@@ -1165,10 +1059,10 @@ export default function SalesTracker({
                       setOnlineToken(`ZOM-${onlineTokenNum}`);
                     }
                   }}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     onlinePlatform === 'Zomato'
-                      ? 'bg-[#e5383b] text-white shadow-md shadow-rose-600/30 ring-2 ring-rose-500'
-                      : 'bg-white text-stone-700 hover:bg-stone-100 border border-stone-200'
+                      ? 'bg-[#e5383b] text-white shadow-xs font-black'
+                      : 'bg-white text-stone-700 hover:bg-stone-50 border border-stone-200'
                   }`}
                 >
                   <span>🔴 Zomato</span>
@@ -1177,14 +1071,14 @@ export default function SalesTracker({
 
               <div className="flex flex-wrap items-center gap-2">
                 {/* Aggregator Order ID */}
-                <div className="flex items-center gap-1.5 bg-white border border-stone-200 px-2.5 py-1 rounded-xl shadow-2xs">
-                  <span className="text-[11px] font-extrabold text-stone-500 uppercase">Order ID:</span>
+                <div className="flex items-center gap-1 bg-white border border-stone-200 px-2 py-0.5 rounded-lg shadow-2xs">
+                  <span className="text-[10px] font-extrabold text-stone-500 uppercase">Order ID:</span>
                   <input
                     type="text"
                     value={onlineToken}
                     onChange={(e) => setOnlineToken(e.target.value)}
-                    className="w-24 text-xs font-black text-stone-900 focus:outline-none uppercase"
-                    placeholder="e.g. 5894"
+                    className="w-20 text-xs font-black text-stone-900 focus:outline-none uppercase"
+                    placeholder="5894"
                   />
                   <button
                     type="button"
@@ -1193,20 +1087,20 @@ export default function SalesTracker({
                       setOnlineTokenNum(next);
                       setOnlineToken(String(next));
                     }}
-                    className="text-[10px] font-extrabold bg-stone-100 hover:bg-stone-200 text-stone-700 px-1.5 py-0.5 rounded cursor-pointer"
+                    className="text-[10px] font-extrabold bg-stone-100 hover:bg-stone-200 text-stone-700 px-1 py-0.2 rounded cursor-pointer"
                     title="Next Token"
                   >
                     +1
                   </button>
                 </div>
 
-                {/* Rider / Delivery Note */}
+                {/* Rider Note */}
                 <input
                   type="text"
-                  placeholder="Rider / Order Note (Optional)..."
+                  placeholder="Rider / Order Note..."
                   value={onlineRiderNotes}
                   onChange={(e) => setOnlineRiderNotes(e.target.value)}
-                  className="w-48 px-2.5 py-1.5 bg-white border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+                  className="w-40 px-2.5 py-1 bg-white border border-stone-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
                 />
               </div>
             </div>
@@ -1217,10 +1111,10 @@ export default function SalesTracker({
         <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-stone-200">
           
           {/* LEFT COLUMN: TOUCH MENU (7 cols on lg, 8 on xl) */}
-          <div className="lg:col-span-7 xl:col-span-8 p-4 sm:p-5 space-y-4">
+          <div className="lg:col-span-7 xl:col-span-8 p-3 sm:p-3.5 space-y-2.5">
             
             {/* Search & Category Pills */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
               {/* Category Pills */}
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none flex-1">
                 {categories.map((cat) => (
@@ -1228,7 +1122,7 @@ export default function SalesTracker({
                     key={cat}
                     type="button"
                     onClick={() => setSelectedCategory(cat)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                       selectedCategory === cat
                         ? currentTheme.pillActive
                         : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
@@ -1240,21 +1134,21 @@ export default function SalesTracker({
               </div>
 
               {/* POS Menu Search */}
-              <div className="w-full sm:w-56 relative shrink-0">
-                <Search className="w-4 h-4 text-stone-400 absolute left-3 top-2.5" />
+              <div className="w-full sm:w-52 relative shrink-0">
+                <Search className="w-3.5 h-3.5 text-stone-400 absolute left-2.5 top-2" />
                 <input
                   type="text"
                   placeholder="Search dish to add..."
                   value={posSearch}
                   onChange={(e) => setPosSearch(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                  className="w-full pl-8 pr-2.5 py-1.5 bg-stone-50 border border-stone-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-amber-500/30"
                 />
               </div>
             </div>
 
             {/* Warning Banner */}
             {warningMessage && (
-              <div className="p-3 bg-rose-50 border border-rose-300 rounded-2xl flex items-center justify-between animate-in fade-in">
+              <div className="p-2.5 bg-rose-50 border border-rose-300 rounded-xl flex items-center justify-between animate-in fade-in">
                 <div className="flex items-center space-x-2 text-rose-800 text-xs font-bold">
                   <span>⚠️</span>
                   <span>{warningMessage}</span>
@@ -1269,14 +1163,14 @@ export default function SalesTracker({
             )}
 
             {/* Touch Grid of Menu Items */}
-            <div className="max-h-[580px] overflow-y-auto pr-1">
+            <div className="max-h-[460px] lg:max-h-[490px] overflow-y-auto pr-1">
               {Object.keys(groupedMenuItems).length === 0 ? (
-                <div className="py-12 text-center text-stone-400">
-                  <ShoppingBag className="w-10 h-10 mx-auto mb-2 opacity-40" />
-                  <p className="text-sm font-semibold">No menu items found for this filter.</p>
+                <div className="py-8 text-center text-stone-400">
+                  <ShoppingBag className="w-8 h-8 mx-auto mb-1.5 opacity-40" />
+                  <p className="text-xs font-semibold">No menu items found for this filter.</p>
                 </div>
               ) : (
-                <div className="space-y-6">
+                <div className="space-y-4">
                   {Object.entries(groupedMenuItems).map(([category, items]) => (
                     <div key={category} className="space-y-2.5">
                       <div className="flex items-center space-x-2 border-b border-stone-100 pb-1.5">
@@ -1406,29 +1300,29 @@ export default function SalesTracker({
           </div>
 
           {/* RIGHT COLUMN: LIVE ORDER PAD & CART (5 cols on lg, 4 on xl) */}
-          <div className="lg:col-span-5 xl:col-span-4 p-4 sm:p-5 bg-stone-50/70 flex flex-col justify-between">
+          <div className="lg:col-span-5 xl:col-span-4 p-3 sm:p-3.5 bg-stone-50/70 flex flex-col justify-between">
             
             {punchTab === 'counter' ? (
               /* ========================================================== */
               /* 💵 COUNTER ORDER PAD (CASH & UPI)                         */
               /* ========================================================== */
-              <div className="space-y-4 flex-1 flex flex-col justify-between">
+              <div className="space-y-3 flex-1 flex flex-col justify-between">
                 <div>
                   {/* Cart Header */}
-                  <div className="flex items-center justify-between border-b border-stone-200 pb-3">
+                  <div className="flex items-center justify-between border-b border-stone-200 pb-2 mb-1.5">
                     <div className="flex items-center gap-2">
-                      <div className={`w-8 h-8 rounded-xl ${currentTheme.padIcon} flex items-center justify-center font-bold shadow-xs`}>
-                        <Receipt className="w-4 h-4" />
+                      <div className={`w-7 h-7 rounded-lg ${currentTheme.padIcon} flex items-center justify-center font-bold shadow-xs`}>
+                        <Receipt className="w-3.5 h-3.5" />
                       </div>
                       <div>
                         <div className="flex items-center gap-1.5">
-                          <h4 className="text-sm font-extrabold text-stone-900">Current Order Pad</h4>
-                          <span className={`text-xs font-black ${currentTheme.padBadge} px-1.5 py-0.5 rounded border`}>
+                          <h4 className="text-xs font-black text-stone-900">Current Order Pad</h4>
+                          <span className={`text-[11px] font-black ${currentTheme.padBadge} px-1.5 py-0.2 rounded border`}>
                             #{counterToken}
                           </span>
                         </div>
-                        <p className="text-[11px] text-stone-500">
-                          Channel: <span className={`font-bold ${currentTheme.totalText}`}>{counterPaymentMode === 'Cash' ? '💵 Cash' : '📱 Counter UPI'}</span>
+                        <p className="text-[10px] text-stone-500">
+                          Channel: <span className={`font-bold ${currentTheme.totalText}`}>{counterPaymentMode === 'Cash' ? '💵 Cash' : counterPaymentMode === 'Khata' ? '📒 Khata' : '📱 UPI'}</span>
                         </p>
                       </div>
                     </div>
@@ -1440,28 +1334,30 @@ export default function SalesTracker({
                         className="text-[11px] text-rose-600 hover:text-rose-800 font-bold flex items-center gap-1 cursor-pointer"
                         title="Clear all items in cart"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-3 h-3" />
                         <span>Clear</span>
                       </button>
                     )}
                   </div>
 
                   {/* Cart Items List */}
-                  <div className="py-3">
+                  <div className="py-1">
                     {counterTotalUnits === 0 ? (
-                      <div className="py-12 text-center text-stone-400 bg-white rounded-2xl border border-dashed border-stone-300 p-4">
-                        <ShoppingBag className={`w-8 h-8 mx-auto mb-2 opacity-30 ${currentTheme.emptyIconText}`} />
-                        <p className="text-xs font-bold text-stone-600">Cart Khali Hai</p>
-                        <p className="text-[11px] text-stone-400 mt-0.5">
-                          Menu me se items tap karein. Ek customer ke 3 alag items ek order me add honge!
+                      <div className="py-3.5 px-3 text-center text-stone-400 bg-white rounded-xl border border-dashed border-stone-300">
+                        <p className="text-xs font-bold text-stone-600 flex items-center justify-center gap-1.5">
+                          <ShoppingBag className={`w-4 h-4 opacity-50 ${currentTheme.emptyIconText}`} />
+                          <span>Cart Khali Hai — Tap menu items</span>
+                        </p>
+                        <p className="text-[10px] text-stone-400 mt-0.5">
+                          Ek customer ke multiple items ek token me punch karein
                         </p>
                       </div>
                     ) : (
-                      <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                      <div className="space-y-1.5 max-h-[170px] overflow-y-auto pr-1">
                         {Object.values(counterCart).map((entry) => (
                           <div 
                             key={entry.item.id}
-                            className="bg-white p-2.5 rounded-xl border border-stone-200 flex items-center justify-between gap-2 shadow-2xs"
+                            className="bg-white p-2 rounded-lg border border-stone-200 flex items-center justify-between gap-2 shadow-2xs"
                           >
                             <div className="min-w-0 flex-1">
                               <h6 className="text-xs font-bold text-stone-900 truncate">{entry.item.name}</h6>
@@ -1471,31 +1367,31 @@ export default function SalesTracker({
                             </div>
 
                             {/* Quantity Controls */}
-                            <div className="flex items-center gap-1.5 shrink-0">
+                            <div className="flex items-center gap-1 shrink-0">
                               <button
                                 type="button"
                                 onClick={() => handleUpdateCounterCartQty(entry.item.id, -1)}
-                                className="w-6 h-6 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 flex items-center justify-center font-bold text-xs cursor-pointer"
+                                className="w-5 h-5 rounded bg-stone-100 hover:bg-stone-200 text-stone-700 flex items-center justify-center font-bold text-xs cursor-pointer"
                               >
                                 -
                               </button>
-                              <span className="w-6 text-center text-xs font-black text-stone-900">
+                              <span className="w-5 text-center text-xs font-black text-stone-900">
                                 {entry.qty}
                               </span>
                               <button
                                 type="button"
                                 onClick={() => handleUpdateCounterCartQty(entry.item.id, 1)}
-                                className={`w-6 h-6 rounded-lg ${currentTheme.padQtyBtn} flex items-center justify-center font-bold text-xs cursor-pointer`}
+                                className={`w-5 h-5 rounded ${currentTheme.padQtyBtn} flex items-center justify-center font-bold text-xs cursor-pointer`}
                               >
                                 +
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleUpdateCounterCartQty(entry.item.id, -entry.qty)}
-                                className="p-1 text-stone-300 hover:text-rose-600 rounded transition-colors ml-1 cursor-pointer"
+                                className="p-0.5 text-stone-300 hover:text-rose-600 rounded transition-colors ml-0.5 cursor-pointer"
                                 title="Remove item"
                               >
-                                <Trash2 className="w-3.5 h-3.5" />
+                                <Trash2 className="w-3 h-3" />
                               </button>
                             </div>
                           </div>
@@ -1506,12 +1402,12 @@ export default function SalesTracker({
                 </div>
 
                 {/* Counter Financials & Punch Button */}
-                <div className="space-y-3 pt-3 border-t border-stone-200">
+                <div className="space-y-2 pt-2 border-t border-stone-200">
                   {/* Optional Counter Discount */}
                   {counterTotalUnits > 0 && (
-                    <div className="flex items-center justify-between text-xs bg-white px-3 py-2 rounded-xl border border-stone-200">
-                      <span className="font-bold text-stone-600 flex items-center gap-1">
-                        <Tag className="w-3.5 h-3.5 text-amber-600" />
+                    <div className="flex items-center justify-between text-xs bg-white px-2.5 py-1.5 rounded-lg border border-stone-200">
+                      <span className="font-bold text-stone-600 flex items-center gap-1 text-[11px]">
+                        <Tag className="w-3 h-3 text-amber-600" />
                         <span>Discount / Offer (₹):</span>
                       </span>
                       <input
@@ -1520,13 +1416,13 @@ export default function SalesTracker({
                         value={counterDiscount || ''}
                         onChange={(e) => setCounterDiscount(Math.max(0, Number(e.target.value) || 0))}
                         placeholder="0"
-                        className="w-20 px-2 py-0.5 text-right font-bold text-rose-600 border border-stone-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-500 text-xs"
+                        className="w-16 px-1.5 py-0.5 text-right font-bold text-rose-600 border border-stone-200 rounded text-xs focus:outline-none"
                       />
                     </div>
                   )}
 
                   {/* Bill Summary */}
-                  <div className="bg-white p-3.5 rounded-2xl border border-stone-200 space-y-1.5 shadow-2xs">
+                  <div className="bg-white p-2.5 rounded-xl border border-stone-200 space-y-1 shadow-2xs">
                     <div className="flex items-center justify-between text-xs text-stone-600">
                       <span>Total Items:</span>
                       <span className="font-bold text-stone-800">{counterTotalUnits} units</span>
@@ -1544,21 +1440,21 @@ export default function SalesTracker({
                       </div>
                     )}
 
-                    <div className="border-t border-stone-100 pt-2 flex items-center justify-between">
+                    <div className="border-t border-stone-100 pt-1.5 flex items-center justify-between">
                       <span className="text-xs font-black text-stone-800 uppercase tracking-wider">
                         Total Bill:
                       </span>
-                      <span className={`text-xl font-black ${currentTheme.totalText}`}>
+                      <span className={`text-lg font-black ${currentTheme.totalText}`}>
                         ₹{counterFinalBill}
                       </span>
                     </div>
 
                     {/* 💵 Cash Tendered & Change Return Helper */}
                     {counterPaymentMode === 'Cash' && counterTotalUnits > 0 && (
-                      <div className="mt-2 pt-2 border-t border-stone-100 bg-emerald-50/70 -mx-3.5 -mb-3.5 p-3 rounded-b-2xl space-y-1.5 text-xs">
+                      <div className="mt-1.5 pt-1.5 border-t border-stone-100 bg-emerald-50/70 -mx-2.5 -mb-2.5 p-2 rounded-b-xl space-y-1 text-xs">
                         <div className="flex items-center justify-between">
-                          <span className="font-bold text-emerald-900 flex items-center gap-1">
-                            <span>💵 Cash Received (Grahak ne diya):</span>
+                          <span className="font-bold text-emerald-900 text-[11px]">
+                            💵 Cash Received:
                           </span>
                           <div className="flex items-center gap-1">
                             <span className="text-emerald-700 font-bold">₹</span>
@@ -1568,17 +1464,17 @@ export default function SalesTracker({
                               placeholder={String(counterFinalBill)}
                               value={cashTendered}
                               onChange={(e) => setCashTendered(e.target.value)}
-                              className="w-20 px-2 py-0.5 text-right font-black text-emerald-950 bg-white border border-emerald-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 text-xs"
+                              className="w-16 px-1.5 py-0.5 text-right font-black text-emerald-950 bg-white border border-emerald-300 rounded text-xs focus:outline-none"
                             />
                           </div>
                         </div>
 
                         {Number(cashTendered) > 0 && (
-                          <div className="flex items-center justify-between pt-1 border-t border-emerald-200/60 font-bold">
+                          <div className="flex items-center justify-between pt-0.5 border-t border-emerald-200/60 font-bold text-[11px]">
                             <span className={Number(cashTendered) >= counterFinalBill ? 'text-emerald-800' : 'text-rose-700'}>
-                              {Number(cashTendered) >= counterFinalBill ? '🤝 Change Return (Khule Paise Wapas):' : '⚠️ Short Cash (Grahak se baaki):'}
+                              {Number(cashTendered) >= counterFinalBill ? '🤝 Change Return:' : '⚠️ Short Cash:'}
                             </span>
-                            <span className={`text-sm font-black ${Number(cashTendered) >= counterFinalBill ? 'text-emerald-700' : 'text-rose-600'}`}>
+                            <span className={`text-xs font-black ${Number(cashTendered) >= counterFinalBill ? 'text-emerald-700' : 'text-rose-600'}`}>
                               ₹{Math.abs(Number(cashTendered) - counterFinalBill)}
                             </span>
                           </div>
@@ -1588,15 +1484,15 @@ export default function SalesTracker({
                   </div>
 
                   {/* Punch Buttons */}
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <button
                       type="button"
                       onClick={() => handlePunchCounterOrder(true)}
                       disabled={counterTotalUnits === 0}
-                      className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 hover:from-amber-500 hover:to-orange-500 text-white rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-2 shadow-lg shadow-orange-600/30 active:scale-98 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="w-full py-2.5 px-3 bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 hover:from-amber-500 hover:to-orange-500 text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 shadow-md shadow-orange-600/20 active:scale-98 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                       title="Punch Order aur Thermal Printer par Bill Print Karein (58mm / 80mm)"
                     >
-                      <Printer className="w-4 h-4 text-amber-200" />
+                      <Printer className="w-3.5 h-3.5 text-amber-200" />
                       <span>🖨️ Punch & Print Bill (₹{counterFinalBill})</span>
                     </button>
 
@@ -1604,14 +1500,14 @@ export default function SalesTracker({
                       type="button"
                       onClick={() => handlePunchCounterOrder(false)}
                       disabled={counterTotalUnits === 0}
-                      className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      className={`w-full py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                         counterTotalUnits === 0
                           ? 'bg-stone-200 text-stone-400 border border-stone-300 cursor-not-allowed'
                           : 'bg-stone-900 hover:bg-stone-800 text-amber-300 border border-stone-700 shadow-xs active:scale-98'
                       }`}
                       title="Silent Fast Punch without printing"
                     >
-                      <Zap className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
+                      <Zap className="w-3 h-3 fill-amber-300 text-amber-300" />
                       <span>⚡ Quick Punch Only</span>
                     </button>
                   </div>
@@ -1621,23 +1517,23 @@ export default function SalesTracker({
               /* ========================================================== */
               /* 🛵 ONLINE ORDER PAD (SWIGGY & ZOMATO)                     */
               /* ========================================================== */
-              <div className="space-y-4 flex-1 flex flex-col justify-between">
+              <div className="space-y-3 flex-1 flex flex-col justify-between">
                 <div>
                   {/* Cart Header */}
-                  <div className="flex items-center justify-between border-b border-stone-200 pb-3">
+                  <div className="flex items-center justify-between border-b border-stone-200 pb-2 mb-1.5">
                     <div className="flex items-center gap-2">
-                      <div className={`w-8 h-8 rounded-xl text-white flex items-center justify-center font-bold ${currentTheme.padIcon} shadow-xs`}>
-                        <Bike className="w-4 h-4" />
+                      <div className={`w-7 h-7 rounded-lg text-white flex items-center justify-center font-bold ${currentTheme.padIcon} shadow-xs`}>
+                        <Bike className="w-3.5 h-3.5" />
                       </div>
                       <div>
                         <div className="flex items-center gap-1.5">
-                          <h4 className="text-sm font-extrabold text-stone-900">{onlinePlatform} Order Pad</h4>
-                          <span className={`text-xs font-black ${currentTheme.padBadge} px-1.5 py-0.5 rounded border`}>
+                          <h4 className="text-xs font-black text-stone-900">{onlinePlatform} Order Pad</h4>
+                          <span className={`text-[11px] font-black ${currentTheme.padBadge} px-1.5 py-0.2 rounded border`}>
                             #{onlineToken}
                           </span>
                         </div>
-                        <p className="text-[11px] text-stone-500">
-                          Delivery order with custom platform pricing
+                        <p className="text-[10px] text-stone-500">
+                          Channel: <span className="font-bold text-stone-800">{onlinePlatform} Delivery</span>
                         </p>
                       </div>
                     </div>
@@ -1649,28 +1545,30 @@ export default function SalesTracker({
                         className="text-[11px] text-rose-600 hover:text-rose-800 font-bold flex items-center gap-1 cursor-pointer"
                         title="Clear all items in cart"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-3 h-3" />
                         <span>Clear</span>
                       </button>
                     )}
                   </div>
 
                   {/* Cart Items List */}
-                  <div className="py-3">
+                  <div className="py-1">
                     {onlineTotalUnits === 0 ? (
-                      <div className="py-12 text-center text-stone-400 bg-white rounded-2xl border border-dashed border-stone-300 p-4">
-                        <ShoppingBag className={`w-8 h-8 mx-auto mb-2 opacity-30 ${currentTheme.emptyIconText}`} />
-                        <p className="text-xs font-bold text-stone-600">Online Cart Khali Hai</p>
-                        <p className="text-[11px] text-stone-400 mt-0.5">
-                          Menu se dishes tap karein. Swiggy / Zomato ke multiple items ek order me punch karein!
+                      <div className="py-3.5 px-3 text-center text-stone-400 bg-white rounded-xl border border-dashed border-stone-300">
+                        <p className="text-xs font-bold text-stone-600 flex items-center justify-center gap-1.5">
+                          <ShoppingBag className={`w-4 h-4 opacity-50 ${currentTheme.emptyIconText}`} />
+                          <span>Online Cart Khali Hai — Tap menu items</span>
+                        </p>
+                        <p className="text-[10px] text-stone-400 mt-0.5">
+                          {onlinePlatform} delivery order me multiple items punch karein
                         </p>
                       </div>
                     ) : (
-                      <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
+                      <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-1">
                         {Object.values(onlineCart).map((entry) => (
                           <div 
                             key={entry.item.id}
-                            className="bg-white p-2.5 rounded-xl border border-stone-200 flex items-center justify-between gap-2 shadow-2xs"
+                            className="bg-white p-2 rounded-lg border border-stone-200 flex items-center justify-between gap-2 shadow-2xs"
                           >
                             <div className="min-w-0 flex-1">
                               <h6 className="text-xs font-bold text-stone-900 truncate">{entry.item.name}</h6>
@@ -1680,38 +1578,38 @@ export default function SalesTracker({
                                   type="number"
                                   value={entry.price}
                                   onChange={(e) => handleUpdateOnlineCartPrice(entry.item.id, e.target.value)}
-                                  className="w-14 px-1 py-0.2 bg-stone-50 border border-stone-200 rounded font-bold text-stone-800 focus:outline-none"
+                                  className="w-12 px-1 py-0.2 bg-stone-50 border border-stone-200 rounded font-bold text-stone-800 focus:outline-none"
                                 />
                                 <span>× {entry.qty} = <strong className={currentTheme.totalText}>₹{entry.price * entry.qty}</strong></span>
                               </div>
                             </div>
 
                             {/* Quantity Controls */}
-                            <div className="flex items-center gap-1.5 shrink-0">
+                            <div className="flex items-center gap-1 shrink-0">
                               <button
                                 type="button"
                                 onClick={() => handleUpdateOnlineCartQty(entry.item.id, -1)}
-                                className="w-6 h-6 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 flex items-center justify-center font-bold text-xs cursor-pointer"
+                                className="w-5 h-5 rounded bg-stone-100 hover:bg-stone-200 text-stone-700 flex items-center justify-center font-bold text-xs cursor-pointer"
                               >
                                 -
                               </button>
-                              <span className="w-6 text-center text-xs font-black text-stone-900">
+                              <span className="w-5 text-center text-xs font-black text-stone-900">
                                 {entry.qty}
                               </span>
                               <button
                                 type="button"
                                 onClick={() => handleUpdateOnlineCartQty(entry.item.id, 1)}
-                                className={`w-6 h-6 rounded-lg ${currentTheme.padQtyBtn} flex items-center justify-center font-bold text-xs cursor-pointer`}
+                                className={`w-5 h-5 rounded ${currentTheme.padQtyBtn} flex items-center justify-center font-bold text-xs cursor-pointer`}
                               >
                                 +
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleUpdateOnlineCartQty(entry.item.id, -entry.qty)}
-                                className="p-1 text-stone-300 hover:text-rose-600 rounded transition-colors ml-1 cursor-pointer"
+                                className="p-0.5 text-stone-300 hover:text-rose-600 rounded transition-colors ml-0.5 cursor-pointer"
                                 title="Remove item"
                               >
-                                <Trash2 className="w-3.5 h-3.5" />
+                                <Trash2 className="w-3 h-3" />
                               </button>
                             </div>
                           </div>
@@ -1722,29 +1620,29 @@ export default function SalesTracker({
                 </div>
 
                 {/* Aggregator Offers, Packaging & Punch Button */}
-                <div className="space-y-3 pt-3 border-t border-stone-200">
+                <div className="space-y-2 pt-2 border-t border-stone-200">
                   {onlineTotalUnits > 0 && (
                     <>
                       {/* Offer / Discount Pills */}
-                      <div className="bg-white p-2.5 rounded-xl border border-stone-200 space-y-1.5">
-                        <span className="text-[11px] font-extrabold text-stone-600 uppercase flex items-center gap-1">
+                      <div className="bg-white p-2 rounded-lg border border-stone-200 space-y-1">
+                        <span className="text-[10px] font-extrabold text-stone-600 uppercase flex items-center gap-1">
                           <Tag className="w-3 h-3 text-rose-500" />
-                          <span>Platform Offer / Discount:</span>
+                          <span>Platform Offer:</span>
                         </span>
                         <div className="flex flex-wrap gap-1">
                           {[
                             { id: 'none', label: 'No Offer' },
-                            { id: 'flat20', label: '₹20 Off' },
-                            { id: 'flat50', label: '₹50 Off' },
-                            { id: 'flat100', label: '₹100 Off' },
-                            { id: 'pct20', label: '20% Off' },
+                            { id: 'flat20', label: '₹20' },
+                            { id: 'flat50', label: '₹50' },
+                            { id: 'flat100', label: '₹100' },
+                            { id: 'pct20', label: '20%' },
                             { id: 'custom', label: 'Custom' }
                           ].map((d) => (
                             <button
                               key={d.id}
                               type="button"
                               onClick={() => setOnlineDiscountType(d.id)}
-                              className={`px-2 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                              className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
                                 onlineDiscountType === d.id
                                   ? 'bg-rose-600 text-white shadow-2xs'
                                   : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
@@ -1760,21 +1658,21 @@ export default function SalesTracker({
                             placeholder="Enter discount amount (₹)..."
                             value={onlineCustomDiscount}
                             onChange={(e) => setOnlineCustomDiscount(e.target.value)}
-                            className="w-full px-2.5 py-1 text-xs border border-stone-200 rounded-lg focus:outline-none font-bold text-rose-600"
+                            className="w-full px-2 py-0.5 text-xs border border-stone-200 rounded focus:outline-none font-bold text-rose-600"
                           />
                         )}
                       </div>
 
                       {/* Packaging Charge Pills */}
-                      <div className="bg-white p-2.5 rounded-xl border border-stone-200 flex items-center justify-between">
-                        <span className="text-[11px] font-extrabold text-stone-600 uppercase">Packaging:</span>
+                      <div className="bg-white p-2 rounded-lg border border-stone-200 flex items-center justify-between">
+                        <span className="text-[10px] font-extrabold text-stone-600 uppercase">Packaging:</span>
                         <div className="flex gap-1">
                           {[0, 10, 15, 20].map((pkg) => (
                             <button
                               key={pkg}
                               type="button"
                               onClick={() => setOnlinePackaging(pkg)}
-                              className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold cursor-pointer transition-all ${
+                              className={`px-2 py-0.5 rounded text-[10px] font-bold cursor-pointer transition-all ${
                                 onlinePackaging === pkg
                                   ? 'bg-stone-800 text-amber-300'
                                   : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
@@ -1789,7 +1687,7 @@ export default function SalesTracker({
                   )}
 
                   {/* Bill Summary */}
-                  <div className="bg-white p-3.5 rounded-2xl border border-stone-200 space-y-1.5 shadow-2xs">
+                  <div className="bg-white p-2.5 rounded-xl border border-stone-200 space-y-1 shadow-2xs">
                     <div className="flex items-center justify-between text-xs text-stone-600">
                       <span>Total Items:</span>
                       <span className="font-bold text-stone-800">{onlineTotalUnits} units</span>
@@ -1814,11 +1712,11 @@ export default function SalesTracker({
                       </div>
                     )}
 
-                    <div className="border-t border-stone-100 pt-2 flex items-center justify-between">
+                    <div className="border-t border-stone-100 pt-1.5 flex items-center justify-between">
                       <span className="text-xs font-black text-stone-800 uppercase tracking-wider">
                         Payable Total:
                       </span>
-                      <span className={`text-xl font-black ${currentTheme.totalText}`}>
+                      <span className={`text-lg font-black ${currentTheme.totalText}`}>
                         ₹{onlineFinalBill}
                       </span>
                     </div>
@@ -1829,13 +1727,13 @@ export default function SalesTracker({
                     type="button"
                     onClick={handlePunchOnlineOrder}
                     disabled={onlineTotalUnits === 0}
-                    className={`w-full py-3.5 px-4 rounded-2xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer ${
+                    className={`w-full py-2.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 shadow-md cursor-pointer ${
                       onlineTotalUnits === 0
                         ? 'bg-stone-200 text-stone-400 border border-stone-300 cursor-not-allowed shadow-none'
                         : `${currentTheme.punchBtn} active:scale-98`
                     }`}
                   >
-                    <Zap className="w-4 h-4 fill-white" />
+                    <Zap className="w-3.5 h-3.5 fill-white" />
                     <span>⚡ Punch {onlinePlatform} Order ({onlineTotalUnits} Items • ₹{onlineFinalBill})</span>
                   </button>
                 </div>

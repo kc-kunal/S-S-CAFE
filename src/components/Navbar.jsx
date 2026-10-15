@@ -51,7 +51,7 @@ export default function Navbar({
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-2">
+      <div className="w-full px-2.5 sm:px-4 h-13 sm:h-14 flex items-center justify-between gap-2">
 
         {/* Brand Logo & Active Cafe Name */}
         <div className="flex items-center space-x-2.5 sm:space-x-4 min-w-0">

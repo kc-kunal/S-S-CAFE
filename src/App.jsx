@@ -1453,11 +1453,11 @@ export default function App() {
         khataOutstanding={totalKhataOutstanding}
       />
 
-      {/* Main Container with Left Sidebar & Content */}
-      <div className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 flex flex-col md:flex-row gap-5 items-start">
+      {/* Main Container with Left Sidebar & Content (Full-width edge-to-edge, zero margin waste) */}
+      <div className="flex-1 w-full px-1.5 sm:px-2.5 py-2 flex flex-col md:flex-row gap-2.5 items-start">
 
         {/* 🧭 LEFT SIDEBAR NAVIGATION */}
-        <aside className="w-full md:w-56 lg:w-64 shrink-0 bg-white rounded-3xl border border-slate-200 p-2.5 sm:p-3 shadow-xs md:sticky md:top-24 space-y-2.5 z-10">
+        <aside className="w-full md:w-48 lg:w-52 shrink-0 bg-white rounded-2xl border border-slate-200 p-2 sm:p-2.5 shadow-xs md:sticky md:top-16 space-y-2 z-10">
           
           <div className="hidden md:flex items-center justify-between px-2.5 py-1 text-slate-400 border-b border-slate-100 pb-2">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Navigation</span>
@@ -1645,7 +1645,7 @@ export default function App() {
         </aside>
 
         {/* 💻 MAIN CONTENT VIEW */}
-        <main className="flex-1 min-w-0 w-full space-y-6">
+        <main className="flex-1 min-w-0 w-full space-y-3.5">
           {activeTab === 'sales' && (
             <SalesTracker
             menuItems={menuItems}
