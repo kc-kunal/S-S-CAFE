@@ -11,16 +11,20 @@ import {
   ArrowDownRight,
   Receipt,
   AlertOctagon,
-  Zap,
-  Home,
-  Users,
   Flame,
   Wallet,
   FileSpreadsheet,
   Bike,
   Clock,
   Sparkles,
-  Lock
+  Lock,
+  ChevronLeft,
+  ChevronRight,
+  CheckCircle2,
+  Percent,
+  Layers,
+  ArrowRight,
+  HelpCircle
 } from 'lucide-react';
 import { calculateAggregatorLedger } from '../utils/storage';
 
@@ -40,8 +44,28 @@ export default function FinancialDashboard({
   const [timeframe, setTimeframe] = useState('daily'); // 'daily', 'weekly', 'monthly', 'all'
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [topItemsSort, setTopItemsSort] = useState('qty'); // 'qty' or 'revenue'
+  const [activeBottomTab, setActiveBottomTab] = useState('purchases'); // 'purchases' | 'wastage'
 
-  // Date filtering logic
+  // Date Navigation Helpers for Daily View
+  const handlePrevDay = () => {
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() - 1);
+    setSelectedDate(d.toISOString().split('T')[0]);
+  };
+
+  const handleNextDay = () => {
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() + 1);
+    setSelectedDate(d.toISOString().split('T')[0]);
+  };
+
+  const handleToday = () => {
+    setSelectedDate(new Date().toISOString().split('T')[0]);
+  };
+
+  const isToday = selectedDate === new Date().toISOString().split('T')[0];
+
+  // Date filtering logic & Calculations
   const filteredData = useMemo(() => {
     const now = new Date();
     
@@ -66,8 +90,8 @@ export default function FinancialDashboard({
       activeWastage = wastageLogs.filter(w => w.date >= minDateStr);
     } else if (timeframe === 'monthly') {
       const currentYearMonth = now.toISOString().slice(0, 7); // YYYY-MM
-      sales = salesLogs.filter(s => s.date.startsWith(currentYearMonth));
-      procurement = procurementLogs.filter(p => p.date.startsWith(currentYearMonth));
+      sales = salesLogs.filter(s => s.date && s.date.startsWith(currentYearMonth));
+      procurement = procurementLogs.filter(p => p.date && p.date.startsWith(currentYearMonth));
       activeExpenses = expenses.filter(e => e.date && e.date.startsWith(currentYearMonth));
       activeWastage = wastageLogs.filter(w => w.date && w.date.startsWith(currentYearMonth));
     } else {
@@ -78,22 +102,26 @@ export default function FinancialDashboard({
     }
 
     // Calculations
-    const totalRevenue = sales.reduce((sum, s) => sum + Number(s.totalRevenue), 0);
+    const totalRevenue = sales.reduce((sum, s) => sum + Number(s.totalRevenue || 0), 0);
+    const totalOrdersCount = sales.length;
+    const totalUnitsSold = sales.reduce((sum, s) => sum + Number(s.quantitySold || 1), 0);
+    const avgOrderValue = totalOrdersCount > 0 ? Math.round(totalRevenue / totalOrdersCount) : 0;
+
     const cashRevenue = sales.reduce((sum, s) => {
       const mode = (s.paymentMethod || '').toLowerCase();
-      return sum + (mode === 'cash' ? Number(s.totalRevenue) : 0);
+      return sum + (mode === 'cash' ? Number(s.totalRevenue || 0) : 0);
     }, 0);
     const upiRevenue = sales.reduce((sum, s) => {
       const mode = (s.paymentMethod || '').toLowerCase();
-      return sum + (mode === 'online' || mode === 'upi' ? Number(s.totalRevenue) : 0);
+      return sum + (mode === 'online' || mode === 'upi' ? Number(s.totalRevenue || 0) : 0);
     }, 0);
     const swiggyRevenue = sales.reduce((sum, s) => {
       const mode = (s.paymentMethod || '').toLowerCase();
-      return sum + (mode === 'swiggy' ? Number(s.totalRevenue) : 0);
+      return sum + (mode === 'swiggy' ? Number(s.totalRevenue || 0) : 0);
     }, 0);
     const zomatoRevenue = sales.reduce((sum, s) => {
       const mode = (s.paymentMethod || '').toLowerCase();
-      return sum + (mode === 'zomato' ? Number(s.totalRevenue) : 0);
+      return sum + (mode === 'zomato' ? Number(s.totalRevenue || 0) : 0);
     }, 0);
     const onlineRevenue = upiRevenue + swiggyRevenue + zomatoRevenue;
     
@@ -107,12 +135,15 @@ export default function FinancialDashboard({
     // 2. Gross Food Margin
     const grossProfit = totalRevenue - actualMaterialConsumed;
     const grossMargin = totalRevenue > 0 ? ((grossProfit / totalRevenue) * 100).toFixed(1) : 0;
+    const foodCostPercentage = totalRevenue > 0 ? Math.round((actualMaterialConsumed / totalRevenue) * 100) : 0;
 
     // 3. Operational Overhead Expenses (Electricity, Rent, Staff Salary, Gas, etc.)
     const totalOverheadExpenses = activeExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    const overheadPercentage = totalRevenue > 0 ? Math.round((totalOverheadExpenses / totalRevenue) * 100) : 0;
 
     // 4. Raw Material Wastage / Spoilage Loss (Kharab Maal)
     const totalWastageLoss = activeWastage.reduce((sum, w) => sum + Number(w.costValue || 0), 0);
+    const wastagePercentage = totalRevenue > 0 ? Math.round((totalWastageLoss / totalRevenue) * 100) : 0;
 
     // 5. 🏆 TRUE NET IN-HAND PROFIT (Asli Bachat)
     // Formula: Revenue - Food Cost - Overheads (Rent, Light, Salaries) - Wastage Loss
@@ -120,12 +151,11 @@ export default function FinancialDashboard({
     const trueNetMargin = totalRevenue > 0 ? ((trueNetProfit / totalRevenue) * 100).toFixed(1) : 0;
 
     // 6. Procurement & Cash Flow Outflows
-    const totalRawMaterialCost = procurement.reduce((sum, p) => sum + Number(p.totalCost), 0);
-    const totalUnitsSold = sales.reduce((sum, s) => sum + Number(s.quantitySold), 0);
+    const totalRawMaterialCost = procurement.reduce((sum, p) => sum + Number(p.totalCost || 0), 0);
     const netCashFlow = totalRevenue - totalRawMaterialCost - totalOverheadExpenses;
 
     // 7. Current Stock Valuation (Asset in storage)
-    const inventoryValuation = inventoryItems.reduce((sum, item) => sum + (Number(item.currentStock) * (Number(item.unitCost) || 0)), 0);
+    const inventoryValuation = inventoryItems.reduce((sum, item) => sum + (Number(item.currentStock || 0) * (Number(item.unitCost) || 0)), 0);
 
     // Category-wise expense breakdown
     const expenseBreakdown = {};
@@ -137,19 +167,23 @@ export default function FinancialDashboard({
     // Item sales breakdown
     const itemBreakdownMap = {};
     sales.forEach(s => {
-      if (!itemBreakdownMap[s.itemName]) {
-        itemBreakdownMap[s.itemName] = { name: s.itemName, qty: 0, revenue: 0, profit: 0 };
+      const itemName = s.itemName || 'Item';
+      if (!itemBreakdownMap[itemName]) {
+        itemBreakdownMap[itemName] = { name: itemName, qty: 0, revenue: 0, profit: 0, category: s.category || '' };
       }
-      const matchedItem = menuItems.find(m => m.id === s.itemId || m.name === s.itemName);
+      const matchedItem = menuItems.find(m => m.id === s.itemId || m.name === itemName);
       const costPerUnit = matchedItem && matchedItem.costPrice !== undefined ? Number(matchedItem.costPrice) : (Number(s.costPrice) || 0);
-      const itemCostTotal = costPerUnit * Number(s.quantitySold);
+      const itemCostTotal = costPerUnit * (Number(s.quantitySold) || 1);
 
-      itemBreakdownMap[s.itemName].qty += Number(s.quantitySold);
-      itemBreakdownMap[s.itemName].revenue += Number(s.totalRevenue);
-      itemBreakdownMap[s.itemName].profit += (Number(s.totalRevenue) - itemCostTotal);
+      itemBreakdownMap[itemName].qty += (Number(s.quantitySold) || 1);
+      itemBreakdownMap[itemName].revenue += Number(s.totalRevenue || 0);
+      itemBreakdownMap[itemName].profit += (Number(s.totalRevenue || 0) - itemCostTotal);
+      if (!itemBreakdownMap[itemName].category && matchedItem?.category) {
+        itemBreakdownMap[itemName].category = matchedItem.category;
+      }
     });
 
-    const topItems = Object.values(itemBreakdownMap).sort((a, b) => b.revenue - a.revenue);
+    const topItems = Object.values(itemBreakdownMap);
 
     return {
       sales,
@@ -157,6 +191,9 @@ export default function FinancialDashboard({
       activeExpenses,
       activeWastage,
       totalRevenue,
+      totalOrdersCount,
+      totalUnitsSold,
+      avgOrderValue,
       cashRevenue,
       upiRevenue,
       swiggyRevenue,
@@ -165,12 +202,14 @@ export default function FinancialDashboard({
       actualMaterialConsumed,
       grossProfit,
       grossMargin,
+      foodCostPercentage,
       totalOverheadExpenses,
+      overheadPercentage,
       totalWastageLoss,
+      wastagePercentage,
       trueNetProfit,
       trueNetMargin,
       totalRawMaterialCost,
-      totalUnitsSold,
       netCashFlow,
       inventoryValuation,
       expenseBreakdown,
@@ -180,7 +219,7 @@ export default function FinancialDashboard({
 
   if (isStaffMode) {
     return (
-      <div className="bg-white rounded-3xl border border-stone-200 p-8 sm:p-12 shadow-sm text-center max-w-md mx-auto space-y-4 my-8">
+      <div className="bg-white rounded-3xl border border-stone-200 p-8 sm:p-12 shadow-xs text-center max-w-md mx-auto space-y-4 my-8">
         <div className="w-16 h-16 rounded-3xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center mx-auto shadow-inner">
           <Lock className="w-8 h-8" />
         </div>
@@ -194,7 +233,7 @@ export default function FinancialDashboard({
           <button
             type="button"
             onClick={onPromptUnlock}
-            className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-600/20 cursor-pointer transition-all"
+            className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-600/20 cursor-pointer transition-all active:scale-95"
           >
             Enter Owner PIN to Unlock
           </button>
@@ -204,76 +243,112 @@ export default function FinancialDashboard({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3.5">
       
-      {/* Timeframe & Date Control Bar */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+      {/* 🧭 TOP TIMEFRAME & CONTROLS HEADER */}
+      <div className="bg-white rounded-2xl border border-stone-200 p-3 sm:p-3.5 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
         <div>
-          <h3 className="text-base font-bold text-stone-900 flex items-center gap-2">
-            <PieChart className="w-5 h-5 text-amber-600" />
-            Financial P&L, Bills & Profitability Summary
-          </h3>
-          <p className="text-xs text-stone-500">
-            Real Net Profit = Sales Revenue − Raw Material COGS − Cafe Bills & Rent − Kharab Maal (Wastage).
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center">
+              <PieChart className="w-4 h-4" />
+            </div>
+            <h3 className="text-sm sm:text-base font-extrabold text-stone-900">
+              P&L Dashboard • Asli Munafa & Hisaab
+            </h3>
+          </div>
+          <p className="text-[11px] text-stone-500 mt-0.5">
+            Total Kamayi me se Maal ka Kharcha, Dukan Bills & Kharab Maal hata kar Asli Bachat dekhein.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-          {timeframe === 'daily' && (
-            <div className="flex items-center gap-2 bg-stone-100 px-3 py-1.5 rounded-xl border border-stone-200">
-              <Calendar className="w-4 h-4 text-stone-500" />
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="bg-transparent text-xs font-bold text-stone-800 focus:outline-none"
-              />
-            </div>
-          )}
-
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
           {/* Timeframe selector tabs */}
-          <div className="flex items-center bg-stone-100 p-1 rounded-xl border border-stone-200 text-xs font-semibold">
+          <div className="flex items-center bg-stone-100 p-1 rounded-xl border border-stone-200 text-xs font-bold">
             <button
+              type="button"
               onClick={() => setTimeframe('daily')}
-              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                timeframe === 'daily' ? 'bg-amber-600 text-white shadow-sm' : 'text-stone-600 hover:text-stone-900'
+              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                timeframe === 'daily' ? 'bg-amber-600 text-white shadow-xs' : 'text-stone-600 hover:text-stone-900'
               }`}
             >
-              Daily
+              Aaj (Daily)
             </button>
             <button
+              type="button"
               onClick={() => setTimeframe('weekly')}
-              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                timeframe === 'weekly' ? 'bg-amber-600 text-white shadow-sm' : 'text-stone-600 hover:text-stone-900'
+              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                timeframe === 'weekly' ? 'bg-amber-600 text-white shadow-xs' : 'text-stone-600 hover:text-stone-900'
               }`}
             >
-              Weekly
+              7 Din (Weekly)
             </button>
             <button
+              type="button"
               onClick={() => setTimeframe('monthly')}
-              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                timeframe === 'monthly' ? 'bg-amber-600 text-white shadow-sm' : 'text-stone-600 hover:text-stone-900'
+              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                timeframe === 'monthly' ? 'bg-amber-600 text-white shadow-xs' : 'text-stone-600 hover:text-stone-900'
               }`}
             >
-              Monthly
+              Mahina (Monthly)
             </button>
             <button
+              type="button"
               onClick={() => setTimeframe('all')}
-              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                timeframe === 'all' ? 'bg-amber-600 text-white shadow-sm' : 'text-stone-600 hover:text-stone-900'
+              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                timeframe === 'all' ? 'bg-amber-600 text-white shadow-xs' : 'text-stone-600 hover:text-stone-900'
               }`}
             >
               All Time
             </button>
           </div>
 
-          {/* Export to Excel Trigger */}
+          {/* Daily Date Selector with Prev / Today / Next buttons */}
+          {timeframe === 'daily' && (
+            <div className="flex items-center gap-1 bg-stone-50 border border-stone-200 rounded-xl p-1 text-xs">
+              <button
+                type="button"
+                onClick={handlePrevDay}
+                className="p-1 hover:bg-stone-200 rounded-lg text-stone-600 cursor-pointer"
+                title="Pichhla Din"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="bg-transparent text-xs font-bold text-stone-800 px-1 focus:outline-none cursor-pointer"
+              />
+
+              <button
+                type="button"
+                onClick={handleNextDay}
+                className="p-1 hover:bg-stone-200 rounded-lg text-stone-600 cursor-pointer"
+                title="Agla Din"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+
+              {!isToday && (
+                <button
+                  type="button"
+                  onClick={handleToday}
+                  className="px-2 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-800 text-[10px] font-extrabold rounded-md cursor-pointer ml-1"
+                >
+                  Aaj
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Export to Excel Button */}
           {onOpenExportModal && (
             <button
               type="button"
               onClick={onOpenExportModal}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm border border-emerald-500/40 transition-all cursor-pointer shrink-0"
-              title="Download Monthly / Weekly Excel Report"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer shrink-0"
+              title="Download Excel Report"
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-200" />
               <span>Export Excel</span>
@@ -282,161 +357,255 @@ export default function FinancialDashboard({
         </div>
       </div>
 
-      {/* Primary Financial Metric Cards (6 Cards Grid) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        
-        {/* 1. Total Sales Revenue */}
-        <div className="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm relative overflow-hidden group">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-stone-500">Total Sales Revenue (+)</span>
-            <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
-              <ShoppingBag className="w-5 h-5" />
-            </div>
-          </div>
-          <h3 className="text-3xl font-extrabold text-stone-900 mt-2">
-            ₹{filteredData.totalRevenue.toLocaleString()}
-          </h3>
-          <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-stone-100 text-[10px] font-bold">
-            <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">💵 Cash: ₹{filteredData.cashRevenue.toLocaleString()}</span>
-            <span className="text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded border border-sky-200">📱 UPI: ₹{filteredData.upiRevenue.toLocaleString()}</span>
-            <span className="text-orange-700 bg-orange-50 px-1.5 py-0.5 rounded border border-orange-200">🟠 Swiggy: ₹{filteredData.swiggyRevenue.toLocaleString()}</span>
-            <span className="text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">🔴 Zomato: ₹{filteredData.zomatoRevenue.toLocaleString()}</span>
-          </div>
-          <div className="absolute top-0 right-0 w-2 h-full bg-emerald-500"></div>
-        </div>
-
-        {/* 2. Actual Material Consumed (COGS) */}
-        <div className="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm relative overflow-hidden group">
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-stone-500 block">Food Cost (COGS) (−)</span>
-              <span className="text-[10px] text-amber-700 font-bold">From Recipe Ingredients</span>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
-              <PackageCheck className="w-5 h-5" />
-            </div>
-          </div>
-          <h3 className="text-3xl font-extrabold text-amber-800 mt-2">
-            ₹{filteredData.actualMaterialConsumed.toLocaleString()}
-          </h3>
-          <p className="text-xs text-stone-500 mt-1">
-            Raw materials used for {filteredData.totalUnitsSold} items sold
-          </p>
-          <div className="absolute top-0 right-0 w-2 h-full bg-amber-500"></div>
-        </div>
-
-        {/* 3. Cafe Overheads & Bills (Rent, Light, Salaries) */}
-        <div className="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm relative overflow-hidden group">
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-stone-500 block">Bills & Rent (−)</span>
-              <span className="text-[10px] text-purple-700 font-bold">Light, Rent, Salary, Gas</span>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center">
-              <Receipt className="w-5 h-5" />
-            </div>
-          </div>
-          <h3 className="text-3xl font-extrabold text-purple-900 mt-2">
-            ₹{filteredData.totalOverheadExpenses.toLocaleString()}
-          </h3>
-          <p className="text-xs text-stone-500 mt-1">
-            Total {filteredData.activeExpenses.length} expense/bill entries logged
-          </p>
-          <div className="absolute top-0 right-0 w-2 h-full bg-purple-500"></div>
-        </div>
-
-        {/* 4. Spoilage / Wastage Loss (Kharab Maal) */}
-        <div className="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm relative overflow-hidden group">
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-stone-500 block">Kharab Maal Loss (−)</span>
-              <span className="text-[10px] text-rose-700 font-bold">Expired, Burnt, Spoiled</span>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center">
-              <AlertOctagon className="w-5 h-5" />
-            </div>
-          </div>
-          <h3 className="text-3xl font-extrabold text-rose-700 mt-2">
-            ₹{filteredData.totalWastageLoss.toLocaleString()}
-          </h3>
-          <p className="text-xs text-stone-500 mt-1">
-            Deducted from stock & recorded as loss
-          </p>
-          <div className="absolute top-0 right-0 w-2 h-full bg-rose-500"></div>
-        </div>
-
-        {/* 5. 🏆 TRUE NET IN-HAND PROFIT (Asli Bachat) */}
-        <div className={`rounded-2xl p-5 border shadow-md relative overflow-hidden ${
-          filteredData.trueNetProfit >= 0
-            ? 'bg-gradient-to-br from-emerald-950 to-stone-950 text-white border-emerald-800'
-            : 'bg-gradient-to-br from-rose-950 to-stone-950 text-white border-rose-800'
-        }`}>
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-300">
-              🏆 True Net Profit (Asli Munafa)
+      {/* 💡 SIMPLE P&L MATH WATERFALL BANNER ("Paisa Kahan Gaya?") */}
+      <div className="bg-white rounded-2xl border border-stone-200 p-3 sm:p-4 shadow-xs">
+        <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-stone-100 flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xs sm:text-sm font-extrabold text-stone-900 flex items-center gap-1.5">
+              <span>📊 P&L Simple Formula: Paisa Kahan Kharch Hua?</span>
             </span>
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-              filteredData.trueNetProfit >= 0 ? 'bg-emerald-800 text-emerald-200' : 'bg-rose-800 text-rose-200'
-            }`}>
-              {filteredData.trueNetProfit >= 0 ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
-            </div>
+            <span className="text-[10px] font-bold text-stone-500 bg-stone-100 px-2 py-0.5 rounded-full border border-stone-200">
+              {timeframe === 'daily' ? `Date: ${selectedDate}` : timeframe === 'weekly' ? 'Last 7 Days' : timeframe === 'monthly' ? 'This Month' : 'All Data'}
+            </span>
           </div>
-          <h3 className="text-3xl font-extrabold mt-2">
-            {filteredData.trueNetProfit < 0 ? '-' : ''}₹{Math.abs(filteredData.trueNetProfit).toLocaleString()}
-          </h3>
-          <p className="text-xs text-emerald-200/90 mt-1">
-            After Food Cost, Bills, Rent & Wastage ({filteredData.trueNetMargin}% Net Margin)
-          </p>
-          <div className={`absolute top-0 right-0 w-2 h-full ${filteredData.trueNetProfit >= 0 ? 'bg-emerald-400' : 'bg-rose-500'}`}></div>
+
+          <div className="text-[11px] font-semibold text-stone-500">
+            {filteredData.trueNetProfit >= 0 ? (
+              <span className="text-emerald-700 font-extrabold flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Cafe Munafa me hai!
+              </span>
+            ) : (
+              <span className="text-rose-700 font-extrabold flex items-center gap-1">
+                <AlertOctagon className="w-3.5 h-3.5" />
+                Kharcha Sales se zyada hua hai
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* 6. Cash Flow & Storage Valuation */}
-        <div className="bg-gradient-to-br from-stone-900 to-stone-950 text-white rounded-2xl p-5 border border-stone-800 shadow-md relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-stone-400">Net Cash Flow & Assets</span>
-            <div className="w-10 h-10 rounded-xl bg-stone-800 text-amber-400 flex items-center justify-center">
-              <Wallet className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="mt-2 space-y-1">
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-stone-400">Net Cash Inflow:</span>
-              <span className={`font-extrabold ${filteredData.netCashFlow >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                {filteredData.netCashFlow >= 0 ? '+' : ''}₹{filteredData.netCashFlow.toLocaleString()}
+        {/* 5-Step Formula Ribbon */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-center">
+          
+          {/* Step 1: Total Sales */}
+          <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200 flex flex-col justify-between">
+            <span className="text-[9px] font-extrabold uppercase tracking-wider text-emerald-800 block">
+              1. Total Kamayi (Sales)
+            </span>
+            <div className="my-1">
+              <span className="text-base sm:text-lg font-black text-emerald-950 block">
+                ₹{filteredData.totalRevenue.toLocaleString()}
               </span>
             </div>
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-stone-400">Stock in Storage:</span>
-              <span className="font-extrabold text-amber-300">₹{Math.round(filteredData.inventoryValuation).toLocaleString()}</span>
+            <span className="text-[10px] font-bold text-emerald-700">
+              {filteredData.totalOrdersCount} orders ({filteredData.totalUnitsSold} items)
+            </span>
+          </div>
+
+          {/* Step 2: Food Cost (COGS) */}
+          <div className="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200 flex flex-col justify-between">
+            <span className="text-[9px] font-extrabold uppercase tracking-wider text-amber-800 block">
+              2. (−) Raw Material Maal
+            </span>
+            <div className="my-1">
+              <span className="text-base sm:text-lg font-black text-amber-950 block">
+                -₹{filteredData.actualMaterialConsumed.toLocaleString()}
+              </span>
             </div>
-            <div className="flex justify-between items-center text-xs pt-1 border-t border-stone-800">
-              <span className="text-stone-400">Purchases:</span>
-              <span className="font-bold text-stone-300">₹{filteredData.totalRawMaterialCost.toLocaleString()}</span>
+            <span className="text-[10px] font-bold text-amber-700">
+              {filteredData.foodCostPercentage}% of sales (Food Cost)
+            </span>
+          </div>
+
+          {/* Step 3: Dukan Bills & Rent */}
+          <div className="p-2.5 rounded-xl bg-purple-50/70 border border-purple-200 flex flex-col justify-between">
+            <span className="text-[9px] font-extrabold uppercase tracking-wider text-purple-800 block">
+              3. (−) Dukan Bills & Rent
+            </span>
+            <div className="my-1">
+              <span className="text-base sm:text-lg font-black text-purple-950 block">
+                -₹{filteredData.totalOverheadExpenses.toLocaleString()}
+              </span>
             </div>
+            <span className="text-[10px] font-bold text-purple-700">
+              Bijli, Rent, Staff Salary, Gas
+            </span>
+          </div>
+
+          {/* Step 4: Spoilage / Wastage */}
+          <div className="p-2.5 rounded-xl bg-rose-50/70 border border-rose-200 flex flex-col justify-between">
+            <span className="text-[9px] font-extrabold uppercase tracking-wider text-rose-800 block">
+              4. (−) Kharab Maal Loss
+            </span>
+            <div className="my-1">
+              <span className="text-base sm:text-lg font-black text-rose-950 block">
+                -₹{filteredData.totalWastageLoss.toLocaleString()}
+              </span>
+            </div>
+            <span className="text-[10px] font-bold text-rose-700">
+              {filteredData.activeWastage.length} wastage entries
+            </span>
+          </div>
+
+          {/* Step 5: True Net Profit Result */}
+          <div className={`p-2.5 rounded-xl col-span-2 md:col-span-1 border flex flex-col justify-between shadow-xs ${
+            filteredData.trueNetProfit >= 0
+              ? 'bg-gradient-to-br from-emerald-700 via-emerald-800 to-teal-900 text-white border-emerald-600'
+              : 'bg-gradient-to-br from-rose-700 via-rose-800 to-red-900 text-white border-rose-600'
+          }`}>
+            <span className="text-[9px] font-extrabold uppercase tracking-wider text-white/90 block">
+              5. (=) ASLI NET MUNAFA
+            </span>
+            <div className="my-1">
+              <span className="text-base sm:text-xl font-black block">
+                {filteredData.trueNetProfit < 0 ? '-' : '+'}₹{Math.abs(filteredData.trueNetProfit).toLocaleString()}
+              </span>
+            </div>
+            <span className="text-[10px] font-extrabold text-white/95 bg-white/20 px-1.5 py-0.2 rounded inline-block mx-auto">
+              {filteredData.trueNetMargin}% Net Margin
+            </span>
+          </div>
+
+        </div>
+      </div>
+
+      {/* 4 PRIMARY METRIC CARDS */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+        
+        {/* 1. Total Sales & Payment Split */}
+        <div className="bg-white rounded-2xl p-3.5 border border-stone-200 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-stone-500">
+                Total Sales Revenue
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                <ShoppingBag className="w-4 h-4" />
+              </div>
+            </div>
+            <h3 className="text-xl sm:text-2xl font-black text-stone-900 mt-1">
+              ₹{filteredData.totalRevenue.toLocaleString()}
+            </h3>
+            <p className="text-[11px] text-stone-400 font-semibold">
+              {filteredData.totalOrdersCount} Orders • Avg: ₹{filteredData.avgOrderValue}/order
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1 pt-2.5 mt-2 border-t border-stone-100 text-[10px] font-bold">
+            <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+              💵 ₹{filteredData.cashRevenue.toLocaleString()}
+            </span>
+            <span className="text-sky-700 bg-sky-50 px-1.5 py-0.2 rounded border border-sky-200">
+              📱 ₹{filteredData.upiRevenue.toLocaleString()}
+            </span>
+            {(filteredData.swiggyRevenue > 0 || filteredData.zomatoRevenue > 0) && (
+              <span className="text-amber-800 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
+                🛵 ₹{(filteredData.swiggyRevenue + filteredData.zomatoRevenue).toLocaleString()}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* 2. Kitchen Food Cost (COGS) */}
+        <div className="bg-white rounded-2xl p-3.5 border border-stone-200 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-stone-500">
+                Food Cost (COGS)
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
+                <PackageCheck className="w-4 h-4" />
+              </div>
+            </div>
+            <h3 className="text-xl sm:text-2xl font-black text-amber-900 mt-1">
+              ₹{filteredData.actualMaterialConsumed.toLocaleString()}
+            </h3>
+            <p className="text-[11px] text-stone-400 font-semibold">
+              Gross Kitchen Margin: <strong className="text-emerald-700">{filteredData.grossMargin}%</strong>
+            </p>
+          </div>
+
+          <div className="pt-2.5 mt-2 border-t border-stone-100 flex items-center justify-between text-[10px] font-bold text-stone-500">
+            <span>Gross Profit: ₹{filteredData.grossProfit.toLocaleString()}</span>
+            <span className="text-amber-700">{filteredData.foodCostPercentage}% of Sales</span>
+          </div>
+        </div>
+
+        {/* 3. Dukan Bills & Overheads */}
+        <div className="bg-white rounded-2xl p-3.5 border border-stone-200 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-stone-500">
+                Bills, Rent & Salary
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center">
+                <Receipt className="w-4 h-4" />
+              </div>
+            </div>
+            <h3 className="text-xl sm:text-2xl font-black text-purple-900 mt-1">
+              ₹{filteredData.totalOverheadExpenses.toLocaleString()}
+            </h3>
+            <p className="text-[11px] text-stone-400 font-semibold">
+              {filteredData.activeExpenses.length} bills/expenses logged
+            </p>
+          </div>
+
+          <div className="pt-2.5 mt-2 border-t border-stone-100 flex items-center justify-between text-[10px] font-bold text-stone-500">
+            <span>Overhead Ratio</span>
+            <span className="text-purple-700">{filteredData.overheadPercentage}% of Sales</span>
+          </div>
+        </div>
+
+        {/* 4. Cash Flow & Godown Stock Valuation */}
+        <div className="bg-white rounded-2xl p-3.5 border border-stone-200 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-stone-500">
+                Storage Stock & Cash
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-stone-100 text-stone-700 flex items-center justify-center">
+                <Wallet className="w-4 h-4" />
+              </div>
+            </div>
+            <h3 className="text-xl sm:text-2xl font-black text-stone-900 mt-1">
+              ₹{Math.round(filteredData.inventoryValuation).toLocaleString()}
+            </h3>
+            <p className="text-[11px] text-stone-400 font-semibold">
+              Current Raw Material Asset in storage
+            </p>
+          </div>
+
+          <div className="pt-2.5 mt-2 border-t border-stone-100 flex items-center justify-between text-[10px] font-bold">
+            <span className="text-stone-500">Net Cash Inflow:</span>
+            <span className={filteredData.netCashFlow >= 0 ? 'text-emerald-700' : 'text-rose-700'}>
+              {filteredData.netCashFlow >= 0 ? '+' : ''}₹{filteredData.netCashFlow.toLocaleString()}
+            </span>
           </div>
         </div>
 
       </div>
 
-      {/* 🛵 AGGREGATOR (SWIGGY & ZOMATO) PAYOUT STATUS SECTION */}
+      {/* 🛵 SWIGGY & ZOMATO AGGREGATOR PAYOUT STATUS */}
       {(() => {
         const aggLedger = calculateAggregatorLedger(salesLogs, settlements);
+        const hasAggregatorSales = aggLedger.Swiggy.totalGross > 0 || aggLedger.Zomato.totalGross > 0;
+        
         return (
-          <div className="bg-gradient-to-r from-stone-900 via-stone-850 to-stone-950 text-white rounded-3xl p-5 sm:p-6 shadow-xl border border-stone-800 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-800 pb-3.5">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center font-extrabold shadow-lg shadow-amber-500/10">
-                  <Bike className="w-5 h-5" />
+          <div className="bg-gradient-to-r from-stone-900 via-stone-850 to-stone-950 text-white rounded-2xl p-3.5 sm:p-4 shadow-md border border-stone-800 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-800 pb-2.5">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center font-extrabold">
+                  <Bike className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-base font-bold text-amber-100 flex items-center gap-2">
-                    <span>Swiggy & Zomato Online Ledger & Weekly Payouts</span>
-                    <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-extrabold">
+                  <h4 className="text-xs sm:text-sm font-bold text-amber-100 flex items-center gap-2">
+                    <span>Swiggy & Zomato Online Ledger & Bank Payouts</span>
+                    <span className="text-[9px] bg-amber-500/20 text-amber-300 px-2 py-0.2 rounded-full font-extrabold">
                       Receivable
                     </span>
                   </h4>
-                  <p className="text-xs text-stone-400">
-                    Track gross orders, commissions deducted & pending bank payouts
+                  <p className="text-[10px] text-stone-400">
+                    Gross orders, platform commission deductions, aur bank me aane wala baaki paisa
                   </p>
                 </div>
               </div>
@@ -445,76 +614,76 @@ export default function FinancialDashboard({
                 <button
                   type="button"
                   onClick={onOpenSettlementsModal}
-                  className="px-3.5 py-1.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer self-start sm:self-auto"
+                  className="px-3 py-1.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer self-start sm:self-auto active:scale-95"
                 >
-                  Manage Payouts & Settlements
+                  Manage Payouts & Settlements →
                 </button>
               )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               {/* Swiggy Box */}
-              <div className="bg-stone-800/70 p-3.5 rounded-2xl border border-orange-500/30 flex flex-col justify-between">
+              <div className="bg-stone-800/80 p-3 rounded-xl border border-orange-500/30 flex flex-col justify-between">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-extrabold text-orange-400 uppercase flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#f48c06]"></span>
-                    🟠 Swiggy
+                  <span className="text-xs font-extrabold text-orange-400 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-[#f48c06]"></span>
+                    Swiggy
                   </span>
-                  <span className="text-[10px] bg-stone-700 text-stone-300 font-bold px-1.5 py-0.5 rounded">
+                  <span className="text-[10px] bg-stone-700 text-stone-300 font-bold px-1.5 py-0.2 rounded">
                     {aggLedger.Swiggy.totalOrdersCount} orders
                   </span>
                 </div>
-                <div className="my-2">
-                  <span className="text-[10px] text-stone-400 uppercase font-semibold">Pending Unsettled:</span>
-                  <div className="text-xl font-extrabold text-white mt-0.5">
+                <div className="my-1.5">
+                  <span className="text-[9px] text-stone-400 uppercase font-semibold">Bank me aana baaki hai:</span>
+                  <div className="text-lg font-black text-white">
                     ₹{aggLedger.Swiggy.pendingUnsettled.toLocaleString()}
                   </div>
                 </div>
-                <div className="text-[10px] text-stone-400 flex justify-between border-t border-stone-700/60 pt-1.5">
+                <div className="text-[10px] text-stone-400 flex justify-between border-t border-stone-700/60 pt-1">
                   <span>Gross: ₹{aggLedger.Swiggy.totalGross.toLocaleString()}</span>
-                  <span>Bank Recd: ₹{aggLedger.Swiggy.totalBankReceived.toLocaleString()}</span>
+                  <span>Recd: ₹{aggLedger.Swiggy.totalBankReceived.toLocaleString()}</span>
                 </div>
               </div>
 
               {/* Zomato Box */}
-              <div className="bg-stone-800/70 p-3.5 rounded-2xl border border-rose-500/30 flex flex-col justify-between">
+              <div className="bg-stone-800/80 p-3 rounded-xl border border-rose-500/30 flex flex-col justify-between">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-extrabold text-rose-400 uppercase flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#e5383b]"></span>
-                    🔴 Zomato
+                  <span className="text-xs font-extrabold text-rose-400 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-[#e5383b]"></span>
+                    Zomato
                   </span>
-                  <span className="text-[10px] bg-stone-700 text-stone-300 font-bold px-1.5 py-0.5 rounded">
+                  <span className="text-[10px] bg-stone-700 text-stone-300 font-bold px-1.5 py-0.2 rounded">
                     {aggLedger.Zomato.totalOrdersCount} orders
                   </span>
                 </div>
-                <div className="my-2">
-                  <span className="text-[10px] text-stone-400 uppercase font-semibold">Pending Unsettled:</span>
-                  <div className="text-xl font-extrabold text-white mt-0.5">
+                <div className="my-1.5">
+                  <span className="text-[9px] text-stone-400 uppercase font-semibold">Bank me aana baaki hai:</span>
+                  <div className="text-lg font-black text-white">
                     ₹{aggLedger.Zomato.pendingUnsettled.toLocaleString()}
                   </div>
                 </div>
-                <div className="text-[10px] text-stone-400 flex justify-between border-t border-stone-700/60 pt-1.5">
+                <div className="text-[10px] text-stone-400 flex justify-between border-t border-stone-700/60 pt-1">
                   <span>Gross: ₹{aggLedger.Zomato.totalGross.toLocaleString()}</span>
-                  <span>Bank Recd: ₹{aggLedger.Zomato.totalBankReceived.toLocaleString()}</span>
+                  <span>Recd: ₹{aggLedger.Zomato.totalBankReceived.toLocaleString()}</span>
                 </div>
               </div>
 
-              {/* Total Pending with Aggregators */}
-              <div className="bg-amber-950/40 p-3.5 rounded-2xl border border-amber-500/40 flex flex-col justify-between">
+              {/* Total Unsettled Bank Transfer */}
+              <div className="bg-amber-950/40 p-3 rounded-xl border border-amber-500/40 flex flex-col justify-between">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-extrabold text-amber-300 uppercase">
-                    🏦 Total Unsettled Online
+                  <span className="text-xs font-extrabold text-amber-300">
+                    🏦 Total Online Pending
                   </span>
-                  <Clock className="w-4 h-4 text-amber-400" />
+                  <Clock className="w-3.5 h-3.5 text-amber-400" />
                 </div>
-                <div className="my-2">
-                  <span className="text-[10px] text-amber-200/80 uppercase font-semibold">Awaiting Bank Transfer:</span>
-                  <div className="text-2xl font-black text-amber-300 mt-0.5">
+                <div className="my-1.5">
+                  <span className="text-[9px] text-amber-200/80 uppercase font-semibold">Awaiting Transfer to Bank:</span>
+                  <div className="text-xl font-black text-amber-300">
                     ₹{aggLedger.overall.pendingUnsettled.toLocaleString()}
                   </div>
                 </div>
-                <div className="text-[10px] text-amber-200/70 flex justify-between border-t border-amber-900/60 pt-1.5">
-                  <span>Total Deductions: ₹{aggLedger.overall.totalCommission.toLocaleString()}</span>
+                <div className="text-[10px] text-amber-200/70 flex justify-between border-t border-amber-900/60 pt-1">
+                  <span>Commission: ₹{aggLedger.overall.totalCommission.toLocaleString()}</span>
                   <span>In Bank: ₹{aggLedger.overall.totalBankReceived.toLocaleString()}</span>
                 </div>
               </div>
@@ -524,57 +693,54 @@ export default function FinancialDashboard({
         );
       })()}
 
-
-      {/* Detailed Tables & Breakdown Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* 2-COLUMN DETAILED ANALYTICS (TOP SELLERS & EXPENSE BREAKDOWN) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
         
-        {/* Top Sold Items Ranking & Best Sellers */}
-        <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-100 pb-3">
+        {/* Left: Top Selling Items (Best Sellers) */}
+        <div className="bg-white rounded-2xl border border-stone-200 p-3.5 sm:p-4 shadow-xs space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-100 pb-2.5">
             <div>
-              <h4 className="text-sm font-bold text-stone-900 uppercase tracking-wider flex items-center gap-2">
+              <h4 className="text-xs sm:text-sm font-extrabold text-stone-900 flex items-center gap-1.5">
                 <Flame className="w-4 h-4 text-amber-600 fill-amber-500" />
-                <span>🏆 Top Selling & Best Performer Items</span>
+                <span>🏆 Top Selling Items ({timeframe})</span>
               </h4>
-              <p className="text-[11px] text-stone-500 mt-0.5">
-                {timeframe === 'daily' ? 'Aaj' : timeframe === 'weekly' ? 'Pichhle 7 dino' : timeframe === 'monthly' ? 'Is mahine' : 'All-time'} ki sales ke hisab se cafe ke sabse zyada demand wale items.
-              </p>
+              <p className="text-[10px] text-stone-400">Sabse zyada bikne wale aur profit dene wale items</p>
             </div>
 
-            {/* Sort Toggle: By Quantity Sold vs By Revenue */}
-            <div className="flex items-center bg-stone-100 p-0.5 rounded-xl border border-stone-200 text-[11px] font-bold self-start sm:self-auto">
+            {/* Sort Toggle: Qty vs Revenue */}
+            <div className="flex items-center bg-stone-100 p-0.5 rounded-xl border border-stone-200 text-[10px] font-bold self-start sm:self-auto">
               <button
                 type="button"
                 onClick={() => setTopItemsSort('qty')}
-                className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                className={`px-2 py-0.5 rounded-lg transition-all cursor-pointer ${
                   topItemsSort === 'qty'
                     ? 'bg-amber-600 text-white shadow-xs'
                     : 'text-stone-600 hover:text-stone-900'
                 }`}
-                title="Sort by number of portions sold"
+                title="Sort by quantity sold"
               >
-                🔥 Most Sold (Qty)
+                🔥 Most Sold
               </button>
               <button
                 type="button"
                 onClick={() => setTopItemsSort('revenue')}
-                className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                className={`px-2 py-0.5 rounded-lg transition-all cursor-pointer ${
                   topItemsSort === 'revenue'
                     ? 'bg-amber-600 text-white shadow-xs'
                     : 'text-stone-600 hover:text-stone-900'
                 }`}
-                title="Sort by total revenue in Rupees"
+                title="Sort by revenue generated"
               >
-                💰 Top Revenue (₹)
+                💰 Top Revenue
               </button>
             </div>
           </div>
 
           {filteredData.topItems.length === 0 ? (
-            <p className="text-xs text-stone-400 py-6 text-center">No sales logged for this timeframe.</p>
+            <p className="text-xs text-stone-400 py-6 text-center">Is timeframe me koi sale record nahi hai.</p>
           ) : (
-            <div className="space-y-3">
-              {/* Top Seller Highlight Banner */}
+            <div className="space-y-2.5">
+              {/* Highlight #1 Star Item */}
               {(() => {
                 const sorted = [...filteredData.topItems].sort((a, b) => 
                   topItemsSort === 'qty' ? b.qty - a.qty : b.revenue - a.revenue
@@ -582,28 +748,28 @@ export default function FinancialDashboard({
                 const star = sorted[0];
                 if (!star) return null;
                 return (
-                  <div className="p-3 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-300 rounded-xl flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="text-xl">🥇</span>
+                  <div className="p-2.5 bg-gradient-to-r from-amber-50 via-amber-50/50 to-transparent border border-amber-200 rounded-xl flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-lg">🥇</span>
                       <div className="min-w-0">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 block">
-                          #1 Highest Selling Dish ({timeframe})
+                        <span className="text-[9px] font-extrabold uppercase tracking-wider text-amber-800 block">
+                          #1 Highest Demand Item
                         </span>
-                        <h5 className="text-sm font-extrabold text-stone-900 truncate">
+                        <h5 className="text-xs sm:text-sm font-black text-stone-900 truncate">
                           {star.name}
                         </h5>
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <span className="text-sm font-black text-amber-900">{star.qty} Portions Sold</span>
-                      <span className="block text-[11px] font-bold text-emerald-700">₹{star.revenue.toLocaleString()} Rev</span>
+                      <span className="text-xs sm:text-sm font-black text-amber-900">{star.qty} Portions Sold</span>
+                      <span className="block text-[10px] font-bold text-emerald-700">₹{star.revenue.toLocaleString()} Sales</span>
                     </div>
                   </div>
                 );
               })()}
 
               {/* Items List */}
-              <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
                 {[...filteredData.topItems]
                   .sort((a, b) => topItemsSort === 'qty' ? b.qty - a.qty : b.revenue - a.revenue)
                   .map((item, idx) => {
@@ -612,30 +778,16 @@ export default function FinancialDashboard({
                       : 0;
 
                     return (
-                      <div key={item.name} className="p-3 rounded-xl bg-stone-50 border border-stone-200/80 hover:bg-amber-50/30 transition-all space-y-1.5">
+                      <div key={item.name} className="p-2.5 rounded-xl bg-stone-50 border border-stone-200/80 hover:bg-amber-50/30 transition-all space-y-1">
                         <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center space-x-2.5 min-w-0">
-                            {idx === 0 ? (
-                              <span className="px-2 py-0.5 rounded-lg bg-amber-500 text-white text-[11px] font-black shadow-xs shrink-0">
-                                🥇 #1
-                              </span>
-                            ) : idx === 1 ? (
-                              <span className="px-2 py-0.5 rounded-lg bg-stone-400 text-white text-[11px] font-black shadow-xs shrink-0">
-                                🥈 #2
-                              </span>
-                            ) : idx === 2 ? (
-                              <span className="px-2 py-0.5 rounded-lg bg-amber-700 text-white text-[11px] font-black shadow-xs shrink-0">
-                                🥉 #3
-                              </span>
-                            ) : (
-                              <span className="w-5 h-5 rounded-md bg-stone-200 text-stone-700 text-[11px] font-bold flex items-center justify-center shrink-0">
-                                #{idx + 1}
-                              </span>
-                            )}
+                          <div className="flex items-center space-x-2 min-w-0">
+                            <span className="w-5 h-5 rounded-md bg-stone-200 text-stone-700 text-[10px] font-bold flex items-center justify-center shrink-0">
+                              #{idx + 1}
+                            </span>
                             <div className="min-w-0">
-                              <h5 className="text-xs sm:text-sm font-bold text-stone-900 truncate">{item.name}</h5>
+                              <h5 className="text-xs font-bold text-stone-900 truncate">{item.name}</h5>
                               {item.category && (
-                                <span className="text-[10px] text-stone-400 font-medium">
+                                <span className="text-[9px] text-stone-400 font-medium">
                                   {item.category}
                                 </span>
                               )}
@@ -643,24 +795,24 @@ export default function FinancialDashboard({
                           </div>
                           
                           <div className="text-right shrink-0">
-                            <span className="text-xs sm:text-sm font-extrabold text-amber-900">
+                            <span className="text-xs font-black text-stone-900">
                               {topItemsSort === 'qty' ? `${item.qty} units` : `₹${item.revenue.toLocaleString()}`}
                             </span>
-                            <span className="block text-[10px] text-stone-500 font-medium">
-                              {topItemsSort === 'qty' ? `₹${item.revenue.toLocaleString()} Rev` : `${item.qty} units`} • Margin: ₹{item.profit}
+                            <span className="block text-[9px] text-stone-500">
+                              {topItemsSort === 'qty' ? `₹${item.revenue.toLocaleString()} Sales` : `${item.qty} units`} • Margin: ₹{item.profit}
                             </span>
                           </div>
                         </div>
 
                         {/* Progress Bar of Sales Share */}
                         <div className="flex items-center gap-2 pt-0.5">
-                          <div className="flex-1 bg-stone-200 rounded-full h-1.5 overflow-hidden">
+                          <div className="flex-1 bg-stone-200 rounded-full h-1 overflow-hidden">
                             <div
-                              className="bg-gradient-to-r from-amber-500 to-amber-600 h-1.5 rounded-full transition-all"
+                              className="bg-amber-600 h-1 rounded-full transition-all"
                               style={{ width: `${Math.min(100, Math.max(3, contribution))}%` }}
                             />
                           </div>
-                          <span className="text-[10px] font-bold text-stone-500 shrink-0">
+                          <span className="text-[9px] font-bold text-stone-500 shrink-0">
                             {contribution}% of sales
                           </span>
                         </div>
@@ -672,33 +824,41 @@ export default function FinancialDashboard({
           )}
         </div>
 
-        {/* Expense Category Breakdown */}
-        <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm">
-          <h4 className="text-sm font-bold text-stone-900 uppercase tracking-wider mb-4 flex items-center gap-2">
-            <Receipt className="w-4 h-4 text-purple-600" />
-            Bills & Expenses Breakdown ({timeframe})
-          </h4>
+        {/* Right: Dukan Bills & Expenses Breakdown */}
+        <div className="bg-white rounded-2xl border border-stone-200 p-3.5 sm:p-4 shadow-xs space-y-3">
+          <div className="flex items-center justify-between border-b border-stone-100 pb-2.5">
+            <div>
+              <h4 className="text-xs sm:text-sm font-extrabold text-stone-900 flex items-center gap-1.5">
+                <Receipt className="w-4 h-4 text-purple-600" />
+                <span>📊 Dukan Bills & Kharcha Breakdown</span>
+              </h4>
+              <p className="text-[10px] text-stone-400">Rent, Bijli, Staff Salary, Gas aur Wi-Fi kharcha</p>
+            </div>
+            <span className="text-xs font-black text-purple-900 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-200">
+              Total: ₹{filteredData.totalOverheadExpenses.toLocaleString()}
+            </span>
+          </div>
 
           {Object.keys(filteredData.expenseBreakdown).length === 0 ? (
-            <p className="text-xs text-stone-400 py-6 text-center">No bills or operational expenses logged for this timeframe.</p>
+            <p className="text-xs text-stone-400 py-6 text-center">Is timeframe me koi bill/kharcha log nahi hai.</p>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2.5 max-h-[340px] overflow-y-auto pr-1">
               {Object.entries(filteredData.expenseBreakdown).map(([cat, amount]) => {
                 const percentage = filteredData.totalOverheadExpenses > 0
                   ? Math.round((amount / filteredData.totalOverheadExpenses) * 100)
                   : 0;
 
                 return (
-                  <div key={cat} className="p-3 rounded-xl bg-stone-50 border border-stone-100 space-y-1.5">
+                  <div key={cat} className="p-2.5 rounded-xl bg-stone-50 border border-stone-200/80 space-y-1">
                     <div className="flex items-center justify-between text-xs font-bold">
                       <span className="text-stone-900">{cat}</span>
-                      <span className="text-purple-900 font-extrabold">₹{amount.toLocaleString()} ({percentage}%)</span>
+                      <span className="text-purple-900 font-black">₹{amount.toLocaleString()} ({percentage}%)</span>
                     </div>
-                    <div className="w-full bg-stone-200 rounded-full h-2 overflow-hidden">
+                    <div className="w-full bg-stone-200 rounded-full h-1.5 overflow-hidden">
                       <div 
-                        className="bg-purple-600 h-2 rounded-full transition-all"
+                        className="bg-purple-600 h-1.5 rounded-full transition-all"
                         style={{ width: `${percentage}%` }}
-                      ></div>
+                      />
                     </div>
                   </div>
                 );
@@ -707,65 +867,103 @@ export default function FinancialDashboard({
           )}
         </div>
 
-        {/* Procurement Purchases */}
-        <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm">
-          <h4 className="text-sm font-bold text-stone-900 uppercase tracking-wider mb-4 flex items-center gap-2">
-            <PackageCheck className="w-4 h-4 text-amber-600" />
-            Raw Material Purchases ({timeframe})
-          </h4>
+      </div>
 
-          {filteredData.procurement.length === 0 ? (
-            <p className="text-xs text-stone-400 py-6 text-center">No raw material purchases logged for this timeframe.</p>
-          ) : (
-            <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-              {filteredData.procurement.map((p) => (
-                <div key={p.id} className="flex items-center justify-between p-3 rounded-xl bg-stone-50 border border-stone-100">
-                  <div>
-                    <h5 className="text-sm font-bold text-stone-900">{p.materialName}</h5>
-                    <div className="flex items-center gap-2 text-xs text-stone-500 mt-0.5">
-                      <span className="px-2 py-0.5 rounded bg-stone-200 text-stone-700 font-semibold text-[10px]">{p.category}</span>
-                      <span>Qty: {p.quantityReceived} {p.unit}</span>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-sm font-extrabold text-rose-700">₹{Number(p.totalCost).toLocaleString()}</span>
-                    <span className="block text-[10px] text-stone-400">{p.date}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+      {/* 📋 BOTTOM SECTION: TABBED PURCHASES & WASTAGE LOGS */}
+      <div className="bg-white rounded-2xl border border-stone-200 p-3.5 sm:p-4 shadow-xs space-y-3">
+        
+        {/* Tab Switcher Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-100 pb-2.5">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setActiveBottomTab('purchases')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                activeBottomTab === 'purchases'
+                  ? 'bg-amber-600 text-white shadow-xs'
+                  : 'bg-stone-100 text-stone-600 hover:text-stone-900'
+              }`}
+            >
+              <PackageCheck className="w-3.5 h-3.5" />
+              <span>Raw Material Purchases ({filteredData.procurement.length})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveBottomTab('wastage')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                activeBottomTab === 'wastage'
+                  ? 'bg-rose-600 text-white shadow-xs'
+                  : 'bg-stone-100 text-stone-600 hover:text-stone-900'
+              }`}
+            >
+              <AlertOctagon className="w-3.5 h-3.5" />
+              <span>Kharab Maal / Wastage ({filteredData.activeWastage.length})</span>
+            </button>
+          </div>
+
+          <div className="text-[11px] text-stone-500 font-semibold">
+            {activeBottomTab === 'purchases' ? (
+              <span>Total Khareed: <strong className="text-amber-900">₹{filteredData.totalRawMaterialCost.toLocaleString()}</strong></span>
+            ) : (
+              <span>Total Wastage Loss: <strong className="text-rose-700">₹{filteredData.totalWastageLoss.toLocaleString()}</strong></span>
+            )}
+          </div>
         </div>
 
-        {/* Recent Spoilage / Wastage Log */}
-        <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm">
-          <h4 className="text-sm font-bold text-stone-900 uppercase tracking-wider mb-4 flex items-center gap-2">
-            <AlertOctagon className="w-4 h-4 text-rose-600" />
-            Kharab Maal / Wastage Records ({timeframe})
-          </h4>
-
-          {filteredData.activeWastage.length === 0 ? (
-            <p className="text-xs text-stone-400 py-6 text-center">No wastage logged for this timeframe. Great job!</p>
-          ) : (
-            <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-              {filteredData.activeWastage.map((w) => (
-                <div key={w.id} className="flex items-center justify-between p-3 rounded-xl bg-rose-50/50 border border-rose-100">
-                  <div>
-                    <h5 className="text-sm font-bold text-stone-900">{w.ingredientName}</h5>
-                    <div className="flex items-center gap-2 text-xs text-stone-500 mt-0.5">
-                      <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold text-[10px]">{w.reason}</span>
-                      <span>{w.quantity} {w.unit}</span>
+        {/* Content 1: Purchases Tab */}
+        {activeBottomTab === 'purchases' && (
+          <div>
+            {filteredData.procurement.length === 0 ? (
+              <p className="text-xs text-stone-400 py-6 text-center">Is timeframe me koi raw material purchase entry nahi hai.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-[300px] overflow-y-auto pr-1">
+                {filteredData.procurement.map((p) => (
+                  <div key={p.id} className="p-2.5 rounded-xl bg-stone-50 border border-stone-200/80 flex items-center justify-between">
+                    <div>
+                      <h5 className="text-xs font-bold text-stone-900">{p.materialName}</h5>
+                      <div className="flex items-center gap-1.5 text-[10px] text-stone-500 mt-0.5">
+                        <span className="px-1.5 py-0.2 rounded bg-stone-200 text-stone-700 font-semibold">{p.category}</span>
+                        <span>{p.quantityReceived} {p.unit}</span>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="text-xs font-black text-amber-900">₹{Number(p.totalCost || 0).toLocaleString()}</span>
+                      <span className="block text-[9px] text-stone-400">{p.date}</span>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <span className="text-sm font-extrabold text-rose-700">Loss: ₹{Number(w.costValue || 0).toLocaleString()}</span>
-                    <span className="block text-[10px] text-stone-400">{w.date}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Content 2: Wastage Tab */}
+        {activeBottomTab === 'wastage' && (
+          <div>
+            {filteredData.activeWastage.length === 0 ? (
+              <p className="text-xs text-stone-400 py-6 text-center">Bahut badhiya! Is timeframe me koi kharab maal log nahi hua.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-[300px] overflow-y-auto pr-1">
+                {filteredData.activeWastage.map((w) => (
+                  <div key={w.id} className="p-2.5 rounded-xl bg-rose-50/50 border border-rose-200/70 flex items-center justify-between">
+                    <div>
+                      <h5 className="text-xs font-bold text-stone-900">{w.ingredientName}</h5>
+                      <div className="flex items-center gap-1.5 text-[10px] text-stone-500 mt-0.5">
+                        <span className="px-1.5 py-0.2 rounded-full bg-rose-100 text-rose-800 font-bold text-[9px]">{w.reason}</span>
+                        <span>{w.quantity} {w.unit}</span>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="text-xs font-black text-rose-700">Loss: ₹{Number(w.costValue || 0).toLocaleString()}</span>
+                      <span className="block text-[9px] text-stone-400">{w.date}</span>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
       </div>
 
