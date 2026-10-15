@@ -1513,7 +1513,7 @@ export default function App() {
       <div className="flex-1 w-full max-w-[1920px] mx-auto px-2 sm:px-4 lg:px-6 py-2.5 sm:py-3.5 flex flex-col md:flex-row gap-3 items-start">
 
         {/* 🧭 LEFT SIDEBAR NAVIGATION */}
-        <aside className="w-full md:w-52 lg:w-56 xl:w-60 shrink-0 bg-white rounded-2xl border border-slate-200 p-2 sm:p-2.5 shadow-xs md:sticky md:top-16 space-y-2 z-10">
+        <aside className="w-full md:w-52 lg:w-56 xl:w-60 shrink-0 bg-white rounded-2xl border border-slate-200 p-2 sm:p-2.5 shadow-xs md:sticky md:top-20 space-y-2 z-10">
           
           <div className="hidden md:flex items-center justify-between px-2.5 py-1 text-slate-400 border-b border-slate-100 pb-2">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Navigation</span>
