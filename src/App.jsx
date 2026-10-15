@@ -1209,6 +1209,27 @@ export default function App() {
     setIsModalOpen(false);
   };
 
+  const handleDuplicateMenuItem = (sourceItem) => {
+    if (!sourceItem) return;
+
+    const duplicatedItem = {
+      ...sourceItem,
+      id: `item-${Date.now()}`,
+      name: `${sourceItem.name} (Copy)`,
+      recipe: Array.isArray(sourceItem.recipe)
+        ? JSON.parse(JSON.stringify(sourceItem.recipe))
+        : []
+    };
+
+    const newMenu = [duplicatedItem, ...menuItems];
+    updateMenu(newMenu);
+    showToast(`📋 "${sourceItem.name}" duplicate ho gaya! Ab aap ise customize kar sakte hain.`);
+
+    // Immediately open editor for this duplicated item
+    setEditingItem(duplicatedItem);
+    setIsModalOpen(true);
+  };
+
   const handleDeleteMenuItem = (id) => {
     const item = menuItems.find(i => i.id === id);
     const updated = menuItems.filter(i => i.id !== id);
@@ -1864,6 +1885,7 @@ export default function App() {
                 onDelete={(item) => setDeletingItem(item)}
                 onToggleStatus={handleToggleMenuItemStatus}
                 onSaveItem={handleSaveMenuItem}
+                onDuplicate={handleDuplicateMenuItem}
                 onOpenAIScanner={() => setIsAIScannerOpen(true)}
                 onOpenAddItem={() => { setEditingItem(null); setIsModalOpen(true); }}
               />
@@ -1876,6 +1898,7 @@ export default function App() {
                 onDelete={(item) => setDeletingItem(item)}
                 onToggleStatus={handleToggleMenuItemStatus}
                 onSaveItem={handleSaveMenuItem}
+                onDuplicate={handleDuplicateMenuItem}
               />
             )}
           </div>
@@ -1911,6 +1934,7 @@ export default function App() {
         onClose={() => setIsModalOpen(false)}
         onSave={handleSaveMenuItem}
         editingItem={editingItem}
+        onDuplicate={handleDuplicateMenuItem}
         existingCategories={Array.from(new Set(menuItems.map(i => i.category)))}
         inventoryItems={inventoryItems}
       />

@@ -19,6 +19,7 @@ import {
   RefreshCw,
   ShoppingBag
 } from 'lucide-react';
+import { findSuggestedRecipeForItem } from '../utils/storage';
 
 // Preset Category Packs
 const PRESET_CAFE_PACKS = {
@@ -311,16 +312,19 @@ export default function AIMenuScannerModal({
       return;
     }
 
-    const formatted = selected.map(it => ({
-      id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-      name: it.name.trim(),
-      category: it.category || 'Snacks',
-      sellingPrice: Number(it.sellingPrice) || 0,
-      costPrice: Math.round((Number(it.sellingPrice) || 0) * 0.4), // Default 40% food cost
-      unit: it.unit || 'Piece',
-      isAvailable: true,
-      recipe: []
-    }));
+    const formatted = selected.map(it => {
+      const suggestedRecipe = findSuggestedRecipeForItem(it.name);
+      return {
+        id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        name: it.name.trim(),
+        category: it.category || 'Snacks',
+        sellingPrice: Number(it.sellingPrice) || 0,
+        costPrice: Math.round((Number(it.sellingPrice) || 0) * 0.4), // Default 40% food cost
+        unit: it.unit || 'Piece',
+        isAvailable: true,
+        recipe: suggestedRecipe
+      };
+    });
 
     onImportItems(formatted, importMode);
     onClose();
@@ -632,12 +636,19 @@ export default function AIMenuScannerModal({
                           />
                         </td>
                         <td className="p-2">
-                          <input
-                            type="text"
-                            value={item.name}
-                            onChange={(e) => handleUpdateItemField(item.id, 'name', e.target.value)}
-                            className="w-full px-2 py-1 bg-white border border-slate-200 focus:border-indigo-600 rounded-lg text-xs font-medium text-slate-900"
-                          />
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="text"
+                              value={item.name}
+                              onChange={(e) => handleUpdateItemField(item.id, 'name', e.target.value)}
+                              className="w-full px-2 py-1 bg-white border border-slate-200 focus:border-indigo-600 rounded-lg text-xs font-medium text-slate-900"
+                            />
+                            {findSuggestedRecipeForItem(item.name).length > 0 && (
+                              <span className="shrink-0 px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-[9px] font-extrabold whitespace-nowrap" title="Standard raw material recipe auto-detected for this item">
+                                ✨ Auto Recipe
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="p-2">
                           <select
@@ -691,6 +702,15 @@ export default function AIMenuScannerModal({
                   </tbody>
                 </table>
               </div>
+
+              {/* Recipe Auto-Linking Tip */}
+              <div className="p-2.5 bg-amber-50/90 border border-amber-200 rounded-xl text-[11px] text-amber-900 flex items-start gap-2">
+                <span className="text-base shrink-0 leading-none">💡</span>
+                <p>
+                  <strong>AI Recipe Auto-Detect:</strong> Standard cafe items (Pizzas, Burgers, Sandwiches, Fries, Shakes, Cold Coffee) me default raw material recipe automatically attach ho jayegi. Kisi dish ke alag-alag sizes ya variants ke liye aap Menu tab me <strong>"Duplicate"</strong> button se instant copy bana sakte hain!
+                </p>
+              </div>
+
             </div>
           )}
 

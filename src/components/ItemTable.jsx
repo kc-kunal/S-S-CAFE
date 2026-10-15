@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { Edit2, Trash2, CheckCircle2, XCircle, TrendingUp, Check, X } from 'lucide-react';
+import { Edit2, Trash2, CheckCircle2, XCircle, TrendingUp, Check, X, Copy } from 'lucide-react';
 import { checkItemStock } from '../utils/storage';
 
-export default function ItemTable({ items, inventoryItems = [], salesLogs = [], onEdit, onDelete, onToggleStatus, onSaveItem }) {
+export default function ItemTable({ items, inventoryItems = [], salesLogs = [], onEdit, onDelete, onToggleStatus, onSaveItem, onDuplicate }) {
   const [editingPriceId, setEditingPriceId] = useState(null);
   const [quickPrices, setQuickPrices] = useState({ sellingPrice: '', costPrice: '' });
 
@@ -224,27 +224,40 @@ export default function ItemTable({ items, inventoryItems = [], salesLogs = [], 
                         </button>
                       </div>
                     ) : (
-                      <div className="flex items-center justify-center space-x-2">
+                      <div className="flex items-center justify-center space-x-1.5">
                         <button
+                          type="button"
                           onClick={() => handleStartQuickEdit(item)}
                           className="px-2 py-1 text-xs font-bold text-amber-700 bg-amber-100 hover:bg-amber-200 rounded-md cursor-pointer"
                           title="Quick Price Edit"
                         >
                           ✏️ Price
                         </button>
+                        {onDuplicate && (
+                          <button
+                            type="button"
+                            onClick={() => onDuplicate(item)}
+                            className="p-1.5 text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 rounded-lg transition-colors cursor-pointer"
+                            title="Duplicate Item with Recipe"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         <button
+                          type="button"
                           onClick={() => onEdit(item)}
-                          className="p-1.5 text-stone-600 hover:text-amber-700 hover:bg-amber-100/70 rounded-lg transition-colors"
+                          className="p-1.5 text-stone-600 hover:text-amber-700 hover:bg-amber-100/70 rounded-lg transition-colors cursor-pointer"
                           title="Full Edit"
                         >
-                          <Edit2 className="w-4 h-4" />
+                          <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
+                          type="button"
                           onClick={() => onDelete(item)}
-                          className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-100/70 rounded-lg transition-colors"
+                          className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-100/70 rounded-lg transition-colors cursor-pointer"
                           title="Delete Item"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     )}

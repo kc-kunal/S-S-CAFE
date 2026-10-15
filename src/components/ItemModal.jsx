@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Check, Coffee, Tag, Plus, Trash2, Layers, Calculator, Sparkles, AlertTriangle } from 'lucide-react';
+import { X, Check, Coffee, Tag, Plus, Trash2, Layers, Calculator, Sparkles, AlertTriangle, Copy } from 'lucide-react';
 import { convertQuantity, findMatchingInventoryItem } from '../utils/storage';
 
 const PRESET_CATEGORIES = [
@@ -18,7 +18,7 @@ const PRESET_CATEGORIES = [
 const PRESET_UNITS = ['Piece', 'Portion', 'Glass', 'Cup', 'Combo', 'Serving', 'Plate', 'Pack'];
 const INGREDIENT_UNITS = ['Piece', 'Gram', 'ml', 'Slice', 'Portion', 'Kg', 'Liters'];
 
-export default function ItemModal({ isOpen, onClose, onSave, editingItem, existingCategories = [], inventoryItems = [] }) {
+export default function ItemModal({ isOpen, onClose, onSave, editingItem, onDuplicate, existingCategories = [], inventoryItems = [] }) {
   const [formData, setFormData] = useState({
     name: '',
     category: 'Burgers',
@@ -526,21 +526,38 @@ export default function ItemModal({ isOpen, onClose, onSave, editingItem, existi
           </div>
 
           {/* Action Buttons */}
-          <div className="pt-2 flex items-center justify-end space-x-3 border-t border-stone-100">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-5 py-2.5 text-xs font-bold text-stone-600 hover:bg-stone-100 rounded-xl cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-6 py-2.5 text-xs font-bold text-white bg-amber-600 hover:bg-amber-500 rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer transition-all"
-            >
-              <Check className="w-4 h-4" />
-              <span>{editingItem ? 'Save Item & Recipe' : `Add Item to ${formData.category}`}</span>
-            </button>
+          <div className="pt-2 flex items-center justify-between gap-2 border-t border-stone-100">
+            {editingItem && onDuplicate ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onDuplicate(editingItem);
+                  onClose();
+                }}
+                className="px-3.5 py-2 text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-300 rounded-xl flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all shadow-2xs"
+                title="Create a duplicate copy of this item and its recipe"
+              >
+                <Copy className="w-3.5 h-3.5 text-amber-700" />
+                <span>Duplicate as New Item</span>
+              </button>
+            ) : <div />}
+
+            <div className="flex items-center space-x-2.5">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-xs font-bold text-stone-600 hover:bg-stone-100 rounded-xl cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-500 rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+              >
+                <Check className="w-4 h-4" />
+                <span>{editingItem ? 'Save Item & Recipe' : `Add Item to ${formData.category}`}</span>
+              </button>
+            </div>
           </div>
 
         </form>

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Edit2, Trash2, CheckCircle2, XCircle, Tag, Coffee, Check, X, DollarSign, AlertCircle, Sparkles, Plus } from 'lucide-react';
+import { Edit2, Trash2, CheckCircle2, XCircle, Tag, Coffee, Check, X, DollarSign, AlertCircle, Sparkles, Plus, Copy } from 'lucide-react';
 import { checkItemStock } from '../utils/storage';
 
 export default function ItemCards({
@@ -10,6 +10,7 @@ export default function ItemCards({
   onDelete,
   onToggleStatus,
   onSaveItem,
+  onDuplicate,
   onOpenAIScanner,
   onOpenAddItem
 }) {
@@ -287,7 +288,19 @@ export default function ItemCards({
 
                   {/* Actions */}
                   <div className="flex items-center justify-end space-x-2 pt-2 border-t border-stone-100">
+                    {onDuplicate && (
+                      <button
+                        type="button"
+                        onClick={() => onDuplicate(item)}
+                        className="px-2.5 py-1.5 text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 rounded-lg transition-all flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs"
+                        title="Duplicate item with exact same recipe"
+                      >
+                        <Copy className="w-3.5 h-3.5 text-amber-700" />
+                        <span>Duplicate</span>
+                      </button>
+                    )}
                     <button
+                      type="button"
                       onClick={() => onEdit(item)}
                       className="px-3 py-1.5 text-xs font-semibold text-stone-700 bg-stone-100 hover:bg-amber-100 hover:text-amber-900 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
                     >
@@ -295,8 +308,9 @@ export default function ItemCards({
                       <span>Full Edit</span>
                     </button>
                     <button
+                      type="button"
                       onClick={() => onDelete(item)}
-                      className="px-3 py-1.5 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                      className="px-2.5 py-1.5 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                       <span>Delete</span>

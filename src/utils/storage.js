@@ -1785,3 +1785,111 @@ export const checkItemStock = (item, inventoryItems = []) => {
   };
 };
 
+// Smart auto-recipe detector for standard cafe & restaurant items
+export const findSuggestedRecipeForItem = (itemName) => {
+  if (!itemName) return [];
+  const lower = itemName.toLowerCase().trim();
+
+  // 1. Direct match with INITIAL_MENU_ITEMS
+  const matchInitial = INITIAL_MENU_ITEMS.find(
+    m => m.name.toLowerCase() === lower || lower.includes(m.name.toLowerCase())
+  );
+  if (matchInitial && Array.isArray(matchInitial.recipe) && matchInitial.recipe.length > 0) {
+    return JSON.parse(JSON.stringify(matchInitial.recipe));
+  }
+
+  // 2. Direct match with RESTAURANT_HOTEL_MENU_ITEMS
+  const matchHotel = RESTAURANT_HOTEL_MENU_ITEMS.find(
+    m => m.name.toLowerCase() === lower || lower.includes(m.name.toLowerCase())
+  );
+  if (matchHotel && Array.isArray(matchHotel.recipe) && matchHotel.recipe.length > 0) {
+    return JSON.parse(JSON.stringify(matchHotel.recipe));
+  }
+
+  // 3. Keyword-based matching
+  if (lower.includes('pizza')) {
+    if (lower.includes('paneer') || lower.includes('makhani') || lower.includes('tikka')) {
+      return [
+        { ingredientId: 'inv-1', name: 'Pizza Base', quantity: 1, unit: 'Piece' },
+        { ingredientId: 'inv-2', name: 'Mozzarella Cheese', quantity: 60, unit: 'Gram' },
+        { ingredientId: 'inv-14', name: 'Paneer (Cottage Cheese)', quantity: 40, unit: 'Gram' },
+        { ingredientId: 'inv-3', name: 'Pizza Sauce', quantity: 30, unit: 'Gram' }
+      ];
+    }
+    if (lower.includes('corn')) {
+      return [
+        { ingredientId: 'inv-1', name: 'Pizza Base', quantity: 1, unit: 'Piece' },
+        { ingredientId: 'inv-2', name: 'Mozzarella Cheese', quantity: 70, unit: 'Gram' },
+        { ingredientId: 'inv-3', name: 'Pizza Sauce', quantity: 30, unit: 'Gram' }
+      ];
+    }
+    return [
+      { ingredientId: 'inv-1', name: 'Pizza Base', quantity: 1, unit: 'Piece' },
+      { ingredientId: 'inv-2', name: 'Mozzarella Cheese', quantity: 50, unit: 'Gram' },
+      { ingredientId: 'inv-3', name: 'Pizza Sauce', quantity: 25, unit: 'Gram' }
+    ];
+  }
+
+  if (lower.includes('burger')) {
+    if (lower.includes('paneer')) {
+      return [
+        { ingredientId: 'inv-4', name: 'Burger Buns', quantity: 1, unit: 'Piece' },
+        { ingredientId: 'inv-14', name: 'Paneer (Cottage Cheese)', quantity: 50, unit: 'Gram' },
+        { ingredientId: 'inv-6', name: 'Mayonnaise', quantity: 20, unit: 'Gram' },
+        { ingredientId: 'inv-15', name: 'Cheese Slice', quantity: 1, unit: 'Piece' }
+      ];
+    }
+    return [
+      { ingredientId: 'inv-4', name: 'Burger Buns', quantity: 1, unit: 'Piece' },
+      { ingredientId: 'inv-5', name: 'Veg Aloo Patty', quantity: 1, unit: 'Piece' },
+      { ingredientId: 'inv-6', name: 'Mayonnaise', quantity: 20, unit: 'Gram' }
+    ];
+  }
+
+  if (lower.includes('sandwich') || lower.includes('toast')) {
+    return [
+      { ingredientId: 'inv-12', name: 'Sandwich Bread', quantity: 2, unit: 'Slice' },
+      { ingredientId: 'inv-13', name: 'Butter', quantity: 15, unit: 'Gram' },
+      { ingredientId: 'inv-15', name: 'Cheese Slice', quantity: 1, unit: 'Piece' }
+    ];
+  }
+
+  if (lower.includes('coffee') || lower.includes('frappe')) {
+    return [
+      { ingredientId: 'inv-7', name: 'Whole Milk', quantity: 200, unit: 'ml' },
+      { ingredientId: 'inv-8', name: 'Coffee Powder', quantity: 15, unit: 'Gram' },
+      { ingredientId: 'inv-9', name: 'Sugar', quantity: 20, unit: 'Gram' }
+    ];
+  }
+
+  if (lower.includes('chai') || lower.includes('tea')) {
+    return [
+      { ingredientId: 'inv-7', name: 'Whole Milk', quantity: 100, unit: 'ml' },
+      { ingredientId: 'inv-9', name: 'Sugar', quantity: 15, unit: 'Gram' }
+    ];
+  }
+
+  if (lower.includes('fries')) {
+    return [
+      { ingredientId: 'inv-10', name: 'French Fries (Frozen)', quantity: 150, unit: 'Gram' }
+    ];
+  }
+
+  if (lower.includes('garlic bread')) {
+    return [
+      { ingredientId: 'inv-11', name: 'Garlic Bread Loaf', quantity: 1, unit: 'Piece' },
+      { ingredientId: 'inv-13', name: 'Butter', quantity: 20, unit: 'Gram' },
+      { ingredientId: 'inv-2', name: 'Mozzarella Cheese', quantity: 30, unit: 'Gram' }
+    ];
+  }
+
+  if (lower.includes('maggi')) {
+    return [
+      { ingredientId: 'inv-13', name: 'Butter', quantity: 15, unit: 'Gram' }
+    ];
+  }
+
+  return [];
+};
+
+
