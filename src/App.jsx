@@ -1453,135 +1453,201 @@ export default function App() {
         khataOutstanding={totalKhataOutstanding}
       />
 
-      {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 pb-20 sm:pb-8">
+      {/* Main Container with Left Sidebar & Content */}
+      <div className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 flex flex-col md:flex-row gap-5 items-start">
 
-        {/* Navigation Tabs Bar */}
-        <div className="flex items-center justify-between gap-3 mb-6 sm:mb-8 bg-white p-1.5 sm:p-2 rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+        {/* 🧭 LEFT SIDEBAR NAVIGATION */}
+        <aside className="w-full md:w-56 lg:w-64 shrink-0 bg-white rounded-3xl border border-slate-200 p-2.5 sm:p-3 shadow-xs md:sticky md:top-24 space-y-2.5 z-10">
+          
+          <div className="hidden md:flex items-center justify-between px-2.5 py-1 text-slate-400 border-b border-slate-100 pb-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Navigation</span>
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700">POS Menu</span>
+          </div>
 
-          <div className="flex items-center space-x-1 sm:space-x-2 overflow-x-auto w-full no-scrollbar py-0.5 px-0.5">
-
-            {/* Sales Tracker Tab */}
+          {/* Navigation Items (Vertical on md+, Horizontal scroll on mobile) */}
+          <nav className="flex flex-row md:flex-col gap-1.5 overflow-x-auto md:overflow-visible no-scrollbar p-0.5">
+            
+            {/* 1. Sale Tab (Renamed from Daily Sales!) */}
             <button
+              type="button"
               onClick={() => handleTabClick('sales')}
-              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${activeTab === 'sales'
-                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/25'
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 md:w-full ${
+                activeTab === 'sales'
+                  ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-md shadow-indigo-600/20'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
+              }`}
             >
-              <ShoppingBag className="w-4 h-4" />
-              <span>⚡ Daily Sales</span>
+              <div className="flex items-center gap-2.5">
+                <ShoppingBag className={`w-4 h-4 ${activeTab === 'sales' ? 'text-white' : 'text-indigo-600'}`} />
+                <span>Sale</span>
+              </div>
+              <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded-md ${
+                activeTab === 'sales' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500 hidden md:inline'
+              }`}>
+                POS
+              </span>
             </button>
 
-            {/* 🛎️ Dine-In & QR Orders Tab */}
+            {/* 2. Dine-In & QR Orders Tab */}
             <button
+              type="button"
               onClick={() => handleTabClick('dining')}
-              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 relative ${activeTab === 'dining'
-                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/25'
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 md:w-full ${
+                activeTab === 'dining'
+                  ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-md shadow-indigo-600/20'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
+              }`}
             >
-              <UtensilsCrossed className="w-4 h-4" />
-              <span>🛎️ Dine-In & QR</span>
-              {diningOrders.filter(o => o.status === 'pending').length > 0 && (
+              <div className="flex items-center gap-2.5">
+                <UtensilsCrossed className={`w-4 h-4 ${activeTab === 'dining' ? 'text-white' : 'text-amber-600'}`} />
+                <span>Dine-In & Tables</span>
+              </div>
+              {diningOrders.filter(o => o.status === 'pending').length > 0 ? (
                 <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></span>
+              ) : (
+                <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded-md ${
+                  activeTab === 'dining' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500 hidden md:inline'
+                }`}>
+                  QR
+                </span>
               )}
             </button>
 
-            {/* 📦 Raw Material Stock Tab */}
+            {/* 3. Raw Material Stock Tab */}
             <button
+              type="button"
               onClick={() => handleTabClick('inventory')}
-              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${activeTab === 'inventory'
-                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/25'
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 md:w-full ${
+                activeTab === 'inventory'
+                  ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-md shadow-indigo-600/20'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
+              }`}
               title={isStaffMode ? 'Owner PIN Protected' : 'Raw Materials Inventory'}
             >
-              <Boxes className="w-4 h-4" />
-              <span>📦 Stock</span>
-              {isStaffMode && <span className="text-[10px] ml-0.5">🔒</span>}
+              <div className="flex items-center gap-2.5">
+                <Boxes className={`w-4 h-4 ${activeTab === 'inventory' ? 'text-white' : 'text-emerald-600'}`} />
+                <span>Stock</span>
+              </div>
+              {isStaffMode && <span className="text-[10px]">🔒</span>}
             </button>
 
-            {/* Dashboard Tab */}
+            {/* 4. Purchases (Procurement) Tab */}
             <button
-              onClick={() => handleTabClick('dashboard')}
-              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${activeTab === 'dashboard'
-                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/25'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              title={isStaffMode ? 'Owner PIN Protected' : 'Financial P&L Dashboard'}
-            >
-              <PieChart className="w-4 h-4" />
-              <span>📊 P&L</span>
-              {isStaffMode && <span className="text-[10px] ml-0.5">🔒</span>}
-            </button>
-
-            {/* Procurement Log Tab */}
-            <button
+              type="button"
               onClick={() => handleTabClick('procurement')}
-              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${activeTab === 'procurement'
-                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/25'
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 md:w-full ${
+                activeTab === 'procurement'
+                  ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-md shadow-indigo-600/20'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
+              }`}
             >
-              <PackageCheck className="w-4 h-4" />
-              <span>Purchases</span>
+              <div className="flex items-center gap-2.5">
+                <PackageCheck className={`w-4 h-4 ${activeTab === 'procurement' ? 'text-white' : 'text-blue-600'}`} />
+                <span>Purchases</span>
+              </div>
+              <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded-md ${
+                activeTab === 'procurement' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500 hidden md:inline'
+              }`}>
+                In
+              </span>
             </button>
 
-            {/* Expenses & Bills Tab */}
+            {/* 5. Bills & Expenses Tab */}
             <button
+              type="button"
               onClick={() => handleTabClick('expenses')}
-              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${activeTab === 'expenses'
-                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/25'
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 md:w-full ${
+                activeTab === 'expenses'
+                  ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-md shadow-indigo-600/20'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
+              }`}
               title={isStaffMode ? 'Owner PIN Protected' : 'Cafe Bills & Expenses'}
             >
-              <Receipt className="w-4 h-4" />
-              <span>💸 Bills & Expenses</span>
-              {isStaffMode && <span className="text-[10px] ml-0.5">🔒</span>}
+              <div className="flex items-center gap-2.5">
+                <Receipt className={`w-4 h-4 ${activeTab === 'expenses' ? 'text-white' : 'text-rose-600'}`} />
+                <span>Bills & Expenses</span>
+              </div>
+              {isStaffMode && <span className="text-[10px]">🔒</span>}
             </button>
 
-            {/* Menu Catalog Tab */}
+            {/* 6. P&L Dashboard Tab */}
             <button
-              onClick={() => handleTabClick('menu')}
-              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${activeTab === 'menu'
-                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/25'
+              type="button"
+              onClick={() => handleTabClick('dashboard')}
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 md:w-full ${
+                activeTab === 'dashboard'
+                  ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-md shadow-indigo-600/20'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
+              }`}
+              title={isStaffMode ? 'Owner PIN Protected' : 'Financial P&L Dashboard'}
             >
-              <Coffee className="w-4 h-4" />
-              <span>Menu & Recipes</span>
+              <div className="flex items-center gap-2.5">
+                <PieChart className={`w-4 h-4 ${activeTab === 'dashboard' ? 'text-white' : 'text-violet-600'}`} />
+                <span>P&L Dashboard</span>
+              </div>
+              {isStaffMode && <span className="text-[10px]">🔒</span>}
             </button>
 
+            {/* 7. Menu Catalog & Recipes Tab */}
+            <button
+              type="button"
+              onClick={() => handleTabClick('menu')}
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 md:w-full ${
+                activeTab === 'menu'
+                  ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-md shadow-indigo-600/20'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Coffee className={`w-4 h-4 ${activeTab === 'menu' ? 'text-white' : 'text-amber-700'}`} />
+                <span>Menu & Recipes</span>
+              </div>
+              <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded-md ${
+                activeTab === 'menu' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500 hidden md:inline'
+              }`}>
+                {menuItems.length}
+              </span>
+            </button>
+
+          </nav>
+
+          {/* Sidebar Footer Info / Quick actions for Desktop */}
+          <div className="hidden md:block pt-3 border-t border-slate-100 space-y-2">
+            <div className="p-2.5 bg-slate-50 rounded-2xl border border-slate-100 text-[11px] text-slate-500 space-y-1">
+              <div className="flex items-center justify-between font-bold text-slate-700">
+                <span>{currentCafe?.businessType === 'restaurant' ? '🍽️ Restaurant' : '☕ Cafe Mode'}</span>
+                <span className="text-emerald-600 font-black">● Live</span>
+              </div>
+              <p className="text-[10px] truncate text-slate-400">{currentCafe?.cafeName}</p>
+            </div>
+
+            {activeTab === 'menu' && (
+              <div className="space-y-1.5 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setIsAIScannerOpen(true)}
+                  className="w-full flex items-center justify-center gap-1.5 py-2 px-3 bg-gradient-to-r from-indigo-600 to-blue-600 text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                  <span>AI Menu Scanner</span>
+                </button>
+                <button
+                  onClick={() => { setEditingItem(null); setIsModalOpen(true); }}
+                  className="w-full flex items-center justify-center gap-1.5 py-2 px-3 bg-slate-900 text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>+ Add Item</span>
+                </button>
+              </div>
+            )}
           </div>
 
-          {activeTab === 'menu' && (
-            <div className="hidden lg:flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => setIsAIScannerOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer transition-all"
-                title="Scan Menu Card Photo or Paste Rate Card"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                <span>AI Menu Scanner</span>
-              </button>
-              <button
-                onClick={() => { setEditingItem(null); setIsModalOpen(true); }}
-                className="flex items-center gap-1.5 px-4 py-2 bg-slate-900 text-white hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-700 shadow-xs cursor-pointer transition-all shrink-0"
-              >
-                <Plus className="w-3.5 h-3.5 text-indigo-400" />
-                <span>Add Item</span>
-              </button>
-            </div>
-          )}
+        </aside>
 
-        </div>
-
-        {/* Tab Views */}
-        {activeTab === 'sales' && (
-          <SalesTracker
+        {/* 💻 MAIN CONTENT VIEW */}
+        <main className="flex-1 min-w-0 w-full space-y-6">
+          {activeTab === 'sales' && (
+            <SalesTracker
             menuItems={menuItems}
             salesLogs={salesLogs}
             inventoryItems={inventoryItems}
@@ -1754,7 +1820,8 @@ export default function App() {
           </div>
         )}
 
-      </main>
+        </main>
+      </div>
 
       {/* Item Form Modal with Recipe Builder */}
       <ItemModal

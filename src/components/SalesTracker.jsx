@@ -714,201 +714,165 @@ export default function SalesTracker({
     return matchesDate && matchesSearch && matchesMode;
   });
 
+  // View mode for Sales History: 'tokens' (grouped by order token with item list & punch time) vs 'items' (individual line items)
+  const [historyViewMode, setHistoryViewMode] = useState('tokens');
+
+  // 🎫 Grouped Token Orders for History (Showing all items in token & exact punch time)
+  const groupedTokenOrders = useMemo(() => {
+    const map = new Map();
+
+    filteredLogs.forEach(sale => {
+      // Group key: platformOrderId if available, or unique fallback for single punches
+      const tokenKey = sale.platformOrderId ? `${sale.date}_${sale.platformOrderId}` : `single_${sale.id}`;
+
+      let formattedTime = '—';
+      if (sale.createdAt) {
+        try {
+          formattedTime = new Date(sale.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        } catch (e) {
+          formattedTime = '—';
+        }
+      }
+
+      if (!map.has(tokenKey)) {
+        map.set(tokenKey, {
+          orderKey: tokenKey,
+          token: sale.platformOrderId || `#ORD-${sale.id.slice(-4).toUpperCase()}`,
+          date: sale.date,
+          time: formattedTime,
+          createdAt: sale.createdAt,
+          paymentMethod: sale.paymentMethod || 'Cash',
+          customerName: sale.customerName,
+          customerPhone: sale.customerPhone,
+          notes: sale.notes,
+          items: [],
+          totalRevenue: 0,
+          totalUnits: 0,
+          saleIds: []
+        });
+      }
+
+      const order = map.get(tokenKey);
+      order.items.push({
+        saleId: sale.id,
+        name: sale.itemName,
+        qty: Number(sale.quantitySold) || 1,
+        price: Number(sale.sellingPrice) || 0,
+        total: Number(sale.totalRevenue) || 0,
+        category: sale.category || 'General'
+      });
+      order.totalRevenue += (Number(sale.totalRevenue) || 0);
+      order.totalUnits += (Number(sale.quantitySold) || 1);
+      order.saleIds.push(sale.id);
+      if (order.time === '—' && formattedTime !== '—') {
+        order.time = formattedTime;
+      }
+    });
+
+    return Array.from(map.values());
+  }, [filteredLogs]);
+
+  // Handler to delete an entire Token Order and restore raw material stock for all its items
+  const handleDeleteTokenOrder = (order) => {
+    if (window.confirm(`Kya aap Token "${order.token}" (${order.items.length} items • ₹${order.totalRevenue}) ko delete karna chahte hain? Sabhi raw materials wapas stock me add ho jayenge.`)) {
+      order.saleIds.forEach(id => onDeleteSale(id));
+      if (showToast) {
+        showToast(`Token Order ${order.token} successfully deleted`);
+      }
+    }
+  };
+
   return (
     <div className="space-y-6">
       
-      {/* 📊 DAILY SALES SUMMARY SECTION */}
-      <div className="bg-gradient-to-r from-stone-900 via-stone-850 to-stone-950 text-white rounded-3xl p-5 sm:p-6 shadow-xl border border-stone-800 space-y-4">
-        
-        {/* Top Header & Actions */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-stone-800 pb-4">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-600 text-amber-100 flex items-center justify-center font-extrabold shadow-lg shadow-amber-600/30">
-              <TrendingUp className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold font-serif-title text-amber-100">Daily Sales & Cash Summary</h2>
-                <span className="text-[10px] bg-amber-500/20 text-amber-300 font-extrabold px-2 py-0.5 rounded-full border border-amber-500/30">
-                  {summaryDate}
-                </span>
-              </div>
-              <p className="text-xs text-stone-400">
-                Separate counter cash, direct UPI & pending weekly payouts (Swiggy / Zomato)
-              </p>
-            </div>
+      {/* ⚡ COMPACT SALE POS UTILITY HEADER (Replaces old heavy dashboard box) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 sm:p-4 rounded-2xl border border-stone-200 shadow-xs">
+        <div className="flex items-center space-x-3">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-600 to-blue-600 text-white flex items-center justify-center shadow-xs">
+            <Zap className="w-5 h-5 fill-amber-300 text-amber-300" />
           </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Date Picker */}
-            <div className="flex items-center gap-2 bg-stone-800/80 px-3.5 py-1.5 rounded-2xl border border-stone-700/80">
-              <span className="text-xs font-bold text-amber-300/80 uppercase">Date:</span>
-              <input
-                type="date"
-                value={saleDate}
-                onChange={(e) => setSaleDate(e.target.value)}
-                className="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer"
-              />
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-black text-stone-900 tracking-tight">Sale POS Terminal</h2>
+              <span className="text-[10px] bg-emerald-50 text-emerald-700 font-extrabold px-2 py-0.5 rounded-full border border-emerald-200">
+                Live Billing
+              </span>
             </div>
-
-            {/* Aggregator Settlement / Ledger Button */}
-            <button
-              type="button"
-              onClick={() => {
-                setSettlementPlatform('Swiggy');
-                setIsSettlementModalOpen(true);
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-800 hover:bg-stone-700 active:bg-stone-900 text-amber-300 rounded-2xl text-xs font-bold transition-all border border-amber-500/30 cursor-pointer shadow-md"
-              title="Manage Swiggy & Zomato Weekly Payouts & Commission Settlements"
-            >
-              <Clock className="w-3.5 h-3.5 text-amber-400" />
-              <span>Online Payouts</span>
-              {aggLedger.overall.pendingUnsettled > 0 && (
-                <span className="bg-amber-500 text-stone-950 px-1.5 py-0.2 rounded-full text-[10px] font-black">
-                  ₹{aggLedger.overall.pendingUnsettled.toLocaleString()} Pending
-                </span>
-              )}
-            </button>
-
-            {/* 🌙 Day-End Cash Closing (Z-Report) */}
-            {onOpenDayClosingModal && (
-              <button
-                type="button"
-                onClick={onOpenDayClosingModal}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 rounded-2xl text-xs font-bold transition-all border border-amber-500/40 cursor-pointer shadow-md"
-                title="Shift & Day-End Cash Drawer Reconciliation (Z-Report)"
-              >
-                <Moon className="w-3.5 h-3.5 text-amber-400" />
-                <span>Day Closing</span>
-              </button>
-            )}
-
-            {/* 📒 Customer Khata (Udhar) */}
-            {onOpenKhataModal && (
-              <button
-                type="button"
-                onClick={onOpenKhataModal}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 rounded-2xl text-xs font-bold transition-all border border-amber-500/30 cursor-pointer shadow-md"
-                title="Customer Khata & Credit Ledger"
-              >
-                <BookOpen className="w-3.5 h-3.5 text-amber-400" />
-                <span>Khata (Udhar)</span>
-              </button>
-            )}
-
-            {/* Excel Export Button */}
-            {onOpenExportModal && (
-              <button
-                type="button"
-                onClick={onOpenExportModal}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white rounded-2xl text-xs font-bold transition-all shadow-md cursor-pointer border border-emerald-500/40"
-                title="Export Monthly / Weekly Sales to Excel"
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-200" />
-                <span className="hidden xs:inline">Excel</span>
-              </button>
-            )}
+            <p className="text-[11px] text-stone-500">
+              Counter, UPI & delivery order punch screen
+            </p>
           </div>
         </div>
 
-        {/* 6 Summary Stat Cards (Cash in Hand, UPI, Swiggy, Zomato, Total & Profit) */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3 pt-1">
-          
-          {/* Total Revenue */}
-          <div className="bg-stone-800/60 p-3 sm:p-3.5 rounded-2xl border border-stone-700/50 flex flex-col justify-between">
-            <span className="text-[10px] sm:text-[11px] font-bold text-stone-400 uppercase tracking-wider">Total Sales</span>
-            <div className="text-xl sm:text-2xl font-extrabold text-amber-400 mt-1">
-              ₹{dailySummary.totalRevenue.toLocaleString()}
-            </div>
-            <span className="text-[10px] text-stone-400 mt-0.5">{dailySummary.count} sales logged</span>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Date Picker */}
+          <div className="flex items-center gap-1.5 bg-stone-100 px-3 py-1.5 rounded-xl border border-stone-200 text-xs font-bold text-stone-700">
+            <span className="text-[10px] uppercase text-stone-500 font-bold">Date:</span>
+            <input
+              type="date"
+              value={saleDate}
+              onChange={(e) => setSaleDate(e.target.value)}
+              className="bg-transparent text-xs font-bold text-stone-900 focus:outline-none cursor-pointer"
+            />
           </div>
 
-          {/* Cash Sales (Galle Ka Cash) */}
-          <div className="bg-stone-800/60 p-3 sm:p-3.5 rounded-2xl border border-emerald-900/40 flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] sm:text-[11px] font-bold text-emerald-400 uppercase tracking-wider">💵 Cash in Hand</span>
-            </div>
-            <div className="text-xl sm:text-2xl font-extrabold text-emerald-300 mt-1">
-              ₹{dailySummary.cashRevenue.toLocaleString()}
-            </div>
-            <span className="text-[10px] text-emerald-400/80 mt-0.5 font-semibold">Galle ka Cash (Today)</span>
-          </div>
-
-          {/* Counter UPI (Direct Bank) */}
-          <div className="bg-stone-800/60 p-3 sm:p-3.5 rounded-2xl border border-sky-900/40 flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] sm:text-[11px] font-bold text-sky-400 uppercase tracking-wider">📱 Counter UPI</span>
-            </div>
-            <div className="text-xl sm:text-2xl font-extrabold text-sky-300 mt-1">
-              ₹{dailySummary.upiRevenue.toLocaleString()}
-            </div>
-            <span className="text-[10px] text-sky-400/80 mt-0.5 font-semibold">Direct Bank QR</span>
-          </div>
-
-          {/* Swiggy Orders */}
-          <div 
+          {/* Aggregator Settlement / Ledger Button */}
+          <button
+            type="button"
             onClick={() => {
               setSettlementPlatform('Swiggy');
               setIsSettlementModalOpen(true);
             }}
-            className="bg-stone-800/60 p-3 sm:p-3.5 rounded-2xl border border-orange-900/40 hover:border-orange-500/80 transition-all flex flex-col justify-between cursor-pointer group"
-            title="Click to manage Swiggy Weekly Settlements & Ledger"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl text-xs font-bold transition-all border border-stone-200 cursor-pointer"
+            title="Manage Swiggy & Zomato Weekly Payouts & Commission Settlements"
           >
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] sm:text-[11px] font-bold text-orange-400 uppercase tracking-wider group-hover:text-orange-300">🟠 Swiggy</span>
-              <span className="text-[9px] text-orange-400/70 group-hover:underline">Payouts →</span>
-            </div>
-            <div className="text-xl sm:text-2xl font-extrabold text-orange-300 mt-1">
-              ₹{dailySummary.swiggyRevenue.toLocaleString()}
-            </div>
-            <span className="text-[10px] text-orange-400/80 mt-0.5 font-semibold">
-              Pending: ₹{aggLedger.Swiggy.pendingUnsettled.toLocaleString()}
-            </span>
-          </div>
-
-          {/* Zomato Orders */}
-          <div 
-            onClick={() => {
-              setSettlementPlatform('Zomato');
-              setIsSettlementModalOpen(true);
-            }}
-            className="bg-stone-800/60 p-3 sm:p-3.5 rounded-2xl border border-rose-900/40 hover:border-rose-500/80 transition-all flex flex-col justify-between cursor-pointer group"
-            title="Click to manage Zomato Weekly Settlements & Ledger"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] sm:text-[11px] font-bold text-rose-400 uppercase tracking-wider group-hover:text-rose-300">🔴 Zomato</span>
-              <span className="text-[9px] text-rose-400/70 group-hover:underline">Payouts →</span>
-            </div>
-            <div className="text-xl sm:text-2xl font-extrabold text-rose-300 mt-1">
-              ₹{dailySummary.zomatoRevenue.toLocaleString()}
-            </div>
-            <span className="text-[10px] text-rose-400/80 mt-0.5 font-semibold">
-              Pending: ₹{aggLedger.Zomato.pendingUnsettled.toLocaleString()}
-            </span>
-          </div>
-
-          {/* Daily Net Profit / Margin */}
-          <div className="bg-stone-800/60 p-3 sm:p-3.5 rounded-2xl border border-stone-700/50 flex flex-col justify-between">
-            <span className="text-[10px] sm:text-[11px] font-bold text-stone-400 uppercase tracking-wider">Net Margin</span>
-            {isStaffMode ? (
-              <div 
-                onClick={onPromptUnlockStaffMode}
-                className="flex items-center gap-1.5 text-xs font-bold text-rose-400 mt-2 cursor-pointer hover:underline"
-                title="Click to unlock with Owner PIN"
-              >
-                <Lock className="w-3.5 h-3.5" />
-                <span>PIN Locked</span>
-              </div>
-            ) : (
-              <div className={`text-xl sm:text-2xl font-extrabold mt-1 ${dailySummary.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                ₹{dailySummary.netProfit.toLocaleString()}
-              </div>
+            <Clock className="w-3.5 h-3.5 text-amber-600" />
+            <span>Online Payouts</span>
+            {aggLedger.overall.pendingUnsettled > 0 && (
+              <span className="bg-amber-500 text-stone-950 px-1.5 py-0.2 rounded-full text-[10px] font-black">
+                ₹{aggLedger.overall.pendingUnsettled.toLocaleString()}
+              </span>
             )}
-            <span className="text-[10px] text-amber-300/80 mt-0.5 font-semibold">
-              {isStaffMode ? 'Owner Only' : `${dailySummary.margin}% food margin`}
-            </span>
-          </div>
+          </button>
 
+          {/* 🌙 Day-End Cash Closing (Z-Report) */}
+          {onOpenDayClosingModal && (
+            <button
+              type="button"
+              onClick={onOpenDayClosingModal}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-xl text-xs font-bold transition-all border border-amber-200 cursor-pointer shadow-2xs"
+              title="Shift & Day-End Cash Drawer Reconciliation (Z-Report)"
+            >
+              <Moon className="w-3.5 h-3.5 text-amber-600" />
+              <span>Day Closing</span>
+            </button>
+          )}
+
+          {/* 📒 Customer Khata (Udhar) */}
+          {onOpenKhataModal && (
+            <button
+              type="button"
+              onClick={onOpenKhataModal}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-xl text-xs font-bold transition-all border border-amber-200 cursor-pointer shadow-2xs"
+              title="Customer Khata & Credit Ledger"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-amber-600" />
+              <span>Khata</span>
+            </button>
+          )}
+
+          {/* Excel Export Button */}
+          {onOpenExportModal && (
+            <button
+              type="button"
+              onClick={onOpenExportModal}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+              title="Export Monthly / Weekly Sales to Excel"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-100" />
+              <span className="hidden xs:inline">Excel</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -1924,17 +1888,58 @@ export default function SalesTracker({
 
       </div>
 
-      {/* 📜 SALES LOGS HISTORY TABLE WITH EXTENDED PAYMENT BADGES */}
+      {/* 📜 SALES LOGS & TOKEN ORDERS HISTORY */}
       <div className="bg-white rounded-3xl border border-stone-200 p-4 sm:p-6 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm sm:text-base font-bold text-stone-900">Logged Sales History</h3>
-            <span className="text-xs bg-stone-100 text-stone-600 px-2 py-0.5 rounded-full font-bold">
-              {filteredLogs.length} entries
-            </span>
+        
+        {/* Header & View Mode Switcher */}
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 border-b border-stone-200 pb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-2xl bg-amber-500/20 text-amber-700 flex items-center justify-center font-bold">
+              <Clock className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm sm:text-base font-bold text-stone-900">Order & Sales History</h3>
+                <span className="text-xs bg-stone-100 text-stone-600 px-2 py-0.5 rounded-full font-bold">
+                  {groupedTokenOrders.length} Token Orders • {filteredLogs.length} Items
+                </span>
+              </div>
+              <p className="text-[11px] text-stone-500">
+                Har token order ke items aur punch hone ka exact time
+              </p>
+            </div>
           </div>
-          
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
+
+          {/* View Mode Toggle: Tokens vs Item-wise */}
+          <div className="flex items-center bg-stone-100 p-1 rounded-xl self-start md:self-auto border border-stone-200">
+            <button
+              type="button"
+              onClick={() => setHistoryViewMode('tokens')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                historyViewMode === 'tokens'
+                  ? 'bg-white text-stone-900 shadow-xs'
+                  : 'text-stone-500 hover:text-stone-800'
+              }`}
+            >
+              <span>🎫 Token Orders ({groupedTokenOrders.length})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setHistoryViewMode('items')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                historyViewMode === 'items'
+                  ? 'bg-white text-stone-900 shadow-xs'
+                  : 'text-stone-500 hover:text-stone-800'
+              }`}
+            >
+              <span>📋 Item-wise ({filteredLogs.length})</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Filters Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             {/* Payment Mode Filter Dropdown */}
             <select
               value={filterPaymentMode}
@@ -1951,7 +1956,7 @@ export default function SalesTracker({
 
             <input
               type="text"
-              placeholder="Search sale log..."
+              placeholder="Search token / item..."
               value={searchItem}
               onChange={(e) => setSearchItem(e.target.value)}
               className="flex-1 sm:flex-initial px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs"
@@ -1964,9 +1969,9 @@ export default function SalesTracker({
               className="px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-semibold"
             />
             
-            {(filterDate || filterPaymentMode !== 'All') && (
+            {(filterDate || filterPaymentMode !== 'All' || searchItem) && (
               <button 
-                onClick={() => { setFilterDate(''); setFilterPaymentMode('All'); }} 
+                onClick={() => { setFilterDate(''); setFilterPaymentMode('All'); setSearchItem(''); }} 
                 className="text-xs text-rose-600 font-bold cursor-pointer"
               >
                 Clear
@@ -1975,174 +1980,133 @@ export default function SalesTracker({
           </div>
         </div>
 
-        {filteredLogs.length === 0 ? (
-          <p className="text-xs text-stone-400 py-8 text-center">No sales logged for the selected filter.</p>
-        ) : (
-          <>
-            {/* Desktop Table View */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-left border-collapse text-sm">
-                <thead>
-                  <tr className="bg-stone-950 text-amber-100 text-xs font-bold uppercase tracking-wider">
-                    <th className="py-3.5 px-4">Date</th>
-                    <th className="py-3.5 px-4">Item Name</th>
-                    <th className="py-3.5 px-4">Category</th>
-                    <th className="py-3.5 px-4 text-center">Order Channel</th>
-                    <th className="py-3.5 px-4 text-center">Qty Sold</th>
-                    <th className="py-3.5 px-4 text-right">Selling Price</th>
-                    <th className="py-3.5 px-4 text-right">Total Revenue</th>
-                    <th className="py-3.5 px-4 text-center">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-stone-200 text-stone-700">
-                  {filteredLogs.map((sale) => {
-                    const mode = (sale.paymentMethod || '').toLowerCase();
-                    
-                    let badgeClass = 'bg-emerald-100 text-emerald-800 border-emerald-200';
-                    let badgeLabel = '💵 Cash';
-
-                    if (mode === 'online' || mode === 'upi') {
-                      badgeClass = 'bg-sky-100 text-sky-800 border-sky-200';
-                      badgeLabel = '📱 Counter UPI';
-                    } else if (mode === 'khata' || mode === 'udhar') {
-                      badgeClass = 'bg-amber-100 text-amber-900 border-amber-300 font-bold';
-                      badgeLabel = sale.customerName ? `📒 Khata (${sale.customerName})` : '📒 Khata';
-                    } else if (mode === 'swiggy') {
-                      badgeClass = 'bg-orange-100 text-orange-900 border-orange-300 font-black';
-                      badgeLabel = '🟠 Swiggy';
-                    } else if (mode === 'zomato') {
-                      badgeClass = 'bg-rose-100 text-rose-900 border-rose-300 font-black';
-                      badgeLabel = '🔴 Zomato';
-                    }
-
-                    return (
-                      <tr key={sale.id} className="hover:bg-amber-50/40 transition-colors">
-                        <td className="py-3 px-4 text-xs font-semibold text-stone-500">{sale.date}</td>
-                        <td className="py-3 px-4">
-                          <div className="font-bold text-stone-900">{sale.itemName}</div>
-                          {(sale.platformOrderId || sale.discountAmount) && (
-                            <div className="text-[10px] text-stone-500 flex items-center gap-1.5 mt-0.5">
-                              {sale.platformOrderId && (
-                                <span className="font-semibold text-stone-600 bg-stone-100 px-1 rounded">
-                                  {sale.platformOrderId}
-                                </span>
-                              )}
-                              {sale.discountAmount && (
-                                <span className="font-extrabold text-rose-600 bg-rose-50 px-1 rounded">
-                                  ₹{sale.discountAmount} Off
-                                </span>
-                              )}
-                              {sale.notes && <span>• {sale.notes}</span>}
-                            </div>
-                          )}
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className="px-2.5 py-0.5 rounded-md bg-stone-100 font-semibold text-xs text-stone-700">
-                            {sale.category || 'General'}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold inline-flex items-center gap-1 border ${badgeClass}`}>
-                            {badgeLabel}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-center font-bold text-stone-900">
-                          <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 text-xs font-bold">
-                            {sale.quantitySold}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-right text-stone-600 font-medium">₹{sale.sellingPrice}</td>
-                        <td className="py-3 px-4 text-right font-extrabold text-emerald-700">₹{sale.totalRevenue}</td>
-                        <td className="py-3 px-4 text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => onOpenReceiptPrinter && onOpenReceiptPrinter(sale, 'bill')}
-                              className="p-1.5 text-stone-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
-                              title="Thermal Bill Print Karein (58mm / 80mm)"
-                            >
-                              <Printer className="w-3.5 h-3.5 text-amber-600" />
-                            </button>
-                            <button
-                              onClick={() => onDeleteSale(sale.id)}
-                              className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                              title="Delete sale log entry"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile Cards View */}
-            <div className="md:hidden space-y-2.5">
-              {filteredLogs.map((sale) => {
-                const mode = (sale.paymentMethod || '').toLowerCase();
-                let badgeClass = 'bg-emerald-100 text-emerald-800';
+        {/* 1. TOKEN ORDERS VIEW (GROUPED WITH ITEMS & TIME) */}
+        {historyViewMode === 'tokens' ? (
+          groupedTokenOrders.length === 0 ? (
+            <p className="text-xs text-stone-400 py-8 text-center">No token orders logged for the selected filter.</p>
+          ) : (
+            <div className="space-y-3">
+              {groupedTokenOrders.map((order) => {
+                const mode = (order.paymentMethod || '').toLowerCase();
+                let badgeClass = 'bg-emerald-100 text-emerald-800 border-emerald-200';
                 let badgeLabel = '💵 Cash';
 
                 if (mode === 'online' || mode === 'upi') {
-                  badgeClass = 'bg-sky-100 text-sky-800';
-                  badgeLabel = '📱 UPI';
+                  badgeClass = 'bg-sky-100 text-sky-800 border-sky-200';
+                  badgeLabel = '📱 Counter UPI';
                 } else if (mode === 'khata' || mode === 'udhar') {
-                  badgeClass = 'bg-amber-100 text-amber-900 border border-amber-300';
-                  badgeLabel = sale.customerName ? `📒 Khata (${sale.customerName})` : '📒 Khata';
+                  badgeClass = 'bg-amber-100 text-amber-900 border-amber-300 font-bold';
+                  badgeLabel = order.customerName ? `📒 Khata (${order.customerName})` : '📒 Khata';
                 } else if (mode === 'swiggy') {
-                  badgeClass = 'bg-orange-100 text-orange-900';
+                  badgeClass = 'bg-orange-100 text-orange-900 border-orange-300 font-black';
                   badgeLabel = '🟠 Swiggy';
                 } else if (mode === 'zomato') {
-                  badgeClass = 'bg-rose-100 text-rose-900';
+                  badgeClass = 'bg-rose-100 text-rose-900 border-rose-300 font-black';
                   badgeLabel = '🔴 Zomato';
                 }
 
                 return (
-                  <div key={sale.id} className="p-3 bg-stone-50/70 border border-stone-200 rounded-2xl flex items-center justify-between gap-3 shadow-2xs">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <h4 className="font-bold text-stone-900 text-xs sm:text-sm truncate">{sale.itemName}</h4>
-                        <span className="text-[9px] font-semibold text-stone-500 bg-white px-1.5 py-0.5 rounded border border-stone-200">
-                          {sale.category || 'General'}
+                  <div
+                    key={order.orderKey}
+                    className="bg-stone-50/70 hover:bg-stone-50 border border-stone-200 hover:border-amber-400/60 rounded-2xl p-3.5 sm:p-4 transition-all shadow-2xs space-y-2.5"
+                  >
+                    {/* Token Card Header */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-200/60 pb-2.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm sm:text-base font-black text-stone-900 bg-white px-2.5 py-1 rounded-xl border border-stone-300 shadow-2xs tracking-tight">
+                          🎫 {order.token}
                         </span>
-                      </div>
-                      <div className="flex items-center gap-2 text-[11px] text-stone-500 mt-1">
-                        <span>{sale.date}</span>
-                        <span>•</span>
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${badgeClass}`}>
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${badgeClass}`}>
                           {badgeLabel}
                         </span>
-                        {sale.platformOrderId && (
-                          <span className="text-[10px] text-stone-600 font-bold bg-stone-200/60 px-1 rounded">
-                            {sale.platformOrderId}
+                        {order.notes && (
+                          <span className="text-[11px] text-stone-500 bg-white px-2 py-0.5 rounded-md border border-stone-200">
+                            Note: {order.notes}
                           </span>
                         )}
                       </div>
+
+                      <div className="flex items-center gap-3 self-end sm:self-auto">
+                        {/* 🕒 TIME OF PUNCH (Showing both exact punch time and date) */}
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-stone-700 bg-white px-2.5 py-1 rounded-xl border border-stone-200 shadow-2xs">
+                          <Clock className="w-3.5 h-3.5 text-amber-600" />
+                          <span className="text-stone-900 font-black">{order.time}</span>
+                          <span className="text-stone-300 font-normal">•</span>
+                          <span className="text-stone-500 font-medium">{order.date}</span>
+                        </div>
+
+                        {/* Bill Amount */}
+                        <div className="text-right">
+                          <span className="text-base sm:text-lg font-black text-emerald-700">
+                            ₹{order.totalRevenue}
+                          </span>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      <div className="text-right">
-                        <div className="font-black text-emerald-700 text-sm sm:text-base">₹{sale.totalRevenue}</div>
-                        <span className="text-[10px] text-stone-500">{sale.quantitySold} × ₹{sale.sellingPrice}</span>
+                    {/* Items List in this Token Order */}
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 block mb-1">
+                        Order Items ({order.totalUnits} items):
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {order.items.map((it, idx) => (
+                          <div
+                            key={`${it.saleId}-${idx}`}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-stone-200 rounded-xl text-xs font-bold text-stone-800 shadow-2xs"
+                          >
+                            <span className="w-5 h-5 rounded-md bg-amber-100 text-amber-900 flex items-center justify-center text-[11px] font-black">
+                              {it.qty}
+                            </span>
+                            <span>{it.name}</span>
+                            <span className="text-stone-400 font-normal text-[11px]">
+                              (@₹{it.price}) = <strong className="text-stone-700">₹{it.total}</strong>
+                            </span>
+                          </div>
+                        ))}
                       </div>
-                      <div className="flex items-center gap-1">
+                    </div>
+
+                    {/* Action Bar */}
+                    <div className="flex items-center justify-between pt-1 border-t border-stone-200/50 text-xs">
+                      <span className="text-[11px] text-stone-400">
+                        {order.items.length} dishes in this token
+                      </span>
+
+                      <div className="flex items-center gap-1.5">
                         <button
                           type="button"
-                          onClick={() => onOpenReceiptPrinter && onOpenReceiptPrinter(sale, 'bill')}
-                          className="p-1.5 text-stone-500 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-colors cursor-pointer"
-                          title="Thermal Bill Print Karein"
+                          onClick={() => {
+                            if (onOpenReceiptPrinter) {
+                              onOpenReceiptPrinter({
+                                tokenOrBillNo: order.token,
+                                orderType: order.paymentMethod,
+                                items: order.items.map(i => ({ name: i.name, qty: i.qty, price: i.price, total: i.total })),
+                                subtotal: order.totalRevenue,
+                                totalAmount: order.totalRevenue,
+                                paymentMethod: order.paymentMethod,
+                                customerName: order.customerName,
+                                notes: order.notes,
+                                date: order.date,
+                                time: order.time
+                              }, 'bill');
+                            }
+                          }}
+                          className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-xl font-bold cursor-pointer transition-colors shadow-2xs"
+                          title="Thermal Receipt Print Karein (58mm / 80mm)"
                         >
-                          <Printer className="w-3.5 h-3.5 text-amber-600" />
+                          <Printer className="w-3.5 h-3.5 text-amber-700" />
+                          <span>Print Bill</span>
                         </button>
+
                         <button
-                          onClick={() => onDeleteSale(sale.id)}
-                          className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
-                          title="Delete sale log"
+                          type="button"
+                          onClick={() => handleDeleteTokenOrder(order)}
+                          className="flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl font-bold cursor-pointer transition-colors"
+                          title="Delete this order and restore stock"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                          <span>Delete</span>
                         </button>
                       </div>
                     </div>
@@ -2150,7 +2114,208 @@ export default function SalesTracker({
                 );
               })}
             </div>
-          </>
+          )
+        ) : (
+          /* 2. ITEM-WISE TABLE VIEW (NOW INCLUDES EXACT PUNCH TIME COLUMN!) */
+          filteredLogs.length === 0 ? (
+            <p className="text-xs text-stone-400 py-8 text-center">No sales logged for the selected filter.</p>
+          ) : (
+            <>
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left border-collapse text-sm">
+                  <thead>
+                    <tr className="bg-stone-950 text-amber-100 text-xs font-bold uppercase tracking-wider">
+                      <th className="py-3.5 px-3">Date</th>
+                      <th className="py-3.5 px-3">Time</th>
+                      <th className="py-3.5 px-3">Token</th>
+                      <th className="py-3.5 px-4">Item Name</th>
+                      <th className="py-3.5 px-3">Category</th>
+                      <th className="py-3.5 px-3 text-center">Channel</th>
+                      <th className="py-3.5 px-3 text-center">Qty</th>
+                      <th className="py-3.5 px-3 text-right">Price</th>
+                      <th className="py-3.5 px-4 text-right">Revenue</th>
+                      <th className="py-3.5 px-3 text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-200 text-stone-700">
+                    {filteredLogs.map((sale) => {
+                      const mode = (sale.paymentMethod || '').toLowerCase();
+                      
+                      let badgeClass = 'bg-emerald-100 text-emerald-800 border-emerald-200';
+                      let badgeLabel = '💵 Cash';
+
+                      if (mode === 'online' || mode === 'upi') {
+                        badgeClass = 'bg-sky-100 text-sky-800 border-sky-200';
+                        badgeLabel = '📱 Counter UPI';
+                      } else if (mode === 'khata' || mode === 'udhar') {
+                        badgeClass = 'bg-amber-100 text-amber-900 border-amber-300 font-bold';
+                        badgeLabel = sale.customerName ? `📒 Khata (${sale.customerName})` : '📒 Khata';
+                      } else if (mode === 'swiggy') {
+                        badgeClass = 'bg-orange-100 text-orange-900 border-orange-300 font-black';
+                        badgeLabel = '🟠 Swiggy';
+                      } else if (mode === 'zomato') {
+                        badgeClass = 'bg-rose-100 text-rose-900 border-rose-300 font-black';
+                        badgeLabel = '🔴 Zomato';
+                      }
+
+                      let saleTime = '—';
+                      if (sale.createdAt) {
+                        try {
+                          saleTime = new Date(sale.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                        } catch (e) {
+                          saleTime = '—';
+                        }
+                      }
+
+                      return (
+                        <tr key={sale.id} className="hover:bg-amber-50/40 transition-colors">
+                          <td className="py-3 px-3 text-xs font-semibold text-stone-500 whitespace-nowrap">{sale.date}</td>
+                          <td className="py-3 px-3 text-xs font-bold text-stone-800 whitespace-nowrap">
+                            <span className="flex items-center gap-1 text-stone-700">
+                              <Clock className="w-3 h-3 text-amber-600 shrink-0" />
+                              <span>{saleTime}</span>
+                            </span>
+                          </td>
+                          <td className="py-3 px-3">
+                            <span className="font-extrabold text-stone-900 bg-stone-100 px-1.5 py-0.5 rounded text-xs">
+                              {sale.platformOrderId || '—'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="font-bold text-stone-900">{sale.itemName}</div>
+                            {sale.notes && <div className="text-[10px] text-stone-400">{sale.notes}</div>}
+                          </td>
+                          <td className="py-3 px-3">
+                            <span className="px-2 py-0.5 rounded-md bg-stone-100 font-semibold text-xs text-stone-700">
+                              {sale.category || 'General'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-center">
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-bold inline-flex items-center gap-1 border ${badgeClass}`}>
+                              {badgeLabel}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-center font-bold text-stone-900">
+                            <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 text-xs font-bold">
+                              {sale.quantitySold}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-right text-stone-600 font-medium">₹{sale.sellingPrice}</td>
+                          <td className="py-3 px-4 text-right font-extrabold text-emerald-700">₹{sale.totalRevenue}</td>
+                          <td className="py-3 px-3 text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => onOpenReceiptPrinter && onOpenReceiptPrinter(sale, 'bill')}
+                                className="p-1.5 text-stone-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
+                                title="Thermal Bill Print Karein (58mm / 80mm)"
+                              >
+                                <Printer className="w-3.5 h-3.5 text-amber-600" />
+                              </button>
+                              <button
+                                onClick={() => onDeleteSale(sale.id)}
+                                className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                title="Delete sale log entry"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Cards View */}
+              <div className="md:hidden space-y-2.5">
+                {filteredLogs.map((sale) => {
+                  const mode = (sale.paymentMethod || '').toLowerCase();
+                  let badgeClass = 'bg-emerald-100 text-emerald-800';
+                  let badgeLabel = '💵 Cash';
+
+                  if (mode === 'online' || mode === 'upi') {
+                    badgeClass = 'bg-sky-100 text-sky-800';
+                    badgeLabel = '📱 UPI';
+                  } else if (mode === 'khata' || mode === 'udhar') {
+                    badgeClass = 'bg-amber-100 text-amber-900 border border-amber-300';
+                    badgeLabel = sale.customerName ? `📒 Khata (${sale.customerName})` : '📒 Khata';
+                  } else if (mode === 'swiggy') {
+                    badgeClass = 'bg-orange-100 text-orange-900';
+                    badgeLabel = '🟠 Swiggy';
+                  } else if (mode === 'zomato') {
+                    badgeClass = 'bg-rose-100 text-rose-900';
+                    badgeLabel = '🔴 Zomato';
+                  }
+
+                  let saleTime = '—';
+                  if (sale.createdAt) {
+                    try {
+                      saleTime = new Date(sale.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    } catch (e) {
+                      saleTime = '—';
+                    }
+                  }
+
+                  return (
+                    <div key={sale.id} className="p-3 bg-stone-50/70 border border-stone-200 rounded-2xl flex items-center justify-between gap-3 shadow-2xs">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <h4 className="font-bold text-stone-900 text-xs sm:text-sm truncate">{sale.itemName}</h4>
+                          <span className="text-[9px] font-semibold text-stone-500 bg-white px-1.5 py-0.5 rounded border border-stone-200">
+                            {sale.category || 'General'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[11px] text-stone-500 mt-1 flex-wrap">
+                          <span className="font-bold text-stone-700 flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-amber-600" />
+                            {saleTime}
+                          </span>
+                          <span>•</span>
+                          <span>{sale.date}</span>
+                          <span>•</span>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${badgeClass}`}>
+                            {badgeLabel}
+                          </span>
+                          {sale.platformOrderId && (
+                            <span className="text-[10px] text-stone-600 font-bold bg-stone-200/60 px-1 rounded">
+                              {sale.platformOrderId}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="text-right">
+                          <div className="font-black text-emerald-700 text-sm sm:text-base">₹{sale.totalRevenue}</div>
+                          <span className="text-[10px] text-stone-500">{sale.quantitySold} × ₹{sale.sellingPrice}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => onOpenReceiptPrinter && onOpenReceiptPrinter(sale, 'bill')}
+                            className="p-1.5 text-stone-500 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-colors cursor-pointer"
+                            title="Thermal Bill Print Karein"
+                          >
+                            <Printer className="w-3.5 h-3.5 text-amber-600" />
+                          </button>
+                          <button
+                            onClick={() => onDeleteSale(sale.id)}
+                            className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                            title="Delete sale log"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )
         )}
       </div>
 
