@@ -15,6 +15,7 @@ import DiningManager from './components/DiningManager';
 import ExpenseTracker from './components/ExpenseTracker';
 import AuthModal from './components/AuthModal';
 import CafeProfileModal from './components/CafeProfileModal';
+import CafeProfilePage from './components/CafeProfilePage';
 import LandingPage from './components/LandingPage';
 import AIMenuScannerModal from './components/AIMenuScannerModal';
 import StockAlertSettingsModal from './components/StockAlertSettingsModal';
@@ -76,7 +77,7 @@ import {
   wipeCloudTenantCollections
 } from './utils/cloudSync';
 import AggregatorSettlementModal from './components/AggregatorSettlementModal';
-import { PieChart, ShoppingBag, PackageCheck, Coffee, CheckCircle2, Plus, Boxes, Receipt, UtensilsCrossed, Bike, Sparkles, Trash2 } from 'lucide-react';
+import { PieChart, ShoppingBag, PackageCheck, Coffee, CheckCircle2, Plus, Boxes, Receipt, UtensilsCrossed, Bike, Sparkles, Trash2, User } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('sales'); // 'sales', 'inventory', 'dashboard', 'procurement', 'menu'
@@ -1317,7 +1318,7 @@ export default function App() {
 
   // Tab switching guard for Staff Mode
   const handleTabClick = (tab) => {
-    if (isStaffMode && (tab === 'dashboard' || tab === 'expenses' || tab === 'inventory')) {
+    if (isStaffMode && (tab === 'dashboard' || tab === 'expenses' || tab === 'inventory' || tab === 'profile')) {
       setPinModalTargetTab(tab);
       setIsPinModalOpen(true);
       return;
@@ -1429,12 +1430,6 @@ export default function App() {
 
       {/* Top Navbar */}
       <Navbar
-        onOpenAddModal={() => { setEditingItem(null); setIsModalOpen(true); }}
-        totalItems={menuItems.length}
-        isCloudConnected={isCloudConnected}
-        onOpenCloudModal={() => setIsCloudModalOpen(true)}
-        onOpenExportModal={() => setIsExportModalOpen(true)}
-        onOpenAlertSettings={() => setIsAlertSettingsOpen(true)}
         currentCafe={currentCafe}
         currentUser={currentUser}
         isDemoMode={isDemoMode}
@@ -1442,15 +1437,14 @@ export default function App() {
           setAuthModalTab(tab);
           setIsAuthModalOpen(true);
         }}
-        onOpenCafeProfileModal={() => setIsCafeProfileModalOpen(true)}
+        onOpenCafeProfileModal={() => handleTabClick('profile')}
+        onOpenProfilePage={() => handleTabClick('profile')}
+        onOpenAlertSettings={() => setIsAlertSettingsOpen(true)}
         onExitDemo={() => setIsDemoMode(false)}
         onLogout={handleLogout}
         isStaffMode={isStaffMode}
         onLockToStaffMode={handleLockToStaffMode}
         onPromptUnlockStaffMode={handlePromptUnlockStaffMode}
-        onOpenDayClosingModal={() => setIsDayClosingModalOpen(true)}
-        onOpenKhataModal={() => setIsKhataModalOpen(true)}
-        khataOutstanding={totalKhataOutstanding}
       />
 
       {/* Main Container with Left Sidebar & Content (Full-width edge-to-edge, zero margin waste) */}
@@ -1607,6 +1601,32 @@ export default function App() {
               }`}>
                 {menuItems.length}
               </span>
+            </button>
+
+            {/* 8. Cafe Profile Tab */}
+            <button
+              type="button"
+              onClick={() => handleTabClick('profile')}
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 md:w-full ${
+                activeTab === 'profile'
+                  ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-md shadow-indigo-600/20'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+              title={isStaffMode ? 'Owner PIN Protected' : 'Cafe & Business Profile Settings'}
+            >
+              <div className="flex items-center gap-2.5">
+                <User className={`w-4 h-4 ${activeTab === 'profile' ? 'text-white' : 'text-indigo-600'}`} />
+                <span>Cafe Profile</span>
+              </div>
+              {isStaffMode ? (
+                <span className="text-[10px]">🔒</span>
+              ) : (
+                <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded-md ${
+                  activeTab === 'profile' ? 'bg-white/20 text-white' : 'bg-indigo-50 text-indigo-700 hidden md:inline'
+                }`}>
+                  Pro
+                </span>
+              )}
             </button>
 
           </nav>
@@ -1818,6 +1838,27 @@ export default function App() {
               />
             )}
           </div>
+        )}
+
+        {/* 🏬 Dedicated Cafe & Business Profile Tab View */}
+        {activeTab === 'profile' && (
+          <CafeProfilePage
+            currentCafe={currentCafe}
+            currentUser={currentUser}
+            allCafes={userCafes}
+            menuCount={menuItems.length}
+            inventoryCount={inventoryItems.length}
+            onSwitchCafe={handleSwitchCafe}
+            onLogout={handleLogout}
+            onUpdateCafe={(updated) => {
+              setCurrentCafe(updated);
+              showToast(`Cafe details updated: ${updated.cafeName}`);
+            }}
+            onBackToPos={() => setActiveTab('sales')}
+            onResetToCleanSlate={handleResetToCleanSlate}
+            onLoadCatalogPreset={handleLoadCatalogPreset}
+            showToast={showToast}
+          />
         )}
 
         </main>
@@ -2054,6 +2095,15 @@ export default function App() {
         >
           <Coffee className="w-4 h-4" />
           <span className="text-[9px]">Menu</span>
+        </button>
+
+        <button
+          onClick={() => handleTabClick('profile')}
+          className={`flex flex-col items-center gap-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${activeTab === 'profile' ? 'text-amber-400 font-extrabold scale-105' : 'text-stone-400 hover:text-stone-200'
+            }`}
+        >
+          <User className="w-4 h-4" />
+          <span className="text-[9px]">Profile</span>
         </button>
       </nav>
 

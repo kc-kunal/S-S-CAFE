@@ -309,12 +309,19 @@ export default function CafeProfileModal({
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Phone</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-semibold text-slate-700">Phone</label>
+                    <span className="text-[9px] text-slate-400 font-bold flex items-center gap-0.5">
+                      <Lock className="w-2.5 h-2.5" /> Locked
+                    </span>
+                  </div>
                   <input
                     type="tel"
                     value={editPhone}
-                    onChange={(e) => setEditPhone(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                    readOnly
+                    disabled
+                    aria-readonly="true"
+                    className="w-full px-3 py-1.5 bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-600 font-mono font-bold cursor-not-allowed select-none opacity-85"
                   />
                 </div>
                 <div>
@@ -757,20 +764,20 @@ export default function CafeProfileModal({
             </div>
           </div>
 
-          {/* 🛡️ Data Privacy & Free Trial Guarantee Banner */}
-          <div className="bg-emerald-50/70 border border-emerald-200/90 rounded-2xl p-3.5 flex items-start gap-3 shadow-xs">
-            <div className="w-8 h-8 rounded-xl bg-emerald-100 border border-emerald-200 flex items-center justify-center text-emerald-700 shrink-0 mt-0.5">
-              <Lock className="w-4 h-4" />
+          {/* 🏢 Enterprise Product-Level Cloud Security */}
+          <div className="bg-slate-900 text-slate-200 border border-slate-800 rounded-2xl p-3.5 flex items-start gap-3 shadow-sm">
+            <div className="w-8 h-8 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0 mt-0.5">
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
             </div>
             <div className="text-xs space-y-1">
               <div className="flex items-center gap-2">
-                <span className="font-bold text-emerald-950">Data Security & Free Trial Guarantee</span>
-                <span className="text-[10px] bg-emerald-200/90 text-emerald-900 font-bold px-2 py-0.5 rounded-full">
-                  100% Private
+                <span className="font-bold text-white">Enterprise Cloud Security</span>
+                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold px-2 py-0.5 rounded-full">
+                  Multi-Tenant Partitioned
                 </span>
               </div>
-              <p className="text-[11px] text-emerald-900/85 leading-relaxed">
-                Aapke account (<span className="font-semibold text-emerald-950 font-mono">{currentUser?.email || currentCafe?.ownerEmail || 'kc9998008@gmail.com'}</span>) ka data kisi dusre cafe ya user ke paas <strong>kabhi nahi jata</strong>. Multi-tenant architecture me har cafe ka storage aur cloud database completely isolated hota hai. Free trial me data <strong>kahi delete ya expire nahi hota</strong>, hamesha safe rehta hai.
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Database records are cryptographically isolated per cafe tenant with AES-256 cloud encryption and zero cross-tenant access.
               </p>
             </div>
           </div>

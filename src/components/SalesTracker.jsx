@@ -1000,25 +1000,6 @@ export default function SalesTracker({
               />
             </div>
 
-            {/* Online Payouts */}
-            <button
-              type="button"
-              onClick={() => {
-                setSettlementPlatform('Swiggy');
-                setIsSettlementModalOpen(true);
-              }}
-              className="flex items-center gap-1 px-2.5 py-1 bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-lg text-[11px] font-bold transition-all border border-stone-700 cursor-pointer"
-              title="Manage Swiggy & Zomato Weekly Payouts"
-            >
-              <Clock className="w-3 h-3 text-amber-400" />
-              <span className="hidden sm:inline">Payouts</span>
-              {aggLedger.overall.pendingUnsettled > 0 && (
-                <span className="bg-amber-500 text-stone-950 px-1 py-0.1 rounded text-[9px] font-black">
-                  ₹{aggLedger.overall.pendingUnsettled.toLocaleString()}
-                </span>
-              )}
-            </button>
-
             {/* Day Closing */}
             {onOpenDayClosingModal && (
               <button
@@ -1029,32 +1010,6 @@ export default function SalesTracker({
               >
                 <Moon className="w-3 h-3 text-amber-400" />
                 <span>Day Closing</span>
-              </button>
-            )}
-
-            {/* Khata */}
-            {onOpenKhataModal && (
-              <button
-                type="button"
-                onClick={onOpenKhataModal}
-                className="flex items-center gap-1 px-2.5 py-1 bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-lg text-[11px] font-bold transition-all border border-stone-700 cursor-pointer"
-                title="Customer Khata & Credit Ledger"
-              >
-                <BookOpen className="w-3 h-3 text-amber-400" />
-                <span>Khata</span>
-              </button>
-            )}
-
-            {/* Excel Export */}
-            {onOpenExportModal && (
-              <button
-                type="button"
-                onClick={onOpenExportModal}
-                className="flex items-center gap-1 px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[11px] font-bold transition-all cursor-pointer"
-                title="Export Sales to Excel"
-              >
-                <FileSpreadsheet className="w-3 h-3 text-emerald-100" />
-                <span className="hidden md:inline">Excel</span>
               </button>
             )}
           </div>
