@@ -29,10 +29,6 @@ import {
   Smartphone,
   CreditCard,
   BookOpen,
-  Target,
-  Settings,
-  Zap,
-  Home,
   Users
 } from 'lucide-react';
 import {
@@ -41,9 +37,6 @@ import {
   shiftDateStr,
   classifySalePaymentMethod,
   getUniqueOrderCount,
-  getStoredOverheadConfig,
-  saveStoredOverheadConfig,
-  calculateDailyOverheadMetrics,
   classifyMaterialProcurementType
 } from '../utils/storage';
 
@@ -63,10 +56,7 @@ export default function FinancialDashboard({
   const [timeframe, setTimeframe] = useState('daily'); // 'daily', 'weekly', 'monthly', 'all'
   const [selectedDate, setSelectedDate] = useState(() => getTodayDateString(0));
   const [topItemsSort, setTopItemsSort] = useState('qty'); // 'qty' or 'revenue'
-  const [activeBottomTab, setActiveBottomTab] = useState('purchases'); // 'purchases' | 'wastage'
-  const [overheadConfig, setOverheadConfig] = useState(() => getStoredOverheadConfig());
-  const [isOverheadModalOpen, setIsOverheadModalOpen] = useState(false);
-  const [overheadForm, setOverheadForm] = useState(() => getStoredOverheadConfig());
+  const [activeBottomTab, setActiveBottomTab] = useState('purchases'); // 'purchases' | 'expenses' | 'wastage'
 
   // Date Navigation Helpers for Daily View (Timezone-safe calendar math)
   const handlePrevDay = () => {
@@ -182,47 +172,10 @@ export default function FinancialDashboard({
       .filter(p => classifyMaterialProcurementType(p.materialName) === 'weekly')
       .reduce((sum, p) => sum + Number(p.totalCost || 0), 0);
 
-    // 7. Daily Sales Target Guidance (Rent & Staff Fixed Commitments)
-    // NOTE: Rent & Staff are agreed fixed monthly commitments.
-    // Bijli (Light Bill) is variable meter bill, and Gas is per-cylinder usage; they show when PAID!
-    const overheadMetrics = calculateDailyOverheadMetrics(overheadConfig);
-    const dailyFixedCommitment = overheadMetrics.dailyFixedLoad; // Rent + Staff daily share
-
-    const grossMarginRatio = totalRevenue > 0 && grossProfit > 0 ? (grossProfit / totalRevenue) : 0.62;
-    const effectiveMargin = Math.max(0.2, Math.min(0.9, grossMarginRatio));
-
-    // Target sales needed so that gross margin covers daily share of fixed commitments + any bills paid today:
-    const breakEvenTargetSales = Math.round((dailyFixedCommitment + totalOverheadExpenses + totalWastageLoss) / effectiveMargin);
-    const isBreakEvenAchieved = totalRevenue >= breakEvenTargetSales;
-    const breakEvenProgressPct = breakEvenTargetSales > 0 ? Math.min(250, Math.round((totalRevenue / breakEvenTargetSales) * 100)) : 100;
-    const salesShortfall = Math.max(0, breakEvenTargetSales - totalRevenue);
-
-    // 8. Monthly Bills Status Tracker (Rent, Electricity, Staff, Gas)
-    const currentYearMonth = getTodayDateString(0).slice(0, 7);
-    const thisMonthExpenses = expenses.filter(e => e.date && e.date.startsWith(currentYearMonth));
-
-    const rentPaidThisMonth = thisMonthExpenses
-      .filter(e => e.category === 'Cafe Rent')
-      .reduce((sum, e) => sum + Number(e.amount || 0), 0);
-
-    const electricityPaidThisMonth = thisMonthExpenses
-      .filter(e => e.category === 'Electricity')
-      .reduce((sum, e) => sum + Number(e.amount || 0), 0);
-
-    const staffPaidThisMonth = thisMonthExpenses
-      .filter(e => e.category === 'Staff Salary')
-      .reduce((sum, e) => sum + Number(e.amount || 0), 0);
-
-    const gasPaidThisMonth = thisMonthExpenses
-      .filter(e => e.category === 'Commercial Gas')
-      .reduce((sum, e) => sum + Number(e.amount || 0), 0);
-    const gasCylindersCountThisMonth = thisMonthExpenses
-      .filter(e => e.category === 'Commercial Gas').length;
-
-    // 9. Current Stock Valuation (Asset in storage)
+    // 7. Current Stock Valuation (Asset in storage)
     const inventoryValuation = inventoryItems.reduce((sum, item) => sum + (Number(item.currentStock || 0) * (Number(item.unitCost) || 0)), 0);
 
-    // Category-wise expense breakdown
+    // Category-wise expense breakdown (strictly from entered activeExpenses)
     const expenseBreakdown = {};
     activeExpenses.forEach(e => {
       const cat = e.category || 'Other';
@@ -288,21 +241,9 @@ export default function FinancialDashboard({
       netCashFlow,
       inventoryValuation,
       expenseBreakdown,
-      topItems,
-      overheadMetrics,
-      overheadConfig,
-      dailyFixedCommitment,
-      breakEvenTargetSales,
-      isBreakEvenAchieved,
-      breakEvenProgressPct,
-      salesShortfall,
-      rentPaidThisMonth,
-      electricityPaidThisMonth,
-      staffPaidThisMonth,
-      gasPaidThisMonth,
-      gasCylindersCountThisMonth
+      topItems
     };
-  }, [salesLogs, procurementLogs, menuItems, inventoryItems, expenses, wastageLogs, timeframe, selectedDate, overheadConfig]);
+  }, [salesLogs, procurementLogs, menuItems, inventoryItems, expenses, wastageLogs, timeframe, selectedDate]);
 
   if (isStaffMode) {
     return (
@@ -420,243 +361,6 @@ export default function FinancialDashboard({
         </div>
       </div>
 
-      {/* 🎯 TODAY'S SALES TARGET & MONTHLY BILLS STATUS (Daily View Guide) */}
-      {timeframe === 'daily' && (
-        <div className="bg-gradient-to-br from-stone-900 via-stone-900 to-amber-950 text-white rounded-3xl border border-stone-800 p-4 sm:p-5 shadow-lg space-y-4 relative overflow-hidden">
-          {/* Subtle warm glow background */}
-          <div className="absolute -right-10 -bottom-10 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-
-          {/* Header with status and config buttons */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-800 pb-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center font-black">
-                <Target className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm sm:text-base font-black tracking-tight">
-                    🎯 Roz Ka Sales Target Guide (Rent & Staff Nikalna)
-                  </h3>
-                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-stone-800 text-stone-300 border border-stone-700">
-                    {selectedDate}
-                  </span>
-                </div>
-                <p className="text-[11px] text-stone-400 mt-0.5">
-                  Dukan ka Fixed Rent aur Staff nikaalne ke liye target sales. Bijli aur Gas ka bill pay karne par hi P&L me minus hota hai.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  setOverheadForm(overheadConfig);
-                  setIsOverheadModalOpen(true);
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-200 hover:text-white text-xs font-bold rounded-xl border border-stone-700 shadow-2xs transition-all cursor-pointer"
-                title="Configure Monthly Rent & Staff Salaries"
-              >
-                <Settings className="w-3.5 h-3.5 text-amber-400" />
-                <span>⚙️ Set Rent & Staff</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Metric Highlights Grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 text-center">
-            {/* Target Sales */}
-            <div className="bg-stone-800/70 border border-stone-700/80 rounded-2xl p-3 flex flex-col justify-between">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-stone-400">
-                🎯 Target Sales (Aaj Ka)
-              </span>
-              <div className="my-1">
-                <span className="text-xl sm:text-2xl font-black text-amber-400">
-                  ₹{filteredData.breakEvenTargetSales.toLocaleString()}
-                </span>
-              </div>
-              <span className="text-[10px] text-stone-400 font-medium">
-                Rent & Staff cover target
-              </span>
-            </div>
-
-            {/* Actual Sales Today */}
-            <div className="bg-stone-800/70 border border-stone-700/80 rounded-2xl p-3 flex flex-col justify-between">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-stone-400">
-                💰 Aaj Ki Sale (Ab Tak)
-              </span>
-              <div className="my-1">
-                <span className="text-xl sm:text-2xl font-black text-white">
-                  ₹{filteredData.totalRevenue.toLocaleString()}
-                </span>
-              </div>
-              <span className={`text-[10px] font-extrabold ${
-                filteredData.isBreakEvenAchieved ? 'text-emerald-400' : 'text-amber-400'
-              }`}>
-                {filteredData.breakEvenProgressPct}% Target Reached
-              </span>
-            </div>
-
-            {/* Fixed Daily Commitments (Rent + Staff) */}
-            <div className="bg-stone-800/70 border border-stone-700/80 rounded-2xl p-3 flex flex-col justify-between">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-stone-400">
-                🏛️ Fixed Burden (Rent + Staff)
-              </span>
-              <div className="my-1">
-                <span className="text-xl sm:text-2xl font-black text-purple-300">
-                  ₹{filteredData.dailyFixedCommitment.toLocaleString()}
-                </span>
-              </div>
-              <span className="text-[10px] text-purple-400/80 font-medium">
-                Rent ₹{filteredData.overheadMetrics.dailyBreakdown.rent} + Staff ₹{filteredData.overheadMetrics.dailyBreakdown.staff}
-              </span>
-            </div>
-
-            {/* Actual Bills Paid Today */}
-            <div className="bg-stone-800/70 border border-stone-700/80 rounded-2xl p-3 flex flex-col justify-between">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-stone-400">
-                💵 Aaj Pay Kiya Gaya Kharcha
-              </span>
-              <div className="my-1">
-                <span className={`text-xl sm:text-2xl font-black ${
-                  filteredData.totalOverheadExpenses > 0 ? 'text-rose-400' : 'text-stone-300'
-                }`}>
-                  ₹{filteredData.totalOverheadExpenses.toLocaleString()}
-                </span>
-              </div>
-              <span className="text-[10px] text-stone-400 font-medium">
-                {filteredData.activeExpenses.length === 0 ? 'Aaj koi bill pay nahi kiya' : `${filteredData.activeExpenses.length} bills paid today`}
-              </span>
-            </div>
-          </div>
-
-          {/* Live Progress Bar */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between text-xs font-bold">
-              <span className="text-stone-300 flex items-center gap-1.5">
-                <span>Target Progress:</span>
-                <span className={filteredData.isBreakEvenAchieved ? 'text-emerald-400 font-extrabold' : 'text-amber-400 font-extrabold'}>
-                  ₹{filteredData.totalRevenue.toLocaleString()} / ₹{filteredData.breakEvenTargetSales.toLocaleString()} ({filteredData.breakEvenProgressPct}%)
-                </span>
-              </span>
-              <span className="text-[11px] text-stone-400">
-                {filteredData.isBreakEvenAchieved 
-                  ? '🎉 Target Crossed! Rent & Staff Covered!' 
-                  : `₹${filteredData.salesShortfall.toLocaleString()} remaining to hit target`
-                }
-              </span>
-            </div>
-
-            <div className="w-full h-3 bg-stone-800 rounded-full overflow-hidden p-0.5 border border-stone-700/80 relative">
-              <div 
-                className={`h-full rounded-full transition-all duration-500 ${
-                  filteredData.isBreakEvenAchieved
-                    ? 'bg-gradient-to-r from-emerald-500 via-teal-400 to-green-300 shadow-sm shadow-emerald-500/50'
-                    : 'bg-gradient-to-r from-amber-600 via-orange-500 to-amber-400'
-                }`}
-                style={{ width: `${Math.min(100, filteredData.breakEvenProgressPct)}%` }}
-              />
-            </div>
-          </div>
-
-          {/* Status Message & Motivational Hustle Callout */}
-          <div className={`p-3 rounded-2xl border flex items-center gap-3 text-xs leading-relaxed ${
-            filteredData.isBreakEvenAchieved
-              ? 'bg-emerald-900/30 border-emerald-500/30 text-emerald-200'
-              : 'bg-amber-900/30 border-amber-500/30 text-amber-200'
-          }`}>
-            {filteredData.isBreakEvenAchieved ? (
-              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-            ) : (
-              <AlertOctagon className="w-5 h-5 text-amber-400 shrink-0" />
-            )}
-            <div className="flex-1">
-              {filteredData.isBreakEvenAchieved ? (
-                <>
-                  <strong>Shaandaar Kaam! Aaj Cafe ka Sales Target pura ho chuka hai! 🚀</strong>
-                  <p className="text-[11px] text-emerald-300/80 mt-0.5">
-                    Aaj ki sale se Dukan Rent aur Staff ka hissa nikal chuka hai! Aaj ka Asli In-Hand Net Profit: <strong>+₹{filteredData.trueNetProfit.toLocaleString()}</strong>! Ab aage aane wale har order se seedha pure munafa badhega!
-                  </p>
-                </>
-              ) : (
-                <>
-                  <strong>Aaj ka Rent & Staff Target abhi baki hai (Shortfall: ₹{filteredData.salesShortfall.toLocaleString()})</strong>
-                  <p className="text-[11px] text-amber-300/80 mt-0.5">
-                    Dukan Rent aur Staff ka hissa nikaalne ke liye ₹{filteredData.salesShortfall.toLocaleString()} ki aur sale chahiye. Shaam ke orders me thoda aur push karein!
-                  </p>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Monthly Bills Status Strip (Rent, Light Bill, Staff, Gas) */}
-          <div className="pt-2 border-t border-stone-800 space-y-2">
-            <div className="flex items-center justify-between flex-wrap gap-2 text-xs">
-              <span className="text-stone-400 font-bold text-[11px] flex items-center gap-1.5">
-                <span>🗓️ Dukan Ke Bills Ka Status (This Month):</span>
-              </span>
-              <span className="text-[10px] text-stone-400 italic">
-                *Bijli aur Gas meter/usage ke hisaab se pay karne par hi P&L me minus hote hain.
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-              {/* Rent */}
-              <div className="bg-stone-800/80 border border-stone-700/80 rounded-xl p-2">
-                <span className="text-[10px] text-stone-400 block font-semibold">🏠 Dukan Rent:</span>
-                <span className={`text-[11px] font-black ${
-                  filteredData.rentPaidThisMonth > 0 ? 'text-emerald-400' : 'text-amber-400'
-                }`}>
-                  {filteredData.rentPaidThisMonth > 0 
-                    ? `🟢 Paid ₹${filteredData.rentPaidThisMonth.toLocaleString()}` 
-                    : `⚠️ Due (₹${filteredData.overheadConfig.monthlyRent.toLocaleString()})`
-                  }
-                </span>
-              </div>
-
-              {/* Light Bill (Electricity) */}
-              <div className="bg-stone-800/80 border border-stone-700/80 rounded-xl p-2">
-                <span className="text-[10px] text-stone-400 block font-semibold">⚡ Light Bill (Meter):</span>
-                <span className={`text-[11px] font-black ${
-                  filteredData.electricityPaidThisMonth > 0 ? 'text-emerald-400' : 'text-stone-300'
-                }`}>
-                  {filteredData.electricityPaidThisMonth > 0 
-                    ? `🟢 Paid ₹${filteredData.electricityPaidThisMonth.toLocaleString()}` 
-                    : `⏳ Bill Aane Par Pay Hoga`
-                  }
-                </span>
-              </div>
-
-              {/* Staff Salary */}
-              <div className="bg-stone-800/80 border border-stone-700/80 rounded-xl p-2">
-                <span className="text-[10px] text-stone-400 block font-semibold">👨‍🍳 Staff Salaries:</span>
-                <span className={`text-[11px] font-black ${
-                  filteredData.staffPaidThisMonth > 0 ? 'text-emerald-400' : 'text-stone-300'
-                }`}>
-                  {filteredData.staffPaidThisMonth > 0 
-                    ? `🟢 Paid ₹${filteredData.staffPaidThisMonth.toLocaleString()}` 
-                    : `⏳ Salary Date Par`
-                  }
-                </span>
-              </div>
-
-              {/* Gas Cylinders */}
-              <div className="bg-stone-800/80 border border-stone-700/80 rounded-xl p-2">
-                <span className="text-[10px] text-stone-400 block font-semibold">🔥 Gas Cylinders:</span>
-                <span className={`text-[11px] font-black ${
-                  filteredData.gasPaidThisMonth > 0 ? 'text-emerald-400' : 'text-stone-300'
-                }`}>
-                  {filteredData.gasPaidThisMonth > 0 
-                    ? `🟢 Paid ₹${filteredData.gasPaidThisMonth.toLocaleString()} (${filteredData.gasCylindersCountThisMonth} cyl)` 
-                    : `⏳ Refill Delivery Par`
-                  }
-                </span>
-              </div>
-            </div>
-          </div>
-
-        </div>
-      )}
 
       {/* 💡 UNIFIED P&L EXECUTIVE MATH BANNER ("Paisa Kahan Kharch Hua?") */}
       <div className="bg-white rounded-2xl border border-stone-200 p-3 sm:p-4 shadow-xs space-y-3">
@@ -1300,6 +1004,18 @@ export default function FinancialDashboard({
 
             <button
               type="button"
+              onClick={() => setActiveBottomTab('expenses')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${activeBottomTab === 'expenses'
+                  ? 'bg-purple-600 text-white shadow-xs'
+                  : 'bg-stone-100 text-stone-600 hover:text-stone-900'
+                }`}
+            >
+              <Receipt className="w-3.5 h-3.5" />
+              <span>Dukan Bills & Kharch ({filteredData.activeExpenses.length})</span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setActiveBottomTab('wastage')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${activeBottomTab === 'wastage'
                   ? 'bg-rose-600 text-white shadow-xs'
@@ -1312,9 +1028,13 @@ export default function FinancialDashboard({
           </div>
 
           <div className="text-[11px] text-stone-500 font-semibold">
-            {activeBottomTab === 'purchases' ? (
+            {activeBottomTab === 'purchases' && (
               <span>Total Khareed: <strong className="text-amber-900">₹{filteredData.totalRawMaterialCost.toLocaleString()}</strong></span>
-            ) : (
+            )}
+            {activeBottomTab === 'expenses' && (
+              <span>Total Bills: <strong className="text-purple-900">₹{filteredData.totalOverheadExpenses.toLocaleString()}</strong></span>
+            )}
+            {activeBottomTab === 'wastage' && (
               <span>Total Wastage Loss: <strong className="text-rose-700">₹{filteredData.totalWastageLoss.toLocaleString()}</strong></span>
             )}
           </div>
@@ -1347,7 +1067,41 @@ export default function FinancialDashboard({
           </div>
         )}
 
-        {/* Content 2: Wastage Tab */}
+        {/* Content 2: Dukan Bills & Kharch Tab */}
+        {activeBottomTab === 'expenses' && (
+          <div>
+            {filteredData.activeExpenses.length === 0 ? (
+              <div className="py-6 text-center space-y-1">
+                <p className="text-xs font-bold text-stone-700">Is timeframe me koi bill ya kharcha enter nahi hua hai (₹0).</p>
+                <p className="text-[11px] text-stone-400 max-w-md mx-auto">
+                  Owner jab &quot;Bills &amp; Expenses&quot; tab me Rent, Bijli, Staff Salary ya Gas ka kharcha enter karega, tab wo yahan aur P&amp;L me hisaab me judega.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-[300px] overflow-y-auto pr-1">
+                {filteredData.activeExpenses.map((e) => (
+                  <div key={e.id} className="p-2.5 rounded-xl bg-purple-50/50 border border-purple-200/70 flex items-center justify-between">
+                    <div className="min-w-0 pr-2">
+                      <h5 className="text-xs font-bold text-stone-900 truncate">{e.title || 'Expense'}</h5>
+                      <div className="flex items-center gap-1.5 text-[10px] text-stone-500 mt-0.5 flex-wrap">
+                        <span className="px-1.5 py-0.2 rounded-full bg-purple-100 text-purple-800 font-bold text-[9px]">{e.category || 'Other'}</span>
+                        {e.paidTo && <span className="truncate">To: {e.paidTo}</span>}
+                        {e.paymentMode && <span className="text-stone-400">({e.paymentMode})</span>}
+                      </div>
+                      {e.notes && <p className="text-[9px] text-stone-400 truncate mt-0.5">{e.notes}</p>}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="text-xs font-black text-purple-900">₹{Number(e.amount || 0).toLocaleString()}</span>
+                      <span className="block text-[9px] text-stone-400">{e.date}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Content 3: Wastage Tab */}
         {activeBottomTab === 'wastage' && (
           <div>
             {filteredData.activeWastage.length === 0 ? (
@@ -1375,168 +1129,6 @@ export default function FinancialDashboard({
         )}
 
       </div>
-
-      {/* ⚙️ FIXED OVERHEADS & BILLS BUDGET MODAL */}
-      {isOverheadModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-stone-200 space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-stone-100 pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center">
-                  <Home className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-base font-extrabold text-stone-900">
-                    Cafe Fixed Commitments (Rent & Staff)
-                  </h3>
-                  <p className="text-[11px] text-stone-500">
-                    Dukan ka pakka kiraya aur staff salary set karein jo har mahine nikalna zaroori hai.
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsOverheadModalOpen(false)}
-                className="w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-500 flex items-center justify-center cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              saveStoredOverheadConfig(overheadForm);
-              setOverheadConfig(overheadForm);
-              setIsOverheadModalOpen(false);
-            }} className="space-y-4">
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                {/* Shop Rent */}
-                <div>
-                  <label className="block text-xs font-bold text-stone-700 uppercase mb-1">
-                    🏠 Dukan Ka Kiraya / Rent (₹/Mahina)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    required
-                    value={overheadForm.monthlyRent}
-                    onChange={(e) => setOverheadForm({ ...overheadForm, monthlyRent: Number(e.target.value) || 0 })}
-                    className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm font-bold text-stone-900 focus:outline-none focus:border-amber-600"
-                    placeholder="e.g. 15000"
-                  />
-                  <span className="text-[10px] text-stone-500 font-semibold block mt-0.5">
-                    ~₹{Math.round((overheadForm.monthlyRent || 0) / 30)} / day (Rent obligation)
-                  </span>
-                </div>
-
-                {/* Staff Salaries */}
-                <div>
-                  <label className="block text-xs font-bold text-stone-700 uppercase mb-1">
-                    👨‍🍳 Staff / Cook Salaries (₹/Mahina)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    required
-                    value={overheadForm.monthlyStaffSalary}
-                    onChange={(e) => setOverheadForm({ ...overheadForm, monthlyStaffSalary: Number(e.target.value) || 0 })}
-                    className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm font-bold text-stone-900 focus:outline-none focus:border-amber-600"
-                    placeholder="e.g. 18000"
-                  />
-                  <span className="text-[10px] text-stone-500 font-semibold block mt-0.5">
-                    ~₹{Math.round((overheadForm.monthlyStaffSalary || 0) / 30)} / day (Staff obligation)
-                  </span>
-                </div>
-              </div>
-
-              {/* Wi-Fi & Fixed Broadband */}
-              <div>
-                <label className="block text-xs font-bold text-stone-700 uppercase mb-1">
-                  🌐 Cafe Wi-Fi & Internet Plan (₹/Mahina)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={overheadForm.monthlyWifiMisc}
-                  onChange={(e) => setOverheadForm({ ...overheadForm, monthlyWifiMisc: Number(e.target.value) || 0 })}
-                  className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm font-bold text-stone-900 focus:outline-none focus:border-amber-600"
-                  placeholder="e.g. 1000"
-                />
-                <span className="text-[10px] text-stone-500 font-semibold block mt-0.5">
-                  ~₹{Math.round((overheadForm.monthlyWifiMisc || 0) / 30)} / day
-                </span>
-              </div>
-
-              {/* Variable Utility Notice (Light Bill & Gas) */}
-              <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-2 text-xs">
-                <div className="flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-amber-600" />
-                  <h4 className="font-extrabold text-amber-900 uppercase text-[11px]">
-                    ⚡ Light Bill aur 🔥 Gas Cylinder Fixed me Kyun Nahi Hain?
-                  </h4>
-                </div>
-                <div className="text-[11px] text-amber-950 space-y-1 leading-relaxed">
-                  <p>
-                    • <strong>⚡ Light Bill (Bijli):</strong> Meter reading ke hisaab se har mahine alag aati hai (Variable). Ye tabhi P&L me judegi jab aap bijli ka bill pay karenge.
-                  </p>
-                  <p>
-                    • <strong>🔥 Commercial Gas:</strong> Cylinder jab khali hota hai tabhi delivery par pay kiya jata hai.
-                  </p>
-                  <p className="font-semibold text-amber-800 pt-0.5">
-                    👉 Isliye P&L me koi jhootha phantom kharch nahi katega — Light Bill aur Gas jab pay honge tabhi &apos;Dukan Bills &amp; Kharch&apos; me judenge!
-                  </p>
-                </div>
-              </div>
-
-              {/* Live Calculation Preview Banner */}
-              <div className="bg-stone-900 text-white rounded-2xl p-3.5 space-y-1.5 text-xs">
-                <div className="flex items-center justify-between font-bold">
-                  <span className="text-stone-400">Total Monthly Fixed Commitments:</span>
-                  <span className="text-amber-400 text-sm">
-                    ₹{(
-                      (overheadForm.monthlyRent || 0) +
-                      (overheadForm.monthlyStaffSalary || 0) +
-                      (overheadForm.monthlyWifiMisc || 0)
-                    ).toLocaleString()} / month
-                  </span>
-                </div>
-                <div className="flex items-center justify-between font-extrabold border-t border-stone-800 pt-1.5">
-                  <span className="text-stone-200">Daily Target Burden (Rent + Staff):</span>
-                  <span className="text-emerald-400 text-base">
-                    ₹{Math.round((
-                      (overheadForm.monthlyRent || 0) +
-                      (overheadForm.monthlyStaffSalary || 0) +
-                      (overheadForm.monthlyWifiMisc || 0)
-                    ) / 30)} / day
-                  </span>
-                </div>
-                <p className="text-[10px] text-stone-400 leading-normal">
-                  Yeh daily burden sirf Sales Target Guide ke liye hai (taaki aapko roz pata chale kitni sale karni hai). Yeh P&amp;L me se paise nahi kaatta!
-                </p>
-              </div>
-
-              {/* Modal Actions */}
-              <div className="flex justify-end gap-2.5 pt-2 border-t border-stone-100">
-                <button
-                  type="button"
-                  onClick={() => setIsOverheadModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-stone-200 text-stone-600 font-bold text-xs hover:bg-stone-50 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
-                >
-                  Save Fixed Commitments
-                </button>
-              </div>
-
-            </form>
-          </div>
-        </div>
-      )}
 
     </div>
   );
