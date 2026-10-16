@@ -1480,7 +1480,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-100/70 text-slate-900 font-sans selection:bg-amber-200 selection:text-amber-900 overflow-x-hidden">
+    <div className="min-h-screen flex flex-col bg-slate-100/70 text-slate-900 font-sans selection:bg-amber-200 selection:text-amber-900 overflow-x-clip">
 
       {/* Toast Notification */}
       {toast && (
@@ -1513,7 +1513,7 @@ export default function App() {
       <div className="flex-1 w-full max-w-[1920px] mx-auto px-2 sm:px-4 lg:px-6 py-2.5 sm:py-3.5 flex flex-col md:flex-row gap-3 items-start">
 
         {/* 🧭 LEFT SIDEBAR NAVIGATION */}
-        <aside className="w-full md:w-52 lg:w-56 xl:w-60 shrink-0 bg-white rounded-2xl border border-slate-200 p-2 sm:p-2.5 shadow-xs md:sticky md:top-20 space-y-2 z-10">
+        <aside className="w-full md:w-52 lg:w-56 xl:w-60 shrink-0 bg-white rounded-2xl border border-slate-200 p-2 sm:p-2.5 shadow-xs md:sticky md:top-20 lg:top-[5.25rem] md:max-h-[calc(100vh-5.5rem)] md:overflow-y-auto space-y-2 z-20 self-start scrollbar-none">
           
           <div className="hidden md:flex items-center justify-between px-2.5 py-1 text-slate-400 border-b border-slate-100 pb-2">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Navigation</span>

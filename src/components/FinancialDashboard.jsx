@@ -377,83 +377,83 @@ export default function FinancialDashboard({
         </div>
 
         {/* 5-Step Formula Ribbon */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-2.5 text-center">
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2 sm:gap-2.5 text-center">
 
           {/* Step 1: Total Sales */}
-          <div className="p-3 rounded-xl bg-emerald-50/70 border border-emerald-200 flex flex-col justify-between">
-            <span className="text-[9px] font-extrabold uppercase tracking-wider text-emerald-800 block">
+          <div className="p-3 rounded-xl bg-emerald-50/70 border border-emerald-200 flex flex-col justify-between min-w-0">
+            <span className="text-[9px] font-extrabold uppercase tracking-wider text-emerald-800 block truncate">
               1. Total Kamayi (Sales)
             </span>
             <div className="my-1">
-              <span className="text-base sm:text-xl font-black text-emerald-950 block">
+              <span className="text-base sm:text-xl font-black text-emerald-950 block truncate">
                 ₹{filteredData.totalRevenue.toLocaleString()}
               </span>
             </div>
             <div className="text-[10px] font-bold text-emerald-700 space-y-0.5">
-              <div>{filteredData.totalOrdersCount} orders ({filteredData.totalUnitsSold} items)</div>
-              <div className="text-[9px] text-emerald-600 font-medium">Avg: ₹{filteredData.avgOrderValue}/order</div>
+              <div className="truncate">{filteredData.totalOrdersCount} orders ({filteredData.totalUnitsSold} items)</div>
+              <div className="text-[9px] text-emerald-600 font-medium truncate">Avg: ₹{filteredData.avgOrderValue}/order</div>
             </div>
           </div>
 
           {/* Step 2: Food Cost (COGS) */}
-          <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200 flex flex-col justify-between">
-            <span className="text-[9px] font-extrabold uppercase tracking-wider text-amber-800 block">
+          <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200 flex flex-col justify-between min-w-0">
+            <span className="text-[9px] font-extrabold uppercase tracking-wider text-amber-800 block truncate">
               2. (−) Raw Material Maal
             </span>
             <div className="my-1">
-              <span className="text-base sm:text-xl font-black text-amber-950 block">
+              <span className="text-base sm:text-xl font-black text-amber-950 block truncate">
                 -₹{filteredData.actualMaterialConsumed.toLocaleString()}
               </span>
             </div>
             <div className="text-[10px] font-bold text-amber-700 space-y-0.5">
-              <div>{filteredData.foodCostPercentage}% Food Cost (COGS)</div>
-              <div className="text-[9px] text-amber-600 font-medium">Gross Profit: ₹{filteredData.grossProfit.toLocaleString()}</div>
+              <div className="truncate">{filteredData.foodCostPercentage}% Food Cost (COGS)</div>
+              <div className="text-[9px] text-amber-600 font-medium truncate">Gross Profit: ₹{filteredData.grossProfit.toLocaleString()}</div>
             </div>
           </div>
 
           {/* Step 3: Dukan Bills & Rent */}
-          <div className="p-3 rounded-xl bg-purple-50/70 border border-purple-200 flex flex-col justify-between">
-            <span className="text-[9px] font-extrabold uppercase tracking-wider text-purple-800 block">
+          <div className="p-3 rounded-xl bg-purple-50/70 border border-purple-200 flex flex-col justify-between min-w-0">
+            <span className="text-[9px] font-extrabold uppercase tracking-wider text-purple-800 block truncate">
               3. (−) Dukan Bills & Rent
             </span>
             <div className="my-1">
-              <span className="text-base sm:text-xl font-black text-purple-950 block">
+              <span className="text-base sm:text-xl font-black text-purple-950 block truncate">
                 -₹{filteredData.totalOverheadExpenses.toLocaleString()}
               </span>
             </div>
             <div className="text-[10px] font-bold text-purple-700 space-y-0.5">
-              <div>{filteredData.activeExpenses.length} bills ({filteredData.overheadPercentage}% of sales)</div>
-              <div className="text-[9px] text-purple-600 font-medium">Bijli, Rent, Staff, Gas</div>
+              <div className="truncate">{filteredData.activeExpenses.length} bills ({filteredData.overheadPercentage}% of sales)</div>
+              <div className="text-[9px] text-purple-600 font-medium truncate">Bijli, Rent, Staff, Gas</div>
             </div>
           </div>
 
           {/* Step 4: Spoilage / Wastage */}
-          <div className="p-3 rounded-xl bg-rose-50/70 border border-rose-200 flex flex-col justify-between">
-            <span className="text-[9px] font-extrabold uppercase tracking-wider text-rose-800 block">
+          <div className="p-3 rounded-xl bg-rose-50/70 border border-rose-200 flex flex-col justify-between min-w-0">
+            <span className="text-[9px] font-extrabold uppercase tracking-wider text-rose-800 block truncate">
               4. (−) Kharab Maal Loss
             </span>
             <div className="my-1">
-              <span className="text-base sm:text-xl font-black text-rose-950 block">
+              <span className="text-base sm:text-xl font-black text-rose-950 block truncate">
                 -₹{filteredData.totalWastageLoss.toLocaleString()}
               </span>
             </div>
             <div className="text-[10px] font-bold text-rose-700 space-y-0.5">
-              <div>{filteredData.activeWastage.length} wastage entries</div>
-              <div className="text-[9px] text-rose-600 font-medium">{filteredData.wastagePercentage}% loss on stock</div>
+              <div className="truncate">{filteredData.activeWastage.length} wastage entries</div>
+              <div className="text-[9px] text-rose-600 font-medium truncate">{filteredData.wastagePercentage}% loss on stock</div>
             </div>
           </div>
 
           {/* Step 5: True Net Profit Result */}
-          <div className={`p-3 rounded-xl col-span-2 lg:col-span-1 border flex flex-col justify-between shadow-xs ${
+          <div className={`p-3 rounded-xl col-span-2 sm:col-span-1 border flex flex-col justify-between shadow-xs min-w-0 ${
             filteredData.trueNetProfit >= 0
               ? 'bg-gradient-to-br from-emerald-700 via-emerald-800 to-teal-900 text-white border-emerald-600'
               : 'bg-gradient-to-br from-rose-700 via-rose-800 to-red-900 text-white border-rose-600'
           }`}>
-            <span className="text-[9px] font-extrabold uppercase tracking-wider text-white/90 block">
+            <span className="text-[9px] font-extrabold uppercase tracking-wider text-white/90 block truncate">
               5. (=) ASLI NET MUNAFA
             </span>
             <div className="my-1">
-              <span className="text-base sm:text-xl font-black block">
+              <span className="text-base sm:text-xl font-black block truncate">
                 {filteredData.trueNetProfit < 0 ? '-' : '+'}₹{Math.abs(filteredData.trueNetProfit).toLocaleString()}
               </span>
             </div>
@@ -461,7 +461,7 @@ export default function FinancialDashboard({
               <span className="text-[10px] font-extrabold text-white/95 bg-white/20 px-2 py-0.5 rounded inline-block">
                 {filteredData.trueNetMargin}% Net Margin
               </span>
-              <div className="text-[9px] text-white/70">Asli In-Hand Bachat</div>
+              <div className="text-[9px] text-white/70 truncate">Asli In-Hand Bachat</div>
             </div>
           </div>
 
@@ -514,25 +514,25 @@ export default function FinancialDashboard({
         </div>
 
         {/* 5 Channel Cards Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2.5">
           {/* 1. Cash Card */}
-          <div className="p-3 rounded-xl bg-emerald-50/70 border border-emerald-200/90 flex flex-col justify-between space-y-2">
+          <div className="p-3 rounded-xl bg-emerald-50/70 border border-emerald-200/90 flex flex-col justify-between space-y-2 min-w-0">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-emerald-900 flex items-center gap-1.5">
+              <span className="text-xs font-black text-emerald-900 flex items-center gap-1.5 truncate">
                 <span>💵</span>
-                <span>Counter Cash</span>
+                <span className="truncate">Counter Cash</span>
               </span>
-              <span className="text-[10px] font-extrabold bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded">
+              <span className="text-[10px] font-extrabold bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded shrink-0">
                 {filteredData.cashOrdersCount} orders
               </span>
             </div>
             <div>
-              <span className="text-lg font-black text-emerald-950 block">
+              <span className="text-lg font-black text-emerald-950 block truncate">
                 ₹{filteredData.cashRevenue.toLocaleString()}
               </span>
               <div className="flex items-center justify-between text-[10px] font-bold text-emerald-700 mt-0.5">
-                <span>{filteredData.totalRevenue > 0 ? Math.round((filteredData.cashRevenue / filteredData.totalRevenue) * 100) : 0}% of sales</span>
-                <span className="text-[9px] bg-emerald-200/60 px-1 rounded">In Till (Galla)</span>
+                <span className="truncate">{filteredData.totalRevenue > 0 ? Math.round((filteredData.cashRevenue / filteredData.totalRevenue) * 100) : 0}% of sales</span>
+                <span className="text-[9px] bg-emerald-200/60 px-1 rounded shrink-0">In Till (Galla)</span>
               </div>
             </div>
             <div className="w-full bg-emerald-200/60 rounded-full h-1 overflow-hidden">
@@ -544,23 +544,23 @@ export default function FinancialDashboard({
           </div>
 
           {/* 2. Counter UPI Card */}
-          <div className="p-3 rounded-xl bg-sky-50/70 border border-sky-200/90 flex flex-col justify-between space-y-2">
+          <div className="p-3 rounded-xl bg-sky-50/70 border border-sky-200/90 flex flex-col justify-between space-y-2 min-w-0">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-sky-900 flex items-center gap-1.5">
+              <span className="text-xs font-black text-sky-900 flex items-center gap-1.5 truncate">
                 <span>📱</span>
-                <span>Counter UPI</span>
+                <span className="truncate">Counter UPI</span>
               </span>
-              <span className="text-[10px] font-extrabold bg-sky-100 text-sky-800 px-1.5 py-0.2 rounded">
+              <span className="text-[10px] font-extrabold bg-sky-100 text-sky-800 px-1.5 py-0.2 rounded shrink-0">
                 {filteredData.upiOrdersCount} orders
               </span>
             </div>
             <div>
-              <span className="text-lg font-black text-sky-950 block">
+              <span className="text-lg font-black text-sky-950 block truncate">
                 ₹{filteredData.upiRevenue.toLocaleString()}
               </span>
               <div className="flex items-center justify-between text-[10px] font-bold text-sky-700 mt-0.5">
-                <span>{filteredData.totalRevenue > 0 ? Math.round((filteredData.upiRevenue / filteredData.totalRevenue) * 100) : 0}% of sales</span>
-                <span className="text-[9px] bg-sky-200/60 px-1 rounded">Direct Bank</span>
+                <span className="truncate">{filteredData.totalRevenue > 0 ? Math.round((filteredData.upiRevenue / filteredData.totalRevenue) * 100) : 0}% of sales</span>
+                <span className="text-[9px] bg-sky-200/60 px-1 rounded shrink-0">Direct Bank</span>
               </div>
             </div>
             <div className="w-full bg-sky-200/60 rounded-full h-1 overflow-hidden">
@@ -572,23 +572,23 @@ export default function FinancialDashboard({
           </div>
 
           {/* 3. Swiggy Online Delivery Card */}
-          <div className="p-3 rounded-xl bg-orange-50/70 border border-orange-300 flex flex-col justify-between space-y-2 ring-1 ring-orange-400/30">
+          <div className="p-3 rounded-xl bg-orange-50/70 border border-orange-300 flex flex-col justify-between space-y-2 ring-1 ring-orange-400/30 min-w-0">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-orange-950 flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#f48c06]"></span>
-                <span>Swiggy Delivery</span>
+              <span className="text-xs font-black text-orange-950 flex items-center gap-1.5 truncate">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#f48c06] shrink-0"></span>
+                <span className="truncate">Swiggy Delivery</span>
               </span>
-              <span className="text-[10px] font-extrabold bg-orange-100 text-orange-900 px-1.5 py-0.2 rounded">
+              <span className="text-[10px] font-extrabold bg-orange-100 text-orange-900 px-1.5 py-0.2 rounded shrink-0">
                 {filteredData.swiggyOrdersCount} orders
               </span>
             </div>
             <div>
-              <span className="text-lg font-black text-orange-950 block">
+              <span className="text-lg font-black text-orange-950 block truncate">
                 ₹{filteredData.swiggyRevenue.toLocaleString()}
               </span>
               <div className="flex items-center justify-between text-[10px] font-bold text-orange-800 mt-0.5">
-                <span>{filteredData.totalRevenue > 0 ? Math.round((filteredData.swiggyRevenue / filteredData.totalRevenue) * 100) : 0}% of sales</span>
-                <span className="text-[9px] bg-orange-200/60 px-1 rounded">Swiggy Payout</span>
+                <span className="truncate">{filteredData.totalRevenue > 0 ? Math.round((filteredData.swiggyRevenue / filteredData.totalRevenue) * 100) : 0}% of sales</span>
+                <span className="text-[9px] bg-orange-200/60 px-1 rounded shrink-0">Swiggy Payout</span>
               </div>
             </div>
             <div className="w-full bg-orange-200/60 rounded-full h-1 overflow-hidden">
@@ -600,23 +600,23 @@ export default function FinancialDashboard({
           </div>
 
           {/* 4. Zomato Online Delivery Card */}
-          <div className="p-3 rounded-xl bg-rose-50/70 border border-rose-300 flex flex-col justify-between space-y-2 ring-1 ring-rose-400/30">
+          <div className="p-3 rounded-xl bg-rose-50/70 border border-rose-300 flex flex-col justify-between space-y-2 ring-1 ring-rose-400/30 min-w-0">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-rose-950 flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#e5383b]"></span>
-                <span>Zomato Delivery</span>
+              <span className="text-xs font-black text-rose-950 flex items-center gap-1.5 truncate">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#e5383b] shrink-0"></span>
+                <span className="truncate">Zomato Delivery</span>
               </span>
-              <span className="text-[10px] font-extrabold bg-rose-100 text-rose-900 px-1.5 py-0.2 rounded">
+              <span className="text-[10px] font-extrabold bg-rose-100 text-rose-900 px-1.5 py-0.2 rounded shrink-0">
                 {filteredData.zomatoOrdersCount} orders
               </span>
             </div>
             <div>
-              <span className="text-lg font-black text-rose-950 block">
+              <span className="text-lg font-black text-rose-950 block truncate">
                 ₹{filteredData.zomatoRevenue.toLocaleString()}
               </span>
               <div className="flex items-center justify-between text-[10px] font-bold text-rose-800 mt-0.5">
-                <span>{filteredData.totalRevenue > 0 ? Math.round((filteredData.zomatoRevenue / filteredData.totalRevenue) * 100) : 0}% of sales</span>
-                <span className="text-[9px] bg-rose-200/60 px-1 rounded">Zomato Payout</span>
+                <span className="truncate">{filteredData.totalRevenue > 0 ? Math.round((filteredData.zomatoRevenue / filteredData.totalRevenue) * 100) : 0}% of sales</span>
+                <span className="text-[9px] bg-rose-200/60 px-1 rounded shrink-0">Zomato Payout</span>
               </div>
             </div>
             <div className="w-full bg-rose-200/60 rounded-full h-1 overflow-hidden">
@@ -628,23 +628,23 @@ export default function FinancialDashboard({
           </div>
 
           {/* 5. Khata (Udhar) Card */}
-          <div className="p-3 rounded-xl sm:col-span-2 lg:col-span-1 bg-amber-50/70 border border-amber-300 flex flex-col justify-between space-y-2">
+          <div className="p-3 rounded-xl sm:col-span-2 lg:col-span-1 bg-amber-50/70 border border-amber-300 flex flex-col justify-between space-y-2 min-w-0">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-amber-950 flex items-center gap-1.5">
+              <span className="text-xs font-black text-amber-950 flex items-center gap-1.5 truncate">
                 <span>📒</span>
-                <span>Khata (Udhar)</span>
+                <span className="truncate">Khata (Udhar)</span>
               </span>
-              <span className="text-[10px] font-extrabold bg-amber-100 text-amber-900 px-1.5 py-0.2 rounded">
+              <span className="text-[10px] font-extrabold bg-amber-100 text-amber-900 px-1.5 py-0.2 rounded shrink-0">
                 {filteredData.khataOrdersCount} orders
               </span>
             </div>
             <div>
-              <span className="text-lg font-black text-amber-950 block">
+              <span className="text-lg font-black text-amber-950 block truncate">
                 ₹{filteredData.khataRevenue.toLocaleString()}
               </span>
               <div className="flex items-center justify-between text-[10px] font-bold text-amber-800 mt-0.5">
-                <span>{filteredData.totalRevenue > 0 ? Math.round((filteredData.khataRevenue / filteredData.totalRevenue) * 100) : 0}% of sales</span>
-                <span className="text-[9px] bg-amber-200/60 px-1 rounded">Receivable</span>
+                <span className="truncate">{filteredData.totalRevenue > 0 ? Math.round((filteredData.khataRevenue / filteredData.totalRevenue) * 100) : 0}% of sales</span>
+                <span className="text-[9px] bg-amber-200/60 px-1 rounded shrink-0">Receivable</span>
               </div>
             </div>
             <div className="w-full bg-amber-200/60 rounded-full h-1 overflow-hidden">
