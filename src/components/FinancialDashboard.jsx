@@ -349,9 +349,9 @@ export default function FinancialDashboard({
         </div>
       </div>
 
-      {/* 💡 SIMPLE P&L MATH WATERFALL BANNER ("Paisa Kahan Gaya?") */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-3 sm:p-4 shadow-xs">
-        <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-stone-100 flex-wrap gap-2">
+      {/* 💡 UNIFIED P&L EXECUTIVE MATH BANNER ("Paisa Kahan Kharch Hua?") */}
+      <div className="bg-white rounded-2xl border border-stone-200 p-3 sm:p-4 shadow-xs space-y-3">
+        <div className="flex items-center justify-between pb-2 border-b border-stone-100 flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <span className="text-xs sm:text-sm font-extrabold text-stone-900 flex items-center gap-1.5">
               <span>📊 P&L Simple Formula: Paisa Kahan Kharch Hua?</span>
@@ -380,70 +380,75 @@ export default function FinancialDashboard({
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-2.5 text-center">
 
           {/* Step 1: Total Sales */}
-          <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200 flex flex-col justify-between">
+          <div className="p-3 rounded-xl bg-emerald-50/70 border border-emerald-200 flex flex-col justify-between">
             <span className="text-[9px] font-extrabold uppercase tracking-wider text-emerald-800 block">
               1. Total Kamayi (Sales)
             </span>
             <div className="my-1">
-              <span className="text-base sm:text-lg font-black text-emerald-950 block">
+              <span className="text-base sm:text-xl font-black text-emerald-950 block">
                 ₹{filteredData.totalRevenue.toLocaleString()}
               </span>
             </div>
-            <span className="text-[10px] font-bold text-emerald-700">
-              {filteredData.totalOrdersCount} orders ({filteredData.totalUnitsSold} items)
-            </span>
+            <div className="text-[10px] font-bold text-emerald-700 space-y-0.5">
+              <div>{filteredData.totalOrdersCount} orders ({filteredData.totalUnitsSold} items)</div>
+              <div className="text-[9px] text-emerald-600 font-medium">Avg: ₹{filteredData.avgOrderValue}/order</div>
+            </div>
           </div>
 
           {/* Step 2: Food Cost (COGS) */}
-          <div className="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200 flex flex-col justify-between">
+          <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200 flex flex-col justify-between">
             <span className="text-[9px] font-extrabold uppercase tracking-wider text-amber-800 block">
               2. (−) Raw Material Maal
             </span>
             <div className="my-1">
-              <span className="text-base sm:text-lg font-black text-amber-950 block">
+              <span className="text-base sm:text-xl font-black text-amber-950 block">
                 -₹{filteredData.actualMaterialConsumed.toLocaleString()}
               </span>
             </div>
-            <span className="text-[10px] font-bold text-amber-700">
-              {filteredData.foodCostPercentage}% of sales (Food Cost)
-            </span>
+            <div className="text-[10px] font-bold text-amber-700 space-y-0.5">
+              <div>{filteredData.foodCostPercentage}% Food Cost (COGS)</div>
+              <div className="text-[9px] text-amber-600 font-medium">Gross Profit: ₹{filteredData.grossProfit.toLocaleString()}</div>
+            </div>
           </div>
 
           {/* Step 3: Dukan Bills & Rent */}
-          <div className="p-2.5 rounded-xl bg-purple-50/70 border border-purple-200 flex flex-col justify-between">
+          <div className="p-3 rounded-xl bg-purple-50/70 border border-purple-200 flex flex-col justify-between">
             <span className="text-[9px] font-extrabold uppercase tracking-wider text-purple-800 block">
               3. (−) Dukan Bills & Rent
             </span>
             <div className="my-1">
-              <span className="text-base sm:text-lg font-black text-purple-950 block">
+              <span className="text-base sm:text-xl font-black text-purple-950 block">
                 -₹{filteredData.totalOverheadExpenses.toLocaleString()}
               </span>
             </div>
-            <span className="text-[10px] font-bold text-purple-700">
-              Bijli, Rent, Staff Salary, Gas
-            </span>
+            <div className="text-[10px] font-bold text-purple-700 space-y-0.5">
+              <div>{filteredData.activeExpenses.length} bills ({filteredData.overheadPercentage}% of sales)</div>
+              <div className="text-[9px] text-purple-600 font-medium">Bijli, Rent, Staff, Gas</div>
+            </div>
           </div>
 
           {/* Step 4: Spoilage / Wastage */}
-          <div className="p-2.5 rounded-xl bg-rose-50/70 border border-rose-200 flex flex-col justify-between">
+          <div className="p-3 rounded-xl bg-rose-50/70 border border-rose-200 flex flex-col justify-between">
             <span className="text-[9px] font-extrabold uppercase tracking-wider text-rose-800 block">
               4. (−) Kharab Maal Loss
             </span>
             <div className="my-1">
-              <span className="text-base sm:text-lg font-black text-rose-950 block">
+              <span className="text-base sm:text-xl font-black text-rose-950 block">
                 -₹{filteredData.totalWastageLoss.toLocaleString()}
               </span>
             </div>
-            <span className="text-[10px] font-bold text-rose-700">
-              {filteredData.activeWastage.length} wastage entries
-            </span>
+            <div className="text-[10px] font-bold text-rose-700 space-y-0.5">
+              <div>{filteredData.activeWastage.length} wastage entries</div>
+              <div className="text-[9px] text-rose-600 font-medium">{filteredData.wastagePercentage}% loss on stock</div>
+            </div>
           </div>
 
           {/* Step 5: True Net Profit Result */}
-          <div className={`p-2.5 rounded-xl col-span-2 lg:col-span-1 border flex flex-col justify-between shadow-xs ${filteredData.trueNetProfit >= 0
+          <div className={`p-3 rounded-xl col-span-2 lg:col-span-1 border flex flex-col justify-between shadow-xs ${
+            filteredData.trueNetProfit >= 0
               ? 'bg-gradient-to-br from-emerald-700 via-emerald-800 to-teal-900 text-white border-emerald-600'
               : 'bg-gradient-to-br from-rose-700 via-rose-800 to-red-900 text-white border-rose-600'
-            }`}>
+          }`}>
             <span className="text-[9px] font-extrabold uppercase tracking-wider text-white/90 block">
               5. (=) ASLI NET MUNAFA
             </span>
@@ -452,134 +457,32 @@ export default function FinancialDashboard({
                 {filteredData.trueNetProfit < 0 ? '-' : '+'}₹{Math.abs(filteredData.trueNetProfit).toLocaleString()}
               </span>
             </div>
-            <span className="text-[10px] font-extrabold text-white/95 bg-white/20 px-1.5 py-0.2 rounded inline-block mx-auto">
-              {filteredData.trueNetMargin}% Net Margin
-            </span>
+            <div className="space-y-0.5">
+              <span className="text-[10px] font-extrabold text-white/95 bg-white/20 px-2 py-0.5 rounded inline-block">
+                {filteredData.trueNetMargin}% Net Margin
+              </span>
+              <div className="text-[9px] text-white/70">Asli In-Hand Bachat</div>
+            </div>
           </div>
 
         </div>
-      </div>
 
-      {/* 4 PRIMARY METRIC CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
-
-        {/* 1. Total Sales & Payment Split */}
-        <div className="bg-white rounded-2xl p-3.5 border border-stone-200 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-stone-500">
-                Total Sales Revenue
-              </span>
-              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                <ShoppingBag className="w-4 h-4" />
-              </div>
-            </div>
-            <h3 className="text-xl sm:text-2xl font-black text-stone-900 mt-1">
-              ₹{filteredData.totalRevenue.toLocaleString()}
-            </h3>
-            <p className="text-[11px] text-stone-400 font-semibold">
-              {filteredData.totalOrdersCount} Orders • Avg: ₹{filteredData.avgOrderValue}/order
-            </p>
+        {/* 📦 Bottom Asset & Cash Flow Summary Strip */}
+        <div className="pt-2 border-t border-stone-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-2 bg-stone-50 px-3 py-1.5 rounded-xl border border-stone-200">
+            <Wallet className="w-3.5 h-3.5 text-stone-500 shrink-0" />
+            <span className="text-stone-600 font-semibold text-[11px]">Storage Godown Stock Asset:</span>
+            <span className="font-black text-stone-900 text-xs">₹{Math.round(filteredData.inventoryValuation).toLocaleString()}</span>
           </div>
 
-          {/* <div className="flex flex-wrap items-center gap-1.5 pt-2.5 mt-2 border-t border-stone-100 text-[10px] font-bold">
-            <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200" title="Cash Counter Sales">
-              💵 ₹{filteredData.cashRevenue.toLocaleString()} ({filteredData.cashOrdersCount} ord)
-            </span>
-            <span className="text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded border border-sky-200" title="Counter UPI / QR Sales">
-              📱 ₹{filteredData.upiRevenue.toLocaleString()} ({filteredData.upiOrdersCount} ord)
-            </span>
-            <span className="text-orange-900 bg-orange-50 px-1.5 py-0.5 rounded border border-orange-200 font-extrabold" title="Swiggy Online Delivery">
-              🟠 Swiggy: ₹{filteredData.swiggyRevenue.toLocaleString()} ({filteredData.swiggyOrdersCount} ord)
-            </span>
-            <span className="text-rose-900 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 font-extrabold" title="Zomato Online Delivery">
-              🔴 Zomato: ₹{filteredData.zomatoRevenue.toLocaleString()} ({filteredData.zomatoOrdersCount} ord)
-            </span>
-            {filteredData.khataRevenue > 0 && (
-              <span className="text-amber-900 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-300 font-extrabold" title="Khata / Udhar Sales">
-                📒 Khata: ₹{filteredData.khataRevenue.toLocaleString()} ({filteredData.khataOrdersCount} ord)
-              </span>
-            )}
-          </div> */}
-        </div>
-
-        {/* 2. Kitchen Food Cost (COGS) */}
-        <div className="bg-white rounded-2xl p-3.5 border border-stone-200 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-stone-500">
-                Food Cost (COGS)
-              </span>
-              <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
-                <PackageCheck className="w-4 h-4" />
-              </div>
-            </div>
-            <h3 className="text-xl sm:text-2xl font-black text-amber-900 mt-1">
-              ₹{filteredData.actualMaterialConsumed.toLocaleString()}
-            </h3>
-            <p className="text-[11px] text-stone-400 font-semibold">
-              Gross Kitchen Margin: <strong className="text-emerald-700">{filteredData.grossMargin}%</strong>
-            </p>
-          </div>
-
-          <div className="pt-2.5 mt-2 border-t border-stone-100 flex items-center justify-between text-[10px] font-bold text-stone-500">
-            <span>Gross Profit: ₹{filteredData.grossProfit.toLocaleString()}</span>
-            <span className="text-amber-700">{filteredData.foodCostPercentage}% of Sales</span>
-          </div>
-        </div>
-
-        {/* 3. Dukan Bills & Overheads */}
-        <div className="bg-white rounded-2xl p-3.5 border border-stone-200 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-stone-500">
-                Bills, Rent & Salary
-              </span>
-              <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center">
-                <Receipt className="w-4 h-4" />
-              </div>
-            </div>
-            <h3 className="text-xl sm:text-2xl font-black text-purple-900 mt-1">
-              ₹{filteredData.totalOverheadExpenses.toLocaleString()}
-            </h3>
-            <p className="text-[11px] text-stone-400 font-semibold">
-              {filteredData.activeExpenses.length} bills/expenses logged
-            </p>
-          </div>
-
-          <div className="pt-2.5 mt-2 border-t border-stone-100 flex items-center justify-between text-[10px] font-bold text-stone-500">
-            <span>Overhead Ratio</span>
-            <span className="text-purple-700">{filteredData.overheadPercentage}% of Sales</span>
-          </div>
-        </div>
-
-        {/* 4. Cash Flow & Godown Stock Valuation */}
-        <div className="bg-white rounded-2xl p-3.5 border border-stone-200 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-stone-500">
-                Storage Stock & Cash
-              </span>
-              <div className="w-8 h-8 rounded-xl bg-stone-100 text-stone-700 flex items-center justify-center">
-                <Wallet className="w-4 h-4" />
-              </div>
-            </div>
-            <h3 className="text-xl sm:text-2xl font-black text-stone-900 mt-1">
-              ₹{Math.round(filteredData.inventoryValuation).toLocaleString()}
-            </h3>
-            <p className="text-[11px] text-stone-400 font-semibold">
-              Current Raw Material Asset in storage
-            </p>
-          </div>
-
-          <div className="pt-2.5 mt-2 border-t border-stone-100 flex items-center justify-between text-[10px] font-bold">
-            <span className="text-stone-500">Net Cash Inflow:</span>
-            <span className={filteredData.netCashFlow >= 0 ? 'text-emerald-700' : 'text-rose-700'}>
+          <div className="flex items-center gap-2 bg-stone-50 px-3 py-1.5 rounded-xl border border-stone-200">
+            <DollarSign className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span className="text-stone-600 font-semibold text-[11px]">Net Cash Inflow:</span>
+            <span className={`font-black text-xs ${filteredData.netCashFlow >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
               {filteredData.netCashFlow >= 0 ? '+' : ''}₹{filteredData.netCashFlow.toLocaleString()}
             </span>
           </div>
         </div>
-
       </div>
 
       {/* 💳 ALL PAYMENT MODES & CHANNELS BREAKDOWN (Cash, UPI, Swiggy, Zomato, Khata) */}
@@ -804,20 +707,16 @@ export default function FinancialDashboard({
                   </span>
                 </div>
                 <div>
-                  <div className="flex items-baseline justify-between">
-                    <span className="text-[9px] text-stone-400 uppercase font-semibold">Is Timeframe Me Sales:</span>
-                    <span className="text-xs font-black text-orange-300">₹{filteredData.swiggyRevenue.toLocaleString()}</span>
-                  </div>
                   <div className="my-1">
                     <span className="text-[9px] text-stone-400 uppercase font-semibold">Bank me aana baaki hai:</span>
-                    <div className="text-lg font-black text-amber-300">
+                    <div className="text-xl font-black text-amber-300">
                       ₹{aggLedger.Swiggy.pendingUnsettled.toLocaleString()}
                     </div>
                   </div>
                 </div>
                 <div className="text-[10px] text-stone-400 flex justify-between border-t border-stone-700/60 pt-1">
-                  <span>Gross: ₹{aggLedger.Swiggy.totalGross.toLocaleString()}</span>
-                  <span>Recd: ₹{aggLedger.Swiggy.totalBankReceived.toLocaleString()}</span>
+                  <span>Gross Orders: ₹{aggLedger.Swiggy.totalGross.toLocaleString()}</span>
+                  <span>In Bank: ₹{aggLedger.Swiggy.totalBankReceived.toLocaleString()}</span>
                 </div>
               </div>
 
@@ -833,20 +732,16 @@ export default function FinancialDashboard({
                   </span>
                 </div>
                 <div>
-                  <div className="flex items-baseline justify-between">
-                    <span className="text-[9px] text-stone-400 uppercase font-semibold">Is Timeframe Me Sales:</span>
-                    <span className="text-xs font-black text-rose-300">₹{filteredData.zomatoRevenue.toLocaleString()}</span>
-                  </div>
                   <div className="my-1">
                     <span className="text-[9px] text-stone-400 uppercase font-semibold">Bank me aana baaki hai:</span>
-                    <div className="text-lg font-black text-rose-300">
+                    <div className="text-xl font-black text-rose-300">
                       ₹{aggLedger.Zomato.pendingUnsettled.toLocaleString()}
                     </div>
                   </div>
                 </div>
                 <div className="text-[10px] text-stone-400 flex justify-between border-t border-stone-700/60 pt-1">
-                  <span>Gross: ₹{aggLedger.Zomato.totalGross.toLocaleString()}</span>
-                  <span>Recd: ₹{aggLedger.Zomato.totalBankReceived.toLocaleString()}</span>
+                  <span>Gross Orders: ₹{aggLedger.Zomato.totalGross.toLocaleString()}</span>
+                  <span>In Bank: ₹{aggLedger.Zomato.totalBankReceived.toLocaleString()}</span>
                 </div>
               </div>
 
