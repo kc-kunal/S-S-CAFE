@@ -29,6 +29,7 @@ import {
   Smartphone,
   CreditCard,
   BookOpen,
+  Target,
   Users
 } from 'lucide-react';
 import {
@@ -203,6 +204,97 @@ export default function FinancialDashboard({
 
     const topItems = Object.values(itemBreakdownMap);
 
+    // 8. Dynamic Daily Sales Target ("Aaj Itna Kamana Padega")
+    // REAL DYNAMIC LOGIC:
+    // - From 1st of month until major bills (Rent/Light/Staff) are entered: target is based strictly on daily running expenses & food cost.
+    // - When owner enters a major bill (e.g. on 6th, ₹25,000 for rent & light bill):
+    //   From that day onwards ("tab se"), that bill is spread over the remaining days of the month to set the recovery target!
+    let targetDetails = null;
+
+    if (timeframe === 'daily') {
+      const parts = (selectedDate || getTodayDateString(0)).split('-').map(Number);
+      const selYear = parts[0] || new Date().getFullYear();
+      const selMonth = parts[1] || (new Date().getMonth() + 1);
+      const selDay = parts[2] || new Date().getDate();
+
+      const daysInMonth = new Date(selYear, selMonth, 0).getDate();
+      const remainingDaysInMonth = Math.max(1, daysInMonth - selDay + 1);
+      const monthPrefix = `${selYear}-${String(selMonth).padStart(2, '0')}`;
+
+      // All expenses entered in this month up to the selected date
+      const monthExpensesUpToDate = expenses.filter(e =>
+        e.date &&
+        e.date.startsWith(monthPrefix) &&
+        e.date <= selectedDate
+      );
+
+      // Major bills entered so far (Rent, Electricity, Staff Salary, Gas, Wi-Fi, or any expense >= 1000)
+      const majorBillsEntered = monthExpensesUpToDate.filter(e => {
+        const cat = (e.category || '').toLowerCase();
+        const title = (e.title || '').toLowerCase();
+        const amt = Number(e.amount || 0);
+        return cat.includes('rent') ||
+               cat.includes('elect') ||
+               cat.includes('light') ||
+               cat.includes('salary') ||
+               cat.includes('staff') ||
+               cat.includes('gas') ||
+               cat.includes('wi-fi') ||
+               cat.includes('wifi') ||
+               title.includes('rent') ||
+               title.includes('light') ||
+               title.includes('salary') ||
+               title.includes('gas') ||
+               amt >= 1000;
+      });
+
+      const totalMajorBillsAmount = majorBillsEntered.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
+      // Daily recovery share of major bills for remaining days of month
+      const dailyMajorBillRecovery = totalMajorBillsAmount > 0
+        ? Math.round(totalMajorBillsAmount / remainingDaysInMonth)
+        : 0;
+
+      // Routine / minor daily expenses entered today (if not already counted as major bill)
+      const minorDailyExpensesToday = activeExpenses
+        .filter(e => !majorBillsEntered.some(m => m.id === e.id))
+        .reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
+      // Base operational buffer to ensure target is always realistic (e.g. ₹350 running daily petty buffer)
+      const dailyOperationalBuffer = minorDailyExpensesToday > 0 ? minorDailyExpensesToday : 350;
+
+      // Total daily gross profit needed
+      const dailyGrossProfitNeeded = dailyMajorBillRecovery + dailyOperationalBuffer + totalWastageLoss;
+
+      // Effective margin ratio (Gross Profit / Revenue)
+      const grossMarginRatio = totalRevenue > 0 && grossProfit > 0
+        ? (grossProfit / totalRevenue)
+        : 0.62;
+      const effectiveMargin = Math.max(0.3, Math.min(0.85, grossMarginRatio));
+
+      // Dynamic Target Sales (minimum ₹1,200 baseline for a cafe)
+      const targetSales = Math.max(1200, Math.round(dailyGrossProfitNeeded / effectiveMargin));
+      const isTargetAchieved = totalRevenue >= targetSales;
+      const targetProgressPct = targetSales > 0
+        ? Math.min(250, Math.round((totalRevenue / targetSales) * 100))
+        : 100;
+      const targetShortfall = Math.max(0, targetSales - totalRevenue);
+
+      targetDetails = {
+        targetSales,
+        isTargetAchieved,
+        targetProgressPct,
+        targetShortfall,
+        totalMajorBillsAmount,
+        majorBillsCount: majorBillsEntered.length,
+        majorBillsList: majorBillsEntered,
+        dailyMajorBillRecovery,
+        remainingDaysInMonth,
+        minorDailyExpensesToday,
+        todayDirectExpenses: totalOverheadExpenses
+      };
+    }
+
     return {
       sales,
       procurement,
@@ -241,7 +333,8 @@ export default function FinancialDashboard({
       netCashFlow,
       inventoryValuation,
       expenseBreakdown,
-      topItems
+      topItems,
+      targetDetails
     };
   }, [salesLogs, procurementLogs, menuItems, inventoryItems, expenses, wastageLogs, timeframe, selectedDate]);
 
@@ -361,6 +454,217 @@ export default function FinancialDashboard({
         </div>
       </div>
 
+
+      {/* 🎯 TODAY'S DYNAMIC SALES TARGET GUIDE ("Aaj Itna Kamana Padega") */}
+      {timeframe === 'daily' && filteredData.targetDetails && (
+        <div className="bg-gradient-to-br from-stone-900 via-stone-900 to-amber-950 text-white rounded-3xl border border-stone-800 p-4 sm:p-5 shadow-lg space-y-4 relative overflow-hidden">
+          {/* Subtle warm glow background */}
+          <div className="absolute -right-10 -bottom-10 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-800 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center font-black">
+                <Target className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm sm:text-base font-black tracking-tight">
+                    🎯 Roz Ka Sales Target (Bills & Kharcha Nikalna)
+                  </h3>
+                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-stone-800 text-stone-300 border border-stone-700">
+                    {selectedDate}
+                  </span>
+                </div>
+                <p className="text-[11px] text-stone-400 mt-0.5">
+                  {filteredData.targetDetails.totalMajorBillsAmount > 0 ? (
+                    <>
+                      Is mahine enter kiye gaye <strong className="text-amber-400">₹{filteredData.targetDetails.totalMajorBillsAmount.toLocaleString()}</strong> ke bills (Rent, Bijli, etc.) ko bache huye <strong>{filteredData.targetDetails.remainingDaysInMonth} dinon</strong> me recover karne ke hisaab se target.
+                    </>
+                  ) : (
+                    <>
+                      Aaj ke daily kharch aur maal ke hisaab se target. Mahine ka Rent ya Bijli bill jab enter karenge tab se unka hissa target me judega.
+                    </>
+                  )}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <span className={`text-xs font-black px-3 py-1.5 rounded-xl border flex items-center gap-1.5 ${
+                filteredData.targetDetails.isTargetAchieved
+                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                  : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+              }`}>
+                {filteredData.targetDetails.isTargetAchieved ? (
+                  <>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Target Crossed ({filteredData.targetDetails.targetProgressPct}%)</span>
+                  </>
+                ) : (
+                  <>
+                    <TrendingUp className="w-3.5 h-3.5 text-amber-400" />
+                    <span>{filteredData.targetDetails.targetProgressPct}% Target Reached</span>
+                  </>
+                )}
+              </span>
+            </div>
+          </div>
+
+          {/* 4 Highlights Grid */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 text-center">
+            {/* Box 1: Target Sales */}
+            <div className="bg-stone-800/70 border border-stone-700/80 rounded-2xl p-3 flex flex-col justify-between">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-stone-400">
+                🎯 Target Sales (Aaj Ka)
+              </span>
+              <div className="my-1">
+                <span className="text-xl sm:text-2xl font-black text-amber-400">
+                  ₹{filteredData.targetDetails.targetSales.toLocaleString()}
+                </span>
+              </div>
+              <span className="text-[10px] text-stone-400 font-medium">
+                Bills + Maal nikalne ke liye
+              </span>
+            </div>
+
+            {/* Box 2: Actual Sales */}
+            <div className="bg-stone-800/70 border border-stone-700/80 rounded-2xl p-3 flex flex-col justify-between">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-stone-400">
+                💰 Aaj Ki Kamayi (Ab Tak)
+              </span>
+              <div className="my-1">
+                <span className="text-xl sm:text-2xl font-black text-white">
+                  ₹{filteredData.totalRevenue.toLocaleString()}
+                </span>
+              </div>
+              <span className={`text-[10px] font-extrabold ${
+                filteredData.targetDetails.isTargetAchieved ? 'text-emerald-400' : 'text-amber-400'
+              }`}>
+                {filteredData.totalOrdersCount} orders booked today
+              </span>
+            </div>
+
+            {/* Box 3: Monthly Bill Recovery Share */}
+            <div className="bg-stone-800/70 border border-stone-700/80 rounded-2xl p-3 flex flex-col justify-between">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-stone-400">
+                📋 Bill Recovery Load
+              </span>
+              <div className="my-1">
+                <span className="text-xl sm:text-2xl font-black text-purple-300">
+                  ₹{filteredData.targetDetails.dailyMajorBillRecovery.toLocaleString()}
+                  <span className="text-xs text-purple-400 font-bold"> / day</span>
+                </span>
+              </div>
+              <span className="text-[10px] text-purple-400/80 font-medium truncate">
+                {filteredData.targetDetails.totalMajorBillsAmount > 0
+                  ? `₹${filteredData.targetDetails.totalMajorBillsAmount.toLocaleString()} (${filteredData.targetDetails.majorBillsCount} bills)`
+                  : 'Rent/Bijli enter hone par judega'
+                }
+              </span>
+            </div>
+
+            {/* Box 4: Aaj Pay Kiya Gaya Kharcha */}
+            <div className="bg-stone-800/70 border border-stone-700/80 rounded-2xl p-3 flex flex-col justify-between">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-stone-400">
+                💵 Aaj Pay Kiya Gaya Kharcha
+              </span>
+              <div className="my-1">
+                <span className={`text-xl sm:text-2xl font-black ${
+                  filteredData.totalOverheadExpenses > 0 ? 'text-rose-400' : 'text-stone-300'
+                }`}>
+                  ₹{filteredData.totalOverheadExpenses.toLocaleString()}
+                </span>
+              </div>
+              <span className="text-[10px] text-stone-400 font-medium">
+                {filteredData.activeExpenses.length === 0
+                  ? 'Aaj koi bill pay nahi hua (₹0)'
+                  : `${filteredData.activeExpenses.length} bills paid today`
+                }
+              </span>
+            </div>
+          </div>
+
+          {/* Live Progress Bar */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-xs font-bold">
+              <span className="text-stone-300 flex items-center gap-1.5">
+                <span>Target Progress:</span>
+                <span className={filteredData.targetDetails.isTargetAchieved ? 'text-emerald-400 font-extrabold' : 'text-amber-400 font-extrabold'}>
+                  ₹{filteredData.totalRevenue.toLocaleString()} / ₹{filteredData.targetDetails.targetSales.toLocaleString()} ({filteredData.targetDetails.targetProgressPct}%)
+                </span>
+              </span>
+              <span className="text-[11px] text-stone-400">
+                {filteredData.targetDetails.isTargetAchieved 
+                  ? '🎉 Target Crossed! Dukan ke bills aur maal cover ho chuka hai!' 
+                  : `₹${filteredData.targetDetails.targetShortfall.toLocaleString()} remaining to hit target`
+                }
+              </span>
+            </div>
+
+            <div className="w-full h-3 bg-stone-800 rounded-full overflow-hidden p-0.5 border border-stone-700/80 relative">
+              <div 
+                className={`h-full rounded-full transition-all duration-500 ${
+                  filteredData.targetDetails.isTargetAchieved
+                    ? 'bg-gradient-to-r from-emerald-500 via-teal-400 to-green-300 shadow-sm shadow-emerald-500/50'
+                    : 'bg-gradient-to-r from-amber-600 via-orange-500 to-amber-400'
+                }`}
+                style={{ width: `${Math.min(100, filteredData.targetDetails.targetProgressPct)}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Status Motivational Box */}
+          <div className={`p-3 rounded-2xl border flex items-center gap-3 text-xs leading-relaxed ${
+            filteredData.targetDetails.isTargetAchieved
+              ? 'bg-emerald-900/30 border-emerald-500/30 text-emerald-200'
+              : 'bg-amber-900/30 border-amber-500/30 text-amber-200'
+          }`}>
+            {filteredData.targetDetails.isTargetAchieved ? (
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+            ) : (
+              <TrendingUp className="w-5 h-5 text-amber-400 shrink-0" />
+            )}
+            <div className="flex-1">
+              {filteredData.targetDetails.isTargetAchieved ? (
+                <>
+                  <strong>Shaandaar Kaam! Aaj Cafe ka Sales Target pura ho chuka hai! 🚀</strong>
+                  <p className="text-[11px] text-emerald-300/80 mt-0.5">
+                    Aaj ki sale se Dukan ke bills aur maal ka hissa nikal chuka hai! Aaj ka Asli In-Hand Net Profit: <strong>+₹{filteredData.trueNetProfit.toLocaleString()}</strong>! Ab aage aane wale har order se seedha pure munafa badhega!
+                  </p>
+                </>
+              ) : (
+                <>
+                  <strong>Aaj ka Sales Target abhi baki hai (Baki: ₹{filteredData.targetDetails.targetShortfall.toLocaleString()})</strong>
+                  <p className="text-[11px] text-amber-300/80 mt-0.5">
+                    Dukan ke bills aur maal ka hissa nikaalne ke liye ₹{filteredData.targetDetails.targetShortfall.toLocaleString()} ki aur sale chahiye. Shaam ke orders me thoda aur push karein!
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Entered Bills Chips (if any major bills entered this month) */}
+          {filteredData.targetDetails.majorBillsList.length > 0 && (
+            <div className="pt-2 border-t border-stone-800 space-y-1.5">
+              <div className="flex items-center justify-between text-[11px] text-stone-400">
+                <span className="font-bold">🗓️ Is Mahine Enter Huye Bills (Recovery Track):</span>
+                <span>Total: ₹{filteredData.targetDetails.totalMajorBillsAmount.toLocaleString()}</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {filteredData.targetDetails.majorBillsList.map(b => (
+                  <span key={b.id} className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-stone-800/90 text-stone-300 border border-stone-700/80 flex items-center gap-1">
+                    <span>{b.title || b.category}:</span>
+                    <strong className="text-amber-400">₹{Number(b.amount || 0).toLocaleString()}</strong>
+                    <span className="text-stone-500 text-[9px]">({b.date})</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+        </div>
+      )}
 
       {/* 💡 UNIFIED P&L EXECUTIVE MATH BANNER ("Paisa Kahan Kharch Hua?") */}
       <div className="bg-white rounded-2xl border border-stone-200 p-3 sm:p-4 shadow-xs space-y-3">
