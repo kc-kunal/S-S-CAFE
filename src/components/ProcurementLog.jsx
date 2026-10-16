@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Plus, PackageCheck, Trash2, Tag, Truck, Calculator, Sparkles, Check, Search, TrendingUp, IndianRupee, Layers, AlertCircle } from 'lucide-react';
-import { KNOWN_MATERIAL_ALIASES, INITIAL_INVENTORY_ITEMS, findMatchingInventoryItem, convertQuantity } from '../utils/storage';
+import { Plus, PackageCheck, Trash2, Tag, Truck, Calculator, Sparkles, Check, Search, TrendingUp, IndianRupee, Layers, AlertCircle, Calendar } from 'lucide-react';
+import { KNOWN_MATERIAL_ALIASES, INITIAL_INVENTORY_ITEMS, findMatchingInventoryItem, convertQuantity, classifyMaterialProcurementType } from '../utils/storage';
 
 const CATEGORIES = ['Dairy', 'Bakery', 'Groceries', 'Beans & Teas', 'Frozen', 'Dry', 'Packaging'];
 const UNITS = ['Kg', 'Gram', 'Liters', 'ml', 'Piece', 'Packet', 'Box'];
@@ -21,6 +21,7 @@ export default function ProcurementLog({
   const [supplier, setSupplier] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [filterCategory, setFilterCategory] = useState('ALL');
+  const [frequencyFilter, setFrequencyFilter] = useState('ALL'); // 'ALL' | 'daily' | 'weekly'
   const [searchFilter, setSearchFilter] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
 
@@ -291,15 +292,31 @@ export default function ProcurementLog({
   };
 
   // Filtered Logs
-  const filteredLogs = procurementLogs.filter(p => {
-    const matchesCat = filterCategory === 'ALL' || p.category === filterCategory;
-    const matchesSearch = !searchFilter || p.materialName.toLowerCase().includes(searchFilter.toLowerCase()) ||
-                          (p.supplier && p.supplier.toLowerCase().includes(searchFilter.toLowerCase()));
-    return matchesCat && matchesSearch;
-  });
+  const filteredLogs = useMemo(() => {
+    return procurementLogs.filter(p => {
+      const matchesCat = filterCategory === 'ALL' || p.category === filterCategory;
+      const freq = classifyMaterialProcurementType(p.materialName);
+      const matchesFreq = frequencyFilter === 'ALL' || freq === frequencyFilter;
+      const matchesSearch = !searchFilter || p.materialName.toLowerCase().includes(searchFilter.toLowerCase()) ||
+                            (p.supplier && p.supplier.toLowerCase().includes(searchFilter.toLowerCase()));
+      return matchesCat && matchesFreq && matchesSearch;
+    });
+  }, [procurementLogs, filterCategory, frequencyFilter, searchFilter]);
 
   const totalProcurementSpend = useMemo(() => {
     return procurementLogs.reduce((sum, p) => sum + (Number(p.totalCost) || 0), 0);
+  }, [procurementLogs]);
+
+  const dailyProcurementSpend = useMemo(() => {
+    return procurementLogs
+      .filter(p => classifyMaterialProcurementType(p.materialName) === 'daily')
+      .reduce((sum, p) => sum + (Number(p.totalCost) || 0), 0);
+  }, [procurementLogs]);
+
+  const weeklyProcurementSpend = useMemo(() => {
+    return procurementLogs
+      .filter(p => classifyMaterialProcurementType(p.materialName) === 'weekly')
+      .reduce((sum, p) => sum + (Number(p.totalCost) || 0), 0);
   }, [procurementLogs]);
 
   // Check if current unit selection triggers automatic Gram/ml conversion
@@ -635,20 +652,66 @@ export default function ProcurementLog({
 
       {/* 📜 PROCUREMENT LOGS HISTORY TABLE */}
       <div className="bg-white rounded-3xl border border-stone-200 p-6 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-stone-100 pb-4">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 border-b border-stone-100 pb-4">
           <div>
-            <h3 className="text-base font-bold text-stone-900">Procurement History (Raw Material Purchases)</h3>
-            <p className="text-xs text-stone-500">
-              Total Spend on Raw Materials: <strong className="text-amber-900">₹{totalProcurementSpend.toLocaleString()}</strong> ({procurementLogs.length} purchases)
-            </p>
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-bold text-stone-900">Procurement History (Raw Material Purchases)</h3>
+            </div>
+            
+            {/* Daily Fresh vs Weekly Bulk Spend Pills */}
+            <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs">
+              <span className="font-semibold text-stone-500">
+                Total Spend: <strong className="text-amber-900 font-extrabold">₹{totalProcurementSpend.toLocaleString()}</strong>
+              </span>
+              <span className="text-stone-300">•</span>
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-800 border border-blue-200 font-bold text-[11px]">
+                <span>🥛 Daily Fresh (Doodh, Buns, Sabzi):</span>
+                <span>₹{dailyProcurementSpend.toLocaleString()}</span>
+              </span>
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-purple-50 text-purple-800 border border-purple-200 font-bold text-[11px]">
+                <span>📦 Weekly Bulk (Cheese, Fries, Sauces):</span>
+                <span>₹{weeklyProcurementSpend.toLocaleString()}</span>
+              </span>
+            </div>
           </div>
 
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            <div className="relative flex-1 sm:w-56">
+          <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
+            {/* Daily vs Weekly Frequency Switcher */}
+            <div className="flex items-center bg-stone-100 p-1 rounded-xl text-xs font-bold border border-stone-200">
+              <button
+                type="button"
+                onClick={() => setFrequencyFilter('ALL')}
+                className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                  frequencyFilter === 'ALL' ? 'bg-white text-stone-900 shadow-2xs' : 'text-stone-500 hover:text-stone-800'
+                }`}
+              >
+                All ({procurementLogs.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setFrequencyFilter('daily')}
+                className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                  frequencyFilter === 'daily' ? 'bg-blue-600 text-white shadow-2xs' : 'text-stone-500 hover:text-stone-800'
+                }`}
+              >
+                <span>🥛 Roz Maal</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFrequencyFilter('weekly')}
+                className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                  frequencyFilter === 'weekly' ? 'bg-purple-600 text-white shadow-2xs' : 'text-stone-500 hover:text-stone-800'
+                }`}
+              >
+                <span>📦 Bulk Stock</span>
+              </button>
+            </div>
+
+            <div className="relative flex-1 sm:w-48">
               <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-2.5" />
               <input
                 type="text"
-                placeholder="Search raw material or vendor..."
+                placeholder="Search material/vendor..."
                 value={searchFilter}
                 onChange={(e) => setSearchFilter(e.target.value)}
                 className="w-full pl-9 pr-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-semibold focus:outline-none"
@@ -669,7 +732,7 @@ export default function ProcurementLog({
         {filteredLogs.length === 0 ? (
           <div className="text-center py-10 text-stone-400">
             <PackageCheck className="w-10 h-10 mx-auto mb-2 opacity-30" />
-            <p className="text-xs font-semibold">No raw material purchases found.</p>
+            <p className="text-xs font-semibold">No raw material purchases found matching filter.</p>
           </div>
         ) : (
           <>
@@ -680,6 +743,7 @@ export default function ProcurementLog({
                   <tr className="bg-stone-950 text-amber-100 text-xs font-bold uppercase tracking-wider">
                     <th className="py-3.5 px-4">Date</th>
                     <th className="py-3.5 px-4">Raw Material</th>
+                    <th className="py-3.5 px-4">Type</th>
                     <th className="py-3.5 px-4">Category</th>
                     <th className="py-3.5 px-4 text-center">Qty Received</th>
                     <th className="py-3.5 px-4 text-right">Rate / Unit</th>
@@ -689,90 +753,108 @@ export default function ProcurementLog({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-200 text-stone-700">
-                  {filteredLogs.map((proc) => (
-                    <tr key={proc.id} className="hover:bg-amber-50/40 transition-colors">
-                      <td className="py-3 px-4 text-xs font-semibold text-stone-500">{proc.date}</td>
-                      <td className="py-3 px-4 font-bold text-stone-900">
-                        <span>{proc.materialName}</span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="px-2.5 py-0.5 rounded-md bg-stone-100 font-semibold text-xs text-stone-700 border border-stone-200">
-                          {proc.category || 'Groceries'}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-center font-extrabold text-stone-900">
-                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold">
-                          {proc.quantityReceived} {proc.unit}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right font-medium text-stone-600">
-                        ₹{proc.ratePerUnit ? Number(proc.ratePerUnit).toFixed(2) : '-'}
-                      </td>
-                      <td className="py-3 px-4 text-right font-black text-emerald-800">
-                        ₹{Number(proc.totalCost).toLocaleString()}
-                      </td>
-                      <td className="py-3 px-4 text-xs text-stone-500 font-medium">
-                        {proc.supplier || '-'}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <button
-                          onClick={() => onDeleteProcurement(proc.id)}
-                          className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                          title="Delete purchase log entry"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {filteredLogs.map((proc) => {
+                    const isDaily = classifyMaterialProcurementType(proc.materialName) === 'daily';
+                    return (
+                      <tr key={proc.id} className="hover:bg-amber-50/40 transition-colors">
+                        <td className="py-3 px-4 text-xs font-semibold text-stone-500">{proc.date}</td>
+                        <td className="py-3 px-4 font-bold text-stone-900">
+                          <span>{proc.materialName}</span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${
+                            isDaily ? 'bg-blue-50 text-blue-800 border-blue-200' : 'bg-purple-50 text-purple-800 border-purple-200'
+                          }`}>
+                            {isDaily ? '🥛 Roz' : '📦 Bulk'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="px-2.5 py-0.5 rounded-md bg-stone-100 font-semibold text-xs text-stone-700 border border-stone-200">
+                            {proc.category || 'Groceries'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-center font-extrabold text-stone-900">
+                          <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold">
+                            {proc.quantityReceived} {proc.unit}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right font-medium text-stone-600">
+                          ₹{proc.ratePerUnit ? Number(proc.ratePerUnit).toFixed(2) : '-'}
+                        </td>
+                        <td className="py-3 px-4 text-right font-black text-emerald-800">
+                          ₹{Number(proc.totalCost).toLocaleString()}
+                        </td>
+                        <td className="py-3 px-4 text-xs text-stone-500 font-medium">
+                          {proc.supplier || '-'}
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <button
+                            onClick={() => onDeleteProcurement(proc.id)}
+                            className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                            title="Delete purchase log entry"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
 
             {/* Mobile Cards View */}
             <div className="md:hidden space-y-2.5">
-              {filteredLogs.map((proc) => (
-                <div key={proc.id} className="p-3.5 bg-stone-50/70 border border-stone-200 rounded-2xl flex items-center justify-between gap-3 shadow-2xs">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <h4 className="font-bold text-stone-900 text-sm truncate">{proc.materialName}</h4>
-                      <span className="text-[9px] font-semibold text-stone-600 bg-white px-1.5 py-0.5 rounded border border-stone-200">
-                        {proc.category || 'Material'}
-                      </span>
+              {filteredLogs.map((proc) => {
+                const isDaily = classifyMaterialProcurementType(proc.materialName) === 'daily';
+                return (
+                  <div key={proc.id} className="p-3.5 bg-stone-50/70 border border-stone-200 rounded-2xl flex items-center justify-between gap-3 shadow-2xs">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <h4 className="font-bold text-stone-900 text-sm truncate">{proc.materialName}</h4>
+                        <span className={`text-[9px] font-extrabold px-1.5 py-0.2 rounded border ${
+                          isDaily ? 'bg-blue-50 text-blue-800 border-blue-200' : 'bg-purple-50 text-purple-800 border-purple-200'
+                        }`}>
+                          {isDaily ? '🥛 Roz' : '📦 Bulk'}
+                        </span>
+                        <span className="text-[9px] font-semibold text-stone-600 bg-white px-1.5 py-0.5 rounded border border-stone-200">
+                          {proc.category || 'Material'}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-stone-500 mt-1">
+                        <span>{proc.date}</span>
+                        <span>•</span>
+                        <span className="font-bold text-stone-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 text-[10px]">
+                          {proc.quantityReceived} {proc.unit}
+                        </span>
+                        {proc.supplier && (
+                          <>
+                            <span>•</span>
+                            <span className="text-[10px] text-stone-400 truncate max-w-[100px]">{proc.supplier}</span>
+                          </>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-stone-500 mt-1">
-                      <span>{proc.date}</span>
-                      <span>•</span>
-                      <span className="font-bold text-stone-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 text-[10px]">
-                        {proc.quantityReceived} {proc.unit}
-                      </span>
-                      {proc.supplier && (
-                        <>
-                          <span>•</span>
-                          <span className="text-[10px] text-stone-400 truncate max-w-[100px]">{proc.supplier}</span>
-                        </>
-                      )}
+                    <div className="flex items-center gap-2.5 shrink-0">
+                      <div className="text-right">
+                        <div className="font-black text-emerald-800 text-base">₹{Number(proc.totalCost).toLocaleString()}</div>
+                        {proc.ratePerUnit && (
+                          <span className="text-[10px] text-stone-500">₹{Number(proc.ratePerUnit).toFixed(1)}/{proc.unit}</span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => onDeleteProcurement(proc.id)}
+                        className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                        title="Delete purchase"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-2.5 shrink-0">
-                    <div className="text-right">
-                      <div className="font-black text-emerald-800 text-base">₹{Number(proc.totalCost).toLocaleString()}</div>
-                      {proc.ratePerUnit && (
-                        <span className="text-[10px] text-stone-500">₹{Number(proc.ratePerUnit).toFixed(1)}/{proc.unit}</span>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => onDeleteProcurement(proc.id)}
-                      className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
-                      title="Delete purchase"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </>
         )}

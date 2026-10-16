@@ -146,6 +146,45 @@ export default function ExpenseTracker({
     return filteredExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
   }, [filteredExpenses]);
 
+  // 🔥 Commercial LPG Gas Cylinder Analytics & State
+  const gasExpenses = useMemo(() => {
+    return expenses
+      .filter(e => e.category === 'Commercial Gas')
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  }, [expenses]);
+
+  const lastGasLog = gasExpenses[0] || null;
+
+  const gasMetrics = useMemo(() => {
+    const monthGasList = gasExpenses.filter(g => g.date && g.date.startsWith(currentMonthStr));
+    const monthGasTotal = monthGasList.reduce((sum, g) => sum + (Number(g.amount) || 0), 0);
+    const monthCylindersCount = monthGasList.length;
+
+    let daysSinceLastRefill = null;
+    let isRefillDueSoon = false;
+    let estimatedDaysLeft = 6;
+
+    if (lastGasLog && lastGasLog.date) {
+      const lastDate = new Date(lastGasLog.date);
+      const todayDate = new Date();
+      const diffTime = Math.abs(todayDate - lastDate);
+      daysSinceLastRefill = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      estimatedDaysLeft = Math.max(0, 7 - daysSinceLastRefill);
+      if (daysSinceLastRefill >= 5) {
+        isRefillDueSoon = true;
+      }
+    }
+
+    return {
+      monthGasTotal,
+      monthCylindersCount,
+      lastGasLog,
+      daysSinceLastRefill,
+      estimatedDaysLeft,
+      isRefillDueSoon
+    };
+  }, [gasExpenses, currentMonthStr, lastGasLog]);
+
   // Open Expense Modal
   const handleOpenAddExpense = () => {
     setEditingExpense(null);
@@ -157,6 +196,21 @@ export default function ExpenseTracker({
       paymentMode: 'Online',
       paidTo: '',
       notes: ''
+    });
+    setIsExpenseModalOpen(true);
+  };
+
+  // Quick helper to log Commercial Gas Cylinder
+  const handleOpenAddGasRefill = () => {
+    setEditingExpense(null);
+    setExpenseForm({
+      title: '19kg Commercial LPG Cylinder Refill',
+      category: 'Commercial Gas',
+      amount: lastGasLog?.amount || '1850',
+      date: new Date().toISOString().split('T')[0],
+      paymentMode: 'Cash',
+      paidTo: lastGasLog?.paidTo || 'Indane / HP Gas Agency',
+      notes: 'Commercial cylinder refilled for kitchen burners (~6-7 days run)'
     });
     setIsExpenseModalOpen(true);
   };
@@ -327,6 +381,59 @@ export default function ExpenseTracker({
       {activeTab === 'expenses' && (
         <div className="space-y-4">
           
+          {/* 🔥 Commercial LPG Gas Cylinder Quick Tracker Card */}
+          <div className="bg-gradient-to-r from-rose-50 via-amber-50 to-orange-50 border border-rose-200/90 rounded-2xl p-3.5 sm:p-4 shadow-2xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                <Flame className="w-5 h-5 animate-pulse" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-xs sm:text-sm font-extrabold text-stone-900">
+                    Commercial LPG Gas Hisaab (19kg Cylinder)
+                  </h4>
+                  {gasMetrics.lastGasLog && (
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
+                      gasMetrics.isRefillDueSoon
+                        ? 'bg-rose-100 text-rose-800 border-rose-300'
+                        : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                    }`}>
+                      {gasMetrics.isRefillDueSoon ? '⚠️ Refill Due Soon' : '🟢 Active & Running'}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-stone-600 mt-0.5">
+                  {gasMetrics.lastGasLog ? (
+                    <>
+                      Last refill: <strong>{gasMetrics.lastGasLog.date}</strong> ({gasMetrics.daysSinceLastRefill} din pehle, ₹{Number(gasMetrics.lastGasLog.amount).toLocaleString()}) • 
+                      {gasMetrics.isRefillDueSoon 
+                        ? ' Cylinder khali hone wala hai, backup cylinder check karein!'
+                        : ` Gas chal rahi hai (~${gasMetrics.estimatedDaysLeft} din aur chalega)`
+                      } • Roz ka gas kharcha ~₹247/din
+                    </>
+                  ) : (
+                    'Abhi tak gas cylinder ka bill log nahi hua hai. Roz ka gas hisaab ~₹247/din hai.'
+                  )}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5 self-stretch sm:self-auto shrink-0">
+              <div className="text-right hidden sm:block pr-2.5 border-r border-rose-200">
+                <span className="text-[9px] font-bold text-stone-500 uppercase block">This Month Gas</span>
+                <span className="text-xs font-black text-rose-900">{gasMetrics.monthCylindersCount} Cylinders (₹{gasMetrics.monthGasTotal.toLocaleString()})</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleOpenAddGasRefill}
+                className="flex-1 sm:flex-initial px-3.5 py-2 bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Log Gas Refill (₹1,850)</span>
+              </button>
+            </div>
+          </div>
+
           {/* Controls Bar */}
           <div className="bg-white rounded-2xl border border-stone-200 p-3.5 sm:p-4 shadow-sm space-y-3">
             <div className="flex flex-col lg:flex-row gap-2.5 sm:gap-3 items-stretch lg:items-center justify-between">

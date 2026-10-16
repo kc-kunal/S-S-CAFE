@@ -9,6 +9,7 @@ const AGGREGATOR_SETTLEMENTS_STORAGE_KEY = 'ss_cafe_aggregator_settlements_v1';
 const KHATA_STORAGE_KEY = 'ss_cafe_khata_ledger_v1';
 const DAY_CLOSING_STORAGE_KEY = 'ss_cafe_day_closing_logs_v1';
 const OWNER_PIN_STORAGE_KEY = 'ss_cafe_owner_pin_v1';
+const OVERHEAD_CONFIG_KEY = 'ss_cafe_overhead_budget_v1';
 
 
 // Get today's YYYY-MM-DD string in local user timezone
@@ -1335,6 +1336,97 @@ export const saveStoredExpenses = (expenses, cafeId = currentCafeId) => {
   if (cafeId === 'default') {
     localStorage.setItem(EXPENSES_STORAGE_KEY, JSON.stringify(expenses));
   }
+};
+
+// 🏛️ Cafe Monthly Fixed Overhead Budget & Proration Config
+export const DEFAULT_OVERHEAD_CONFIG = {
+  monthlyRent: 15000,
+  monthlyElectricity: 4500,
+  monthlyStaffSalary: 18000,
+  gasCylinderCost: 1850,
+  gasCylinderCountMonth: 4, // 4 commercial 19kg cylinders/mo = ~₹7,400
+  monthlyWifiMisc: 2500,
+  useProratedDailyOverhead: true // In daily P&L, allocate daily share of Rent, Light, Staff, Gas
+};
+
+export const calculateDailyOverheadMetrics = (config = DEFAULT_OVERHEAD_CONFIG) => {
+  const rent = Number(config.monthlyRent) || 0;
+  const electricity = Number(config.monthlyElectricity) || 0;
+  const staff = Number(config.monthlyStaffSalary) || 0;
+  const gasCylinderCost = Number(config.gasCylinderCost) || 0;
+  const gasCount = Number(config.gasCylinderCountMonth) || 0;
+  const monthlyGas = gasCylinderCost * gasCount;
+  const wifiMisc = Number(config.monthlyWifiMisc) || 0;
+
+  const totalMonthlyFixed = rent + electricity + staff + monthlyGas + wifiMisc;
+  const dailyFixedLoad = Math.round(totalMonthlyFixed / 30);
+
+  return {
+    monthlyRent: rent,
+    monthlyElectricity: electricity,
+    monthlyStaffSalary: staff,
+    gasCylinderCost,
+    gasCylinderCountMonth: gasCount,
+    monthlyGas,
+    monthlyWifiMisc: wifiMisc,
+    totalMonthlyFixed,
+    dailyFixedLoad,
+    dailyBreakdown: {
+      rent: Math.round(rent / 30),
+      electricity: Math.round(electricity / 30),
+      staff: Math.round(staff / 30),
+      gas: Math.round(monthlyGas / 30),
+      wifiMisc: Math.round(wifiMisc / 30)
+    }
+  };
+};
+
+export const getStoredOverheadConfig = (cafeId = currentCafeId) => {
+  try {
+    const key = getScopedKey(OVERHEAD_CONFIG_KEY, cafeId);
+    let data = localStorage.getItem(key);
+    if (!data && cafeId !== 'default') {
+      data = localStorage.getItem(OVERHEAD_CONFIG_KEY);
+    }
+    return data ? { ...DEFAULT_OVERHEAD_CONFIG, ...JSON.parse(data) } : DEFAULT_OVERHEAD_CONFIG;
+  } catch (e) {
+    return DEFAULT_OVERHEAD_CONFIG;
+  }
+};
+
+export const saveStoredOverheadConfig = (config, cafeId = currentCafeId) => {
+  const key = getScopedKey(OVERHEAD_CONFIG_KEY, cafeId);
+  localStorage.setItem(key, JSON.stringify(config));
+  if (cafeId === 'default') {
+    localStorage.setItem(OVERHEAD_CONFIG_KEY, JSON.stringify(config));
+  }
+};
+
+// 🥛 Daily Fresh vs 📦 Weekly Bulk Classification for Raw Materials
+export const classifyMaterialProcurementType = (materialName = '') => {
+  const name = String(materialName).toLowerCase().trim();
+  // Daily fresh items: Milk, Buns, Bread, Paneer, Curd, Vegetables, Tomatoes, Onions, Ice, Mint, Coriander
+  if (
+    name.includes('milk') ||
+    name.includes('doodh') ||
+    name.includes('bun') ||
+    name.includes('bread') ||
+    name.includes('paneer') ||
+    name.includes('curd') ||
+    name.includes('dahi') ||
+    name.includes('ice') ||
+    name.includes('vegetable') ||
+    name.includes('tamatar') ||
+    name.includes('tomato') ||
+    name.includes('onion') ||
+    name.includes('pyaz') ||
+    name.includes('lemon') ||
+    name.includes('nimbu')
+  ) {
+    return 'daily';
+  }
+  // Weekly or bulk: Cheese, Sauces, Fries, Patties, Coffee, Tea, Syrups, Oil, Sugar, Packaging
+  return 'weekly';
 };
 
 export const getStoredWastage = (cafeId = currentCafeId) => {

@@ -28,14 +28,23 @@ import {
   ChevronDown,
   Smartphone,
   CreditCard,
-  BookOpen
+  BookOpen,
+  Target,
+  Settings,
+  Zap,
+  Home,
+  Users
 } from 'lucide-react';
 import {
   calculateAggregatorLedger,
   getTodayDateString,
   shiftDateStr,
   classifySalePaymentMethod,
-  getUniqueOrderCount
+  getUniqueOrderCount,
+  getStoredOverheadConfig,
+  saveStoredOverheadConfig,
+  calculateDailyOverheadMetrics,
+  classifyMaterialProcurementType
 } from '../utils/storage';
 
 export default function FinancialDashboard({
@@ -55,6 +64,9 @@ export default function FinancialDashboard({
   const [selectedDate, setSelectedDate] = useState(() => getTodayDateString(0));
   const [topItemsSort, setTopItemsSort] = useState('qty'); // 'qty' or 'revenue'
   const [activeBottomTab, setActiveBottomTab] = useState('purchases'); // 'purchases' | 'wastage'
+  const [overheadConfig, setOverheadConfig] = useState(() => getStoredOverheadConfig());
+  const [isOverheadModalOpen, setIsOverheadModalOpen] = useState(false);
+  const [overheadForm, setOverheadForm] = useState(() => getStoredOverheadConfig());
 
   // Date Navigation Helpers for Daily View (Timezone-safe calendar math)
   const handlePrevDay = () => {
@@ -146,7 +158,27 @@ export default function FinancialDashboard({
     const foodCostPercentage = totalRevenue > 0 ? Math.round((actualMaterialConsumed / totalRevenue) * 100) : 0;
 
     // 3. Operational Overhead Expenses (Electricity, Rent, Staff Salary, Gas, etc.)
-    const totalOverheadExpenses = activeExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    const isDaily = timeframe === 'daily';
+    const overheadMetrics = calculateDailyOverheadMetrics(overheadConfig);
+
+    // Fixed categories that the monthly budget covers:
+    const FIXED_BUDGET_CATEGORIES = ['Cafe Rent', 'Electricity', 'Staff Salary', 'Commercial Gas', 'Wi-Fi & Internet'];
+
+    let totalOverheadExpenses = 0;
+    let proratedFixedLoadApplied = 0;
+    let actualLoggedDailyPettyExpenses = 0;
+
+    if (isDaily && overheadConfig.useProratedDailyOverhead) {
+      proratedFixedLoadApplied = overheadMetrics.dailyFixedLoad;
+      // Other one-off variable petty expenses logged today (Water, ice, repair, packaging, cleaning) not already in fixed budget:
+      actualLoggedDailyPettyExpenses = activeExpenses
+        .filter(e => !FIXED_BUDGET_CATEGORIES.includes(e.category))
+        .reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
+      totalOverheadExpenses = proratedFixedLoadApplied + actualLoggedDailyPettyExpenses;
+    } else {
+      totalOverheadExpenses = activeExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    }
     const overheadPercentage = totalRevenue > 0 ? Math.round((totalOverheadExpenses / totalRevenue) * 100) : 0;
 
     // 4. Raw Material Wastage / Spoilage Loss (Kharab Maal)
@@ -154,15 +186,30 @@ export default function FinancialDashboard({
     const wastagePercentage = totalRevenue > 0 ? Math.round((totalWastageLoss / totalRevenue) * 100) : 0;
 
     // 5. 🏆 TRUE NET IN-HAND PROFIT (Asli Bachat)
-    // Formula: Revenue - Food Cost - Overheads (Rent, Light, Salaries) - Wastage Loss
+    // Formula: Revenue - Food Cost - Overheads (Rent, Light, Salaries, Gas) - Wastage Loss
     const trueNetProfit = totalRevenue - actualMaterialConsumed - totalOverheadExpenses - totalWastageLoss;
     const trueNetMargin = totalRevenue > 0 ? ((trueNetProfit / totalRevenue) * 100).toFixed(1) : 0;
 
-    // 6. Procurement & Cash Flow Outflows
+    // 6. Procurement & Cash Flow Outflows (Fresh vs Bulk separation)
     const totalRawMaterialCost = procurement.reduce((sum, p) => sum + Number(p.totalCost || 0), 0);
-    const netCashFlow = totalRevenue - totalRawMaterialCost - totalOverheadExpenses;
+    const netCashFlow = totalRevenue - totalRawMaterialCost - (activeExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0));
 
-    // 7. Current Stock Valuation (Asset in storage)
+    const dailyFreshProcurement = procurement
+      .filter(p => classifyMaterialProcurementType(p.materialName) === 'daily')
+      .reduce((sum, p) => sum + Number(p.totalCost || 0), 0);
+    const weeklyBulkProcurement = procurement
+      .filter(p => classifyMaterialProcurementType(p.materialName) === 'weekly')
+      .reduce((sum, p) => sum + Number(p.totalCost || 0), 0);
+
+    // 7. Daily Break-Even Target Sales calculation
+    const grossMarginRatio = totalRevenue > 0 && grossProfit > 0 ? (grossProfit / totalRevenue) : 0.62;
+    const effectiveMargin = Math.max(0.2, Math.min(0.9, grossMarginRatio));
+    const breakEvenTargetSales = Math.round((totalOverheadExpenses + totalWastageLoss) / effectiveMargin);
+    const isBreakEvenAchieved = totalRevenue >= breakEvenTargetSales;
+    const breakEvenProgressPct = breakEvenTargetSales > 0 ? Math.min(250, Math.round((totalRevenue / breakEvenTargetSales) * 100)) : 100;
+    const salesShortfall = Math.max(0, breakEvenTargetSales - totalRevenue);
+
+    // 8. Current Stock Valuation (Asset in storage)
     const inventoryValuation = inventoryItems.reduce((sum, item) => sum + (Number(item.currentStock || 0) * (Number(item.unitCost) || 0)), 0);
 
     // Category-wise expense breakdown
@@ -226,12 +273,22 @@ export default function FinancialDashboard({
       trueNetProfit,
       trueNetMargin,
       totalRawMaterialCost,
+      dailyFreshProcurement,
+      weeklyBulkProcurement,
       netCashFlow,
       inventoryValuation,
       expenseBreakdown,
-      topItems
+      topItems,
+      overheadMetrics,
+      overheadConfig,
+      breakEvenTargetSales,
+      isBreakEvenAchieved,
+      breakEvenProgressPct,
+      salesShortfall,
+      proratedFixedLoadApplied,
+      actualLoggedDailyPettyExpenses
     };
-  }, [salesLogs, procurementLogs, menuItems, inventoryItems, expenses, wastageLogs, timeframe, selectedDate]);
+  }, [salesLogs, procurementLogs, menuItems, inventoryItems, expenses, wastageLogs, timeframe, selectedDate, overheadConfig]);
 
   if (isStaffMode) {
     return (
@@ -349,6 +406,225 @@ export default function FinancialDashboard({
         </div>
       </div>
 
+      {/* 🎯 TODAY'S BREAK-EVEN TARGET & LIVE MOTIVATION METER (Prominently in Daily View) */}
+      {timeframe === 'daily' && (
+        <div className="bg-gradient-to-br from-stone-900 via-stone-900 to-amber-950 text-white rounded-3xl border border-stone-800 p-4 sm:p-5 shadow-lg space-y-4 relative overflow-hidden">
+          {/* Subtle warm glow background */}
+          <div className="absolute -right-10 -bottom-10 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+
+          {/* Header with status and config buttons */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-800 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center font-black">
+                <Target className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm sm:text-base font-black tracking-tight">
+                    🎯 Aaj Ka Break-Even Target & Asli Munafa Meter
+                  </h3>
+                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-stone-800 text-stone-300 border border-stone-700">
+                    {selectedDate}
+                  </span>
+                </div>
+                <p className="text-[11px] text-stone-400 mt-0.5">
+                  Roz ka Rent, Bijli, Staff, Gas aur Maal nikaalne ke liye kitni sale chahiye aur abhi cafe kahan khada hai.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setOverheadForm(overheadConfig);
+                  setIsOverheadModalOpen(true);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-200 hover:text-white text-xs font-bold rounded-xl border border-stone-700 shadow-2xs transition-all cursor-pointer"
+                title="Configure Monthly Rent, Electricity, Staff, Gas"
+              >
+                <Settings className="w-3.5 h-3.5 text-amber-400" />
+                <span>⚙️ Set Fixed Bills</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const updated = {
+                    ...overheadConfig,
+                    useProratedDailyOverhead: !overheadConfig.useProratedDailyOverhead
+                  };
+                  setOverheadConfig(updated);
+                  saveStoredOverheadConfig(updated);
+                }}
+                className={`px-2.5 py-1.5 text-[11px] font-bold rounded-xl border transition-all cursor-pointer ${
+                  overheadConfig.useProratedDailyOverhead
+                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                    : 'bg-stone-800 text-stone-400 border-stone-700 hover:text-stone-300'
+                }`}
+                title="Toggle Daily Proration for Rent, Light, Staff, Gas"
+              >
+                {overheadConfig.useProratedDailyOverhead ? '✅ Prorated Fixed Burden: ON' : '⚠️ Raw Cash: ON'}
+              </button>
+            </div>
+          </div>
+
+          {/* Metric Highlights Grid */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 text-center">
+            {/* Target Sales */}
+            <div className="bg-stone-800/70 border border-stone-700/80 rounded-2xl p-3 flex flex-col justify-between">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-stone-400">
+                🎯 Aaj Ka Target (Break-Even)
+              </span>
+              <div className="my-1">
+                <span className="text-xl sm:text-2xl font-black text-amber-400">
+                  ₹{filteredData.breakEvenTargetSales.toLocaleString()}
+                </span>
+              </div>
+              <span className="text-[10px] text-stone-400 font-medium">
+                Is sale par 0 loss hoga
+              </span>
+            </div>
+
+            {/* Actual Sales Today */}
+            <div className="bg-stone-800/70 border border-stone-700/80 rounded-2xl p-3 flex flex-col justify-between">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-stone-400">
+                💰 Aaj Ki Sale (Ab Tak)
+              </span>
+              <div className="my-1">
+                <span className="text-xl sm:text-2xl font-black text-white">
+                  ₹{filteredData.totalRevenue.toLocaleString()}
+                </span>
+              </div>
+              <span className={`text-[10px] font-extrabold ${
+                filteredData.isBreakEvenAchieved ? 'text-emerald-400' : 'text-amber-400'
+              }`}>
+                {filteredData.breakEvenProgressPct}% of Target Reached
+              </span>
+            </div>
+
+            {/* Roz Ka Fixed Burden */}
+            <div className="bg-stone-800/70 border border-stone-700/80 rounded-2xl p-3 flex flex-col justify-between">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-stone-400">
+                🏛️ Roz Ka Kharcha (Fixed)
+              </span>
+              <div className="my-1">
+                <span className="text-xl sm:text-2xl font-black text-purple-300">
+                  ₹{filteredData.overheadMetrics.dailyFixedLoad.toLocaleString()}
+                </span>
+              </div>
+              <span className="text-[10px] text-purple-400/80 font-medium">
+                Rent, Bijli, Staff & Gas
+              </span>
+            </div>
+
+            {/* Net Today Profit Status */}
+            <div className={`border rounded-2xl p-3 flex flex-col justify-between ${
+              filteredData.isBreakEvenAchieved
+                ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-100'
+                : 'bg-rose-950/60 border-rose-500/40 text-rose-100'
+            }`}>
+              <span className="text-[10px] font-extrabold uppercase tracking-wider opacity-80">
+                {filteredData.isBreakEvenAchieved ? '🚀 Aaj Ka Pure Munafa' : '⚠️ Aaj Ka Deficit / Loss'}
+              </span>
+              <div className="my-1">
+                <span className="text-xl sm:text-2xl font-black">
+                  {filteredData.trueNetProfit < 0 ? '-' : '+'}₹{Math.abs(filteredData.trueNetProfit).toLocaleString()}
+                </span>
+              </div>
+              <span className="text-[10px] font-bold">
+                {filteredData.isBreakEvenAchieved ? 'Jeb me pure bachat' : `₹${filteredData.salesShortfall.toLocaleString()} sale aur chahiye`}
+              </span>
+            </div>
+          </div>
+
+          {/* Live Progress Bar */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-xs font-bold">
+              <span className="text-stone-300 flex items-center gap-1.5">
+                <span>Target Progress:</span>
+                <span className={filteredData.isBreakEvenAchieved ? 'text-emerald-400 font-extrabold' : 'text-amber-400 font-extrabold'}>
+                  ₹{filteredData.totalRevenue.toLocaleString()} / ₹{filteredData.breakEvenTargetSales.toLocaleString()} ({filteredData.breakEvenProgressPct}%)
+                </span>
+              </span>
+              <span className="text-[11px] text-stone-400">
+                {filteredData.isBreakEvenAchieved 
+                  ? '🎉 100% Target Crossed! Pure Profit Zone!' 
+                  : `₹${filteredData.salesShortfall.toLocaleString()} baki hai Break-Even ke liye`
+                }
+              </span>
+            </div>
+
+            <div className="w-full h-3 bg-stone-800 rounded-full overflow-hidden p-0.5 border border-stone-700/80 relative">
+              <div 
+                className={`h-full rounded-full transition-all duration-500 ${
+                  filteredData.isBreakEvenAchieved
+                    ? 'bg-gradient-to-r from-emerald-500 via-teal-400 to-green-300 shadow-sm shadow-emerald-500/50'
+                    : 'bg-gradient-to-r from-amber-600 via-orange-500 to-amber-400'
+                }`}
+                style={{ width: `${Math.min(100, filteredData.breakEvenProgressPct)}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Status Message & Motivational Hustle Callout */}
+          <div className={`p-3 rounded-2xl border flex items-center gap-3 text-xs leading-relaxed ${
+            filteredData.isBreakEvenAchieved
+              ? 'bg-emerald-900/30 border-emerald-500/30 text-emerald-200'
+              : 'bg-amber-900/30 border-amber-500/30 text-amber-200'
+          }`}>
+            {filteredData.isBreakEvenAchieved ? (
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+            ) : (
+              <AlertOctagon className="w-5 h-5 text-amber-400 shrink-0" />
+            )}
+            <div className="flex-1">
+              {filteredData.isBreakEvenAchieved ? (
+                <>
+                  <strong>Shaandaar Kaam! Aaj Cafe Break-Even paar kar chuka hai! 🚀</strong>
+                  <p className="text-[11px] text-emerald-300/80 mt-0.5">
+                    Aaj ka Rent (₹{filteredData.overheadMetrics.dailyBreakdown.rent}), Bijli (₹{filteredData.overheadMetrics.dailyBreakdown.electricity}), Staff (₹{filteredData.overheadMetrics.dailyBreakdown.staff}), Gas (₹{filteredData.overheadMetrics.dailyBreakdown.gas}) aur Maal sab nikal chuka hai! Ab har naye order ka margin seedha aapke jeb me pure munafa ban raha hai!
+                  </p>
+                </>
+              ) : (
+                <>
+                  <strong>Abhi Cafe Fixed Burden cover kar raha hai (Shortfall: ₹{filteredData.salesShortfall.toLocaleString()})</strong>
+                  <p className="text-[11px] text-amber-300/80 mt-0.5">
+                    Aaj ka Rent, Bijli, Staff aur Gas nikaalne ke liye ₹{filteredData.salesShortfall.toLocaleString()} ki aur sale chahiye. Shaam ke rush me thoda aur push karein, Break-Even door nahi hai!
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Daily Prorated Fixed Overheads Breakdown Pills */}
+          <div className="pt-2 border-t border-stone-800 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+              <span className="text-stone-400 font-semibold">Roz Ka Fixed Hisaab (Budget):</span>
+              <span className="px-2 py-0.5 rounded-lg bg-stone-800 text-stone-300 border border-stone-700">
+                🏠 Rent: ₹{filteredData.overheadMetrics.dailyBreakdown.rent}/din
+              </span>
+              <span className="px-2 py-0.5 rounded-lg bg-stone-800 text-stone-300 border border-stone-700">
+                ⚡ Bijli: ₹{filteredData.overheadMetrics.dailyBreakdown.electricity}/din
+              </span>
+              <span className="px-2 py-0.5 rounded-lg bg-stone-800 text-stone-300 border border-stone-700">
+                👨‍🍳 Staff: ₹{filteredData.overheadMetrics.dailyBreakdown.staff}/din
+              </span>
+              <span className="px-2 py-0.5 rounded-lg bg-stone-800 text-amber-300 border border-amber-700/50">
+                🔥 Gas: ₹{filteredData.overheadMetrics.dailyBreakdown.gas}/din ({filteredData.overheadConfig.gasCylinderCountMonth || 4} cyl/mo)
+              </span>
+              <span className="px-2 py-0.5 rounded-lg bg-stone-800 text-stone-300 border border-stone-700">
+                🌐 Misc: ₹{filteredData.overheadMetrics.dailyBreakdown.wifiMisc}/din
+              </span>
+            </div>
+
+            <div className="text-[11px] text-stone-400 font-semibold">
+              Total Fixed Load: <strong className="text-white">₹{filteredData.overheadMetrics.dailyFixedLoad}/day</strong> (₹{filteredData.overheadMetrics.totalMonthlyFixed.toLocaleString()}/mo)
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 💡 UNIFIED P&L EXECUTIVE MATH BANNER ("Paisa Kahan Kharch Hua?") */}
       <div className="bg-white rounded-2xl border border-stone-200 p-3 sm:p-4 shadow-xs space-y-3">
         <div className="flex items-center justify-between pb-2 border-b border-stone-100 flex-wrap gap-2">
@@ -395,7 +671,7 @@ export default function FinancialDashboard({
             </div>
           </div>
 
-          {/* Step 2: Food Cost (COGS) */}
+          {/* Step 2: Food Cost (COGS) with Daily vs Bulk Stock details */}
           <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200 flex flex-col justify-between min-w-0">
             <span className="text-[9px] font-extrabold uppercase tracking-wider text-amber-800 block truncate">
               2. (−) Raw Material Maal
@@ -407,11 +683,17 @@ export default function FinancialDashboard({
             </div>
             <div className="text-[10px] font-bold text-amber-700 space-y-0.5">
               <div className="truncate">{filteredData.foodCostPercentage}% Food Cost (COGS)</div>
-              <div className="text-[9px] text-amber-600 font-medium truncate">Gross Profit: ₹{filteredData.grossProfit.toLocaleString()}</div>
+              {timeframe === 'daily' ? (
+                <div className="text-[9px] text-amber-800 font-semibold truncate" title="Purchased today: Daily Fresh vs Weekly Bulk stock">
+                  Fresh: ₹{filteredData.dailyFreshProcurement} • Bulk: ₹{filteredData.weeklyBulkProcurement}
+                </div>
+              ) : (
+                <div className="text-[9px] text-amber-600 font-medium truncate">Gross Profit: ₹{filteredData.grossProfit.toLocaleString()}</div>
+              )}
             </div>
           </div>
 
-          {/* Step 3: Dukan Bills & Rent */}
+          {/* Step 3: Dukan Bills & Rent (Shows prorated daily share or recorded bills) */}
           <div className="p-3 rounded-xl bg-purple-50/70 border border-purple-200 flex flex-col justify-between min-w-0">
             <span className="text-[9px] font-extrabold uppercase tracking-wider text-purple-800 block truncate">
               3. (−) Dukan Bills & Rent
@@ -422,8 +704,17 @@ export default function FinancialDashboard({
               </span>
             </div>
             <div className="text-[10px] font-bold text-purple-700 space-y-0.5">
-              <div className="truncate">{filteredData.activeExpenses.length} bills ({filteredData.overheadPercentage}% of sales)</div>
-              <div className="text-[9px] text-purple-600 font-medium truncate">Bijli, Rent, Staff, Gas</div>
+              {timeframe === 'daily' && filteredData.overheadConfig.useProratedDailyOverhead ? (
+                <>
+                  <div className="truncate text-purple-900 font-extrabold">₹{filteredData.proratedFixedLoadApplied}/din Prorated</div>
+                  <div className="text-[9px] text-purple-600 font-medium truncate">Rent, Bijli, Staff, Gas</div>
+                </>
+              ) : (
+                <>
+                  <div className="truncate">{filteredData.activeExpenses.length} bills ({filteredData.overheadPercentage}% of sales)</div>
+                  <div className="text-[9px] text-purple-600 font-medium truncate">Bijli, Rent, Staff, Gas</div>
+                </>
+              )}
             </div>
           </div>
 
@@ -469,10 +760,21 @@ export default function FinancialDashboard({
 
         {/* 📦 Bottom Asset & Cash Flow Summary Strip */}
         <div className="pt-2 border-t border-stone-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 text-xs">
-          <div className="flex items-center gap-2 bg-stone-50 px-3 py-1.5 rounded-xl border border-stone-200">
-            <Wallet className="w-3.5 h-3.5 text-stone-500 shrink-0" />
-            <span className="text-stone-600 font-semibold text-[11px]">Storage Godown Stock Asset:</span>
-            <span className="font-black text-stone-900 text-xs">₹{Math.round(filteredData.inventoryValuation).toLocaleString()}</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1.5 bg-stone-50 px-3 py-1.5 rounded-xl border border-stone-200">
+              <Wallet className="w-3.5 h-3.5 text-stone-500 shrink-0" />
+              <span className="text-stone-600 font-semibold text-[11px]">Storage Stock Asset:</span>
+              <span className="font-black text-stone-900 text-xs">₹{Math.round(filteredData.inventoryValuation).toLocaleString()}</span>
+            </div>
+
+            {timeframe === 'daily' && (
+              <div className="flex items-center gap-1.5 bg-amber-50/60 px-3 py-1.5 rounded-xl border border-amber-200 text-[11px] text-stone-600">
+                <span>Maal Spent Today:</span>
+                <span className="font-bold text-blue-700">🥛 Fresh: ₹{filteredData.dailyFreshProcurement}</span>
+                <span>•</span>
+                <span className="font-bold text-purple-700">📦 Bulk: ₹{filteredData.weeklyBulkProcurement}</span>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-2 bg-stone-50 px-3 py-1.5 rounded-xl border border-stone-200">
@@ -1039,6 +1341,217 @@ export default function FinancialDashboard({
         )}
 
       </div>
+
+      {/* ⚙️ FIXED OVERHEADS & BILLS BUDGET MODAL */}
+      {isOverheadModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-stone-200 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-stone-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center">
+                  <Settings className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-stone-900">
+                    Cafe Fixed Bills & Monthly Overhead Budget
+                  </h3>
+                  <p className="text-[11px] text-stone-500">
+                    Dukan ke monthly kharche set karein taaki daily P&L me roz ka hissa sahi nikle.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsOverheadModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-500 flex items-center justify-center cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              saveStoredOverheadConfig(overheadForm);
+              setOverheadConfig(overheadForm);
+              setIsOverheadModalOpen(false);
+            }} className="space-y-4">
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {/* Shop Rent */}
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 uppercase mb-1">
+                    🏠 Monthly Shop Rent (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={overheadForm.monthlyRent}
+                    onChange={(e) => setOverheadForm({ ...overheadForm, monthlyRent: Number(e.target.value) || 0 })}
+                    className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm font-bold text-stone-900 focus:outline-none focus:border-amber-600"
+                    placeholder="e.g. 15000"
+                  />
+                  <span className="text-[10px] text-stone-500 font-semibold block mt-0.5">
+                    ~₹{Math.round((overheadForm.monthlyRent || 0) / 30)} / day
+                  </span>
+                </div>
+
+                {/* Electricity */}
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 uppercase mb-1">
+                    ⚡ Monthly Electricity / Light (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={overheadForm.monthlyElectricity}
+                    onChange={(e) => setOverheadForm({ ...overheadForm, monthlyElectricity: Number(e.target.value) || 0 })}
+                    className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm font-bold text-stone-900 focus:outline-none focus:border-amber-600"
+                    placeholder="e.g. 4500"
+                  />
+                  <span className="text-[10px] text-stone-500 font-semibold block mt-0.5">
+                    ~₹{Math.round((overheadForm.monthlyElectricity || 0) / 30)} / day
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {/* Staff Salaries */}
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 uppercase mb-1">
+                    👨‍🍳 Total Staff Salaries (₹/Month)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={overheadForm.monthlyStaffSalary}
+                    onChange={(e) => setOverheadForm({ ...overheadForm, monthlyStaffSalary: Number(e.target.value) || 0 })}
+                    className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm font-bold text-stone-900 focus:outline-none focus:border-amber-600"
+                    placeholder="e.g. 18000"
+                  />
+                  <span className="text-[10px] text-stone-500 font-semibold block mt-0.5">
+                    ~₹{Math.round((overheadForm.monthlyStaffSalary || 0) / 30)} / day
+                  </span>
+                </div>
+
+                {/* Wi-Fi & Internet & Misc */}
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 uppercase mb-1">
+                    🌐 Wi-Fi, Water & Misc (₹/Month)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={overheadForm.monthlyWifiMisc}
+                    onChange={(e) => setOverheadForm({ ...overheadForm, monthlyWifiMisc: Number(e.target.value) || 0 })}
+                    className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm font-bold text-stone-900 focus:outline-none focus:border-amber-600"
+                    placeholder="e.g. 2500"
+                  />
+                  <span className="text-[10px] text-stone-500 font-semibold block mt-0.5">
+                    ~₹{Math.round((overheadForm.monthlyWifiMisc || 0) / 30)} / day
+                  </span>
+                </div>
+              </div>
+
+              {/* Commercial LPG Gas Settings */}
+              <div className="p-3.5 bg-rose-50/70 border border-rose-200 rounded-2xl space-y-3">
+                <div className="flex items-center gap-2">
+                  <Flame className="w-4 h-4 text-rose-600" />
+                  <h4 className="text-xs font-extrabold text-stone-900 uppercase">
+                    🔥 Commercial LPG Gas Cylinders (19kg) Setup
+                  </h4>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-stone-700 mb-1">
+                      Rate per Cylinder (₹)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={overheadForm.gasCylinderCost}
+                      onChange={(e) => setOverheadForm({ ...overheadForm, gasCylinderCost: Number(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 bg-white border border-rose-200 rounded-xl text-xs font-bold text-stone-900"
+                      placeholder="e.g. 1850"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-stone-700 mb-1">
+                      Cylinders Used per Month
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={overheadForm.gasCylinderCountMonth}
+                      onChange={(e) => setOverheadForm({ ...overheadForm, gasCylinderCountMonth: Number(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 bg-white border border-rose-200 rounded-xl text-xs font-bold text-stone-900"
+                      placeholder="e.g. 4"
+                    />
+                  </div>
+                </div>
+
+                <div className="text-[11px] text-stone-600 font-medium">
+                  Monthly Gas Cost: <strong>₹{((overheadForm.gasCylinderCost || 0) * (overheadForm.gasCylinderCountMonth || 0)).toLocaleString()}</strong> (~₹{Math.round(((overheadForm.gasCylinderCost || 0) * (overheadForm.gasCylinderCountMonth || 0)) / 30)} / day)
+                </div>
+              </div>
+
+              {/* Live Calculation Preview Banner */}
+              <div className="bg-stone-900 text-white rounded-2xl p-3.5 space-y-1.5 text-xs">
+                <div className="flex items-center justify-between font-bold">
+                  <span className="text-stone-400">Total Monthly Fixed Overheads:</span>
+                  <span className="text-amber-400 text-sm">
+                    ₹{(
+                      (overheadForm.monthlyRent || 0) +
+                      (overheadForm.monthlyElectricity || 0) +
+                      (overheadForm.monthlyStaffSalary || 0) +
+                      ((overheadForm.gasCylinderCost || 0) * (overheadForm.gasCylinderCountMonth || 0)) +
+                      (overheadForm.monthlyWifiMisc || 0)
+                    ).toLocaleString()} / month
+                  </span>
+                </div>
+                <div className="flex items-center justify-between font-extrabold border-t border-stone-800 pt-1.5">
+                  <span className="text-stone-200">Daily Fixed Overhead Burden:</span>
+                  <span className="text-emerald-400 text-base">
+                    ₹{Math.round((
+                      (overheadForm.monthlyRent || 0) +
+                      (overheadForm.monthlyElectricity || 0) +
+                      (overheadForm.monthlyStaffSalary || 0) +
+                      ((overheadForm.gasCylinderCost || 0) * (overheadForm.gasCylinderCountMonth || 0)) +
+                      (overheadForm.monthlyWifiMisc || 0)
+                    ) / 30)} / day
+                  </span>
+                </div>
+                <p className="text-[10px] text-stone-400">
+                  Daily P&L me ye daily fixed hissa har din barabar distribute hoga, taaki jis din Rent ya Gas bhara jaye us din artificial loss na dikhe!
+                </p>
+              </div>
+
+              {/* Modal Actions */}
+              <div className="flex justify-end gap-2.5 pt-2 border-t border-stone-100">
+                <button
+                  type="button"
+                  onClick={() => setIsOverheadModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-stone-200 text-stone-600 font-bold text-xs hover:bg-stone-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
+                >
+                  Save Fixed Budget
+                </button>
+              </div>
+
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );
