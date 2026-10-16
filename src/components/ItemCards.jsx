@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Edit2, Trash2, CheckCircle2, XCircle, Tag, Coffee, Check, X, DollarSign, AlertCircle, Sparkles, Plus, Copy } from 'lucide-react';
 import { checkItemStock } from '../utils/storage';
-import { getItemImageUrl, DEFAULT_FOOD_IMAGE } from '../utils/foodImages';
 
 export default function ItemCards({
   items,
@@ -178,25 +177,14 @@ export default function ItemCards({
                       </div>
                     </div>
 
-                    {/* Title, Unit & Photo */}
-                    <div className="mb-2 flex items-center justify-between gap-2.5">
-                      <div className="min-w-0 flex-1">
-                        <h4 className={`text-base font-bold text-stone-900 ${!item.isAvailable ? 'line-through text-stone-400' : ''}`}>
-                          {item.name}
-                        </h4>
-                        <p className="text-xs text-stone-500 mt-0.5">
-                          Unit: <span className="font-medium text-stone-700">{item.unit}</span>
-                        </p>
-                      </div>
-                      <div className="w-12 h-12 rounded-xl overflow-hidden border border-stone-200 shrink-0 shadow-xs bg-stone-100">
-                        <img 
-                          src={getItemImageUrl(item)} 
-                          alt={item.name}
-                          loading="lazy"
-                          className="w-full h-full object-cover"
-                          onError={(e) => { e.target.src = DEFAULT_FOOD_IMAGE; }}
-                        />
-                      </div>
+                    {/* Title & Unit */}
+                    <div className="mb-2">
+                      <h4 className={`text-base font-bold text-stone-900 ${!item.isAvailable ? 'line-through text-stone-400' : ''}`}>
+                        {item.name}
+                      </h4>
+                      <p className="text-xs text-stone-500 mt-0.5">
+                        Unit: <span className="font-medium text-stone-700">{item.unit}</span>
+                      </p>
                     </div>
 
                     {/* 🥣 Recipe Ingredients Summary or No Recipe Warning */}
