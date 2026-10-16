@@ -13,7 +13,9 @@ import {
   MessageSquare, 
   AlertTriangle,
   Flame,
-  UtensilsCrossed
+  UtensilsCrossed,
+  LayoutGrid,
+  List
 } from 'lucide-react';
 import { checkItemStock } from '../utils/storage';
 import { getItemImageUrl, isItemVeg, DEFAULT_FOOD_IMAGE } from '../utils/foodImages';
@@ -33,6 +35,7 @@ export default function CustomerMenuOrderView({
   const [customerName, setCustomerName] = useState('');
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [previewImageItem, setPreviewImageItem] = useState(null);
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' (default for mobile) | 'list'
   const [orderPlaced, setOrderPlaced] = useState(null); // stores placed order details
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -217,34 +220,34 @@ export default function CustomerMenuOrderView({
     <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col font-sans pb-28">
 
       {/* Top Mobile Bar */}
-      <header className="sticky top-0 z-30 bg-stone-950/95 backdrop-blur-md border-b border-stone-800 px-4 py-3.5 shadow-xl">
-        <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
+      <header className="sticky top-0 z-30 bg-stone-950/95 backdrop-blur-md border-b border-stone-800 px-3 sm:px-4 py-3 sm:py-3.5 shadow-xl">
+        <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
           
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl overflow-hidden ring-2 ring-amber-500/50 shadow-md">
+          <div className="flex items-center space-x-2.5 sm:space-x-3">
+            <div className="w-10 h-10 rounded-xl overflow-hidden ring-2 ring-amber-500/50 shadow-md shrink-0">
               <img src="/logo.jpg" alt="S&S Cafe" className="w-full h-full object-cover" onError={(e) => e.target.style.display = 'none'} />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-base font-bold font-serif-title text-amber-100">{cafeName || 'S&S Cafe'}</h1>
-                <span className="text-[10px] bg-amber-500 text-stone-950 font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <h1 className="text-base font-bold font-serif-title text-amber-100 truncate">{cafeName || 'S&S Cafe'}</h1>
+                <span className="text-[9px] sm:text-[10px] bg-amber-500 text-stone-950 font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0">
                   Dine-In
                 </span>
               </div>
-              <p className="text-[11px] text-stone-400">Fresh artisanal coffee & food</p>
+              <p className="text-[10px] sm:text-[11px] text-stone-400">Fresh artisanal coffee & food</p>
             </div>
           </div>
 
           {/* Table Badge */}
-          <div className="bg-gradient-to-br from-amber-600 to-amber-700 text-white px-3.5 py-1.5 rounded-2xl shadow-lg shadow-amber-950/40 border border-amber-400/30 text-center">
-            <span className="text-[9px] font-bold uppercase tracking-wider block opacity-90">Table</span>
-            <span className="text-base font-extrabold leading-none">#{tableNumber}</span>
+          <div className="bg-gradient-to-br from-amber-600 to-amber-700 text-white px-3 sm:px-3.5 py-1.5 rounded-2xl shadow-lg shadow-amber-950/40 border border-amber-400/30 text-center shrink-0">
+            <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider block opacity-90">Table</span>
+            <span className="text-sm sm:text-base font-extrabold leading-none">#{tableNumber}</span>
           </div>
 
         </div>
 
         {/* Search Bar */}
-        <div className="max-w-2xl mx-auto mt-3">
+        <div className="max-w-3xl mx-auto mt-2.5 sm:mt-3">
           <div className="relative">
             <Search className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
@@ -252,18 +255,18 @@ export default function CustomerMenuOrderView({
               placeholder="Search coffee, pizza, burgers, shakes..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-stone-900 border border-stone-800 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-stone-100 placeholder-stone-500 focus:outline-none focus:border-amber-500/60 focus:ring-2 focus:ring-amber-500/20"
+              className="w-full bg-stone-900 border border-stone-800 rounded-2xl pl-10 pr-4 py-2 sm:py-2.5 text-xs text-stone-100 placeholder-stone-500 focus:outline-none focus:border-amber-500/60 focus:ring-2 focus:ring-amber-500/20"
             />
           </div>
         </div>
 
         {/* Category Pills Slider */}
-        <div className="max-w-2xl mx-auto mt-3 flex items-center space-x-1.5 overflow-x-auto no-scrollbar py-0.5">
+        <div className="max-w-3xl mx-auto mt-2.5 flex items-center space-x-1.5 overflow-x-auto no-scrollbar py-0.5">
           {categories.map((cat) => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                 selectedCategory === cat
                   ? 'bg-amber-500 text-stone-950 shadow-md shadow-amber-500/20'
                   : 'bg-stone-900 text-stone-400 hover:text-stone-200 border border-stone-800/80'
@@ -273,10 +276,47 @@ export default function CustomerMenuOrderView({
             </button>
           ))}
         </div>
+
+        {/* Category Summary & Grid / List Switcher */}
+        <div className="max-w-3xl mx-auto mt-2.5 flex items-center justify-between gap-2 px-1">
+          <span className="text-stone-400 font-bold text-[11px] truncate">
+            {selectedCategory === 'All' ? 'Full Menu' : selectedCategory} • <span className="text-amber-400 font-extrabold">{filteredItems.length}</span> dishes
+          </span>
+
+          {/* Grid / List Switcher */}
+          <div className="flex items-center gap-1 bg-stone-900 border border-stone-800 p-0.5 rounded-xl shrink-0">
+            <button
+              type="button"
+              onClick={() => setViewMode('grid')}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] sm:text-xs font-bold transition-all cursor-pointer ${
+                viewMode === 'grid'
+                  ? 'bg-amber-500 text-stone-950 shadow-xs'
+                  : 'text-stone-400 hover:text-white'
+              }`}
+              title="2-Column Mobile Grid View"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              <span>Grid</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('list')}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] sm:text-xs font-bold transition-all cursor-pointer ${
+                viewMode === 'list'
+                  ? 'bg-amber-500 text-stone-950 shadow-xs'
+                  : 'text-stone-400 hover:text-white'
+              }`}
+              title="List View"
+            >
+              <List className="w-3.5 h-3.5" />
+              <span>List</span>
+            </button>
+          </div>
+        </div>
       </header>
 
-      {/* Menu Items List */}
-      <main className="max-w-2xl w-full mx-auto px-4 py-4 flex-1 space-y-3">
+      {/* Menu Items Container */}
+      <main className="max-w-3xl w-full mx-auto px-2.5 sm:px-4 py-3 sm:py-4 flex-1">
         
         {filteredItems.length === 0 ? (
           <div className="text-center py-16 space-y-3 bg-stone-900/50 rounded-3xl border border-stone-800/80 p-8">
@@ -284,124 +324,123 @@ export default function CustomerMenuOrderView({
             <h3 className="text-base font-bold text-stone-300">No items found</h3>
             <p className="text-xs text-stone-500">Try searching for something else or pick another category.</p>
           </div>
-        ) : (
-          filteredItems.map((item) => {
-            const qtyInCart = cart[item.id] || 0;
-            const stockInfo = getItemStockInfo(item);
-            const isOut = stockInfo.isOutOfStock;
-            const imageUrl = getItemImageUrl(item);
-            const isVeg = isItemVeg(item);
+        ) : viewMode === 'grid' ? (
+          /* ========================================================== */
+          /* 📱 2-COLUMN MOBILE GRID VIEW (DEFAULT FOR CUSTOMERS)       */
+          /* ========================================================== */
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-3.5">
+            {filteredItems.map((item) => {
+              const qtyInCart = cart[item.id] || 0;
+              const stockInfo = getItemStockInfo(item);
+              const isOut = stockInfo.isOutOfStock;
+              const imageUrl = getItemImageUrl(item);
+              const isVeg = isItemVeg(item);
 
-            return (
-              <div
-                key={item.id}
-                className={`bg-stone-900/90 rounded-2xl p-3.5 sm:p-4 border transition-all flex items-stretch justify-between gap-3 sm:gap-4 shadow-sm ${
-                  isOut 
-                    ? 'border-stone-800/50 opacity-60' 
-                    : qtyInCart > 0 
-                      ? 'border-amber-500/50 shadow-lg shadow-amber-950/30 ring-1 ring-amber-500/20' 
-                      : 'border-stone-800/80 hover:border-stone-700'
-                }`}
-              >
-                {/* Left Column: Details */}
-                <div className="min-w-0 flex-1 flex flex-col justify-between py-0.5">
-                  <div>
-                    {/* Veg Icon + Category */}
-                    <div className="flex items-center gap-1.5 mb-1.5">
-                      <span 
-                        className={`w-3.5 h-3.5 rounded-[3px] border flex items-center justify-center shrink-0 ${
-                          isVeg ? 'border-emerald-500 bg-emerald-950/40' : 'border-rose-600 bg-rose-950/40'
-                        }`}
-                        title={isVeg ? 'Pure Veg' : 'Non-Veg'}
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full ${isVeg ? 'bg-emerald-400' : 'bg-rose-500'}`} />
-                      </span>
-
-                      {item.category && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-stone-800/90 text-stone-400 font-semibold uppercase tracking-wider">
-                          {item.category}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Dish Name */}
-                    <h3 className="text-sm sm:text-base font-bold text-stone-100 leading-snug">
-                      {item.name}
-                    </h3>
-
-                    {/* Price */}
-                    <div className="flex items-baseline gap-2 mt-1.5">
-                      <span className="text-base sm:text-lg font-black text-amber-400">
-                        ₹{item.sellingPrice}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Stock / Fresh Tag */}
-                  <div className="mt-2.5 flex items-center gap-2 flex-wrap">
-                    {isOut ? (
-                      <span className="text-[10px] font-bold text-red-400 bg-red-950/60 px-2 py-0.5 rounded border border-red-800/40">
-                        Out of Stock
-                      </span>
-                    ) : stockInfo.maxPortions <= 5 && stockInfo.maxPortions > 0 ? (
-                      <span className="text-[10px] text-amber-400/90 flex items-center gap-1 font-semibold">
-                        <Flame className="w-3 h-3 text-amber-500" />
-                        Only {stockInfo.maxPortions} left!
-                      </span>
-                    ) : (
-                      <span className="text-[10px] text-stone-500 flex items-center gap-1">
-                        <Sparkles className="w-2.5 h-2.5 text-amber-400/80" />
-                        Fresh Made
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Right Column: Dish Photo Thumbnail & Add Button */}
-                <div className="shrink-0 flex flex-col items-center justify-between w-24 sm:w-28">
+              return (
+                <div
+                  key={item.id}
+                  className={`bg-stone-900/90 rounded-2xl p-2.5 sm:p-3 border transition-all flex flex-col justify-between shadow-sm relative group ${
+                    isOut 
+                      ? 'border-stone-800/50 opacity-60' 
+                      : qtyInCart > 0 
+                        ? 'border-amber-500/60 shadow-lg shadow-amber-950/40 ring-1 ring-amber-500/30' 
+                        : 'border-stone-800/80 hover:border-stone-700'
+                  }`}
+                >
+                  {/* Top: Dish Photo with Overlaid Badges */}
                   <div
                     onClick={() => setPreviewImageItem(item)}
-                    className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden bg-stone-950 border border-stone-800/80 shadow-md cursor-pointer group relative"
-                    title="Click to view full photo"
+                    className="w-full aspect-[4/3] xs:aspect-square sm:aspect-[4/3] rounded-xl overflow-hidden bg-stone-950 border border-stone-800/80 relative cursor-pointer"
+                    title="Tap to view full photo"
                   >
                     <img
                       src={imageUrl}
                       alt={item.name}
                       loading="lazy"
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                      onError={(e) => {
-                        e.target.src = DEFAULT_FOOD_IMAGE;
-                      }}
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      onError={(e) => { e.target.src = DEFAULT_FOOD_IMAGE; }}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-stone-950/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-1">
-                      <span className="text-[9px] font-bold text-white bg-black/60 px-1.5 py-0.5 rounded-full backdrop-blur-xs">
-                        View Photo
+
+                    {/* FSSAI Veg / Non-Veg Icon Overlay */}
+                    <div className="absolute top-1.5 left-1.5 bg-stone-950/80 backdrop-blur-xs p-1 rounded-md border border-stone-700/60 shadow-xs flex items-center justify-center">
+                      <span 
+                        className={`w-3 h-3 rounded-[2.5px] border flex items-center justify-center shrink-0 ${
+                          isVeg ? 'border-emerald-500 bg-emerald-950/60' : 'border-rose-600 bg-rose-950/60'
+                        }`}
+                        title={isVeg ? 'Pure Veg' : 'Non-Veg'}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${isVeg ? 'bg-emerald-400' : 'bg-rose-500'}`} />
+                      </span>
+                    </div>
+
+                    {/* Out of Stock or Low Stock Badge Overlay */}
+                    {isOut ? (
+                      <div className="absolute top-1.5 right-1.5 bg-red-950/90 border border-red-700/80 text-red-300 px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider shadow-xs">
+                        Sold Out
+                      </div>
+                    ) : stockInfo.maxPortions <= 5 && stockInfo.maxPortions > 0 ? (
+                      <div className="absolute top-1.5 right-1.5 bg-amber-500 text-stone-950 px-1.5 py-0.5 rounded-md text-[9px] font-black flex items-center gap-0.5 shadow-xs">
+                        <Flame className="w-2.5 h-2.5 fill-current" />
+                        <span>{stockInfo.maxPortions} left</span>
+                      </div>
+                    ) : null}
+
+                    {/* Tap to Preview Hint */}
+                    <div className="absolute inset-0 bg-stone-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <span className="text-[10px] font-extrabold text-white bg-black/70 px-2 py-0.5 rounded-full backdrop-blur-xs">
+                        🔍 View
                       </span>
                     </div>
                   </div>
 
-                  {/* Action Button */}
-                  <div className="w-full mt-2">
+                  {/* Middle: Dish Name, Category & Price */}
+                  <div className="mt-2 flex-1 flex flex-col justify-between">
+                    <div>
+                      {item.category && (
+                        <span className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider text-stone-400 block truncate mb-0.5">
+                          {item.category}
+                        </span>
+                      )}
+                      <h3 className="text-xs sm:text-sm font-bold text-stone-100 line-clamp-2 leading-tight" title={item.name}>
+                        {item.name}
+                      </h3>
+                    </div>
+
+                    <div className="mt-1.5 flex items-baseline justify-between">
+                      <span className="text-sm sm:text-base font-black text-amber-400">
+                        ₹{item.sellingPrice}
+                      </span>
+                      {!isOut && stockInfo.maxPortions > 5 && (
+                        <span className="text-[9px] text-emerald-400 font-semibold hidden xs:inline">
+                          Fresh
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Bottom: Action Add / Stepper Button */}
+                  <div className="mt-2.5 w-full">
                     {isOut ? (
                       <button
                         disabled
-                        className="w-full py-1.5 rounded-xl bg-stone-800 text-stone-500 text-xs font-bold cursor-not-allowed text-center"
+                        className="w-full py-1.5 rounded-xl bg-stone-800 text-stone-500 text-[11px] font-bold cursor-not-allowed text-center uppercase tracking-wider"
                       >
                         Sold Out
                       </button>
                     ) : qtyInCart === 0 ? (
                       <button
                         onClick={() => updateQuantity(item, 1)}
-                        className="w-full flex items-center justify-center gap-1 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 active:from-amber-600 text-stone-950 text-xs font-black rounded-xl shadow-md shadow-amber-950/40 transition-all cursor-pointer transform active:scale-95 uppercase tracking-wider"
+                        className="w-full flex items-center justify-center gap-1 py-1.5 sm:py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 active:from-amber-600 text-stone-950 text-xs font-black rounded-xl shadow-md shadow-amber-950/40 transition-all cursor-pointer transform active:scale-95 uppercase tracking-wider"
                       >
                         <Plus className="w-3.5 h-3.5 stroke-[3]" />
                         <span>Add</span>
                       </button>
                     ) : (
-                      <div className="w-full flex items-center justify-between bg-stone-950 rounded-xl p-1 border border-amber-500/50 shadow-md">
+                      <div className="w-full flex items-center justify-between bg-stone-950 rounded-xl p-1 border border-amber-500/60 shadow-md">
                         <button
                           onClick={() => updateQuantity(item, -1)}
-                          className="w-6 h-6 rounded-lg bg-stone-800 hover:bg-stone-700 text-white flex items-center justify-center font-black transition-colors cursor-pointer"
+                          className="w-7 h-7 rounded-lg bg-stone-800 hover:bg-stone-700 active:bg-stone-900 text-white flex items-center justify-center font-black transition-colors cursor-pointer"
+                          title="Remove"
                         >
                           <Minus className="w-3 h-3" />
                         </button>
@@ -410,7 +449,8 @@ export default function CustomerMenuOrderView({
                         </span>
                         <button
                           onClick={() => updateQuantity(item, 1)}
-                          className="w-6 h-6 rounded-lg bg-amber-500 hover:bg-amber-400 text-stone-950 flex items-center justify-center font-black transition-colors cursor-pointer"
+                          className="w-7 h-7 rounded-lg bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-stone-950 flex items-center justify-center font-black transition-colors cursor-pointer"
+                          title="Add More"
                         >
                           <Plus className="w-3 h-3" />
                         </button>
@@ -418,18 +458,160 @@ export default function CustomerMenuOrderView({
                     )}
                   </div>
                 </div>
+              );
+            })}
+          </div>
+        ) : (
+          /* ========================================================== */
+          /* 📋 1-COLUMN COMPACT LIST VIEW                              */
+          /* ========================================================== */
+          <div className="space-y-3">
+            {filteredItems.map((item) => {
+              const qtyInCart = cart[item.id] || 0;
+              const stockInfo = getItemStockInfo(item);
+              const isOut = stockInfo.isOutOfStock;
+              const imageUrl = getItemImageUrl(item);
+              const isVeg = isItemVeg(item);
 
-              </div>
-            );
-          })
+              return (
+                <div
+                  key={item.id}
+                  className={`bg-stone-900/90 rounded-2xl p-3.5 sm:p-4 border transition-all flex items-stretch justify-between gap-3 sm:gap-4 shadow-sm ${
+                    isOut 
+                      ? 'border-stone-800/50 opacity-60' 
+                      : qtyInCart > 0 
+                        ? 'border-amber-500/50 shadow-lg shadow-amber-950/30 ring-1 ring-amber-500/20' 
+                        : 'border-stone-800/80 hover:border-stone-700'
+                  }`}
+                >
+                  {/* Left Column: Details */}
+                  <div className="min-w-0 flex-1 flex flex-col justify-between py-0.5">
+                    <div>
+                      {/* Veg Icon + Category */}
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        <span 
+                          className={`w-3.5 h-3.5 rounded-[3px] border flex items-center justify-center shrink-0 ${
+                            isVeg ? 'border-emerald-500 bg-emerald-950/40' : 'border-rose-600 bg-rose-950/40'
+                          }`}
+                          title={isVeg ? 'Pure Veg' : 'Non-Veg'}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${isVeg ? 'bg-emerald-400' : 'bg-rose-500'}`} />
+                        </span>
+
+                        {item.category && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-md bg-stone-800/90 text-stone-400 font-semibold uppercase tracking-wider">
+                            {item.category}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Dish Name */}
+                      <h3 className="text-sm sm:text-base font-bold text-stone-100 leading-snug">
+                        {item.name}
+                      </h3>
+
+                      {/* Price */}
+                      <div className="flex items-baseline gap-2 mt-1.5">
+                        <span className="text-base sm:text-lg font-black text-amber-400">
+                          ₹{item.sellingPrice}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Stock / Fresh Tag */}
+                    <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+                      {isOut ? (
+                        <span className="text-[10px] font-bold text-red-400 bg-red-950/60 px-2 py-0.5 rounded border border-red-800/40">
+                          Out of Stock
+                        </span>
+                      ) : stockInfo.maxPortions <= 5 && stockInfo.maxPortions > 0 ? (
+                        <span className="text-[10px] text-amber-400/90 flex items-center gap-1 font-semibold">
+                          <Flame className="w-3 h-3 text-amber-500" />
+                          Only {stockInfo.maxPortions} left!
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-stone-500 flex items-center gap-1">
+                          <Sparkles className="w-2.5 h-2.5 text-amber-400/80" />
+                          Fresh Made
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right Column: Dish Photo Thumbnail & Add Button */}
+                  <div className="shrink-0 flex flex-col items-center justify-between w-24 sm:w-28">
+                    <div
+                      onClick={() => setPreviewImageItem(item)}
+                      className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden bg-stone-950 border border-stone-800/80 shadow-md cursor-pointer group relative"
+                      title="Click to view full photo"
+                    >
+                      <img
+                        src={imageUrl}
+                        alt={item.name}
+                        loading="lazy"
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                        onError={(e) => {
+                          e.target.src = DEFAULT_FOOD_IMAGE;
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-stone-950/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-1">
+                        <span className="text-[9px] font-bold text-white bg-black/60 px-1.5 py-0.5 rounded-full backdrop-blur-xs">
+                          View Photo
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Action Button */}
+                    <div className="w-full mt-2">
+                      {isOut ? (
+                        <button
+                          disabled
+                          className="w-full py-1.5 rounded-xl bg-stone-800 text-stone-500 text-xs font-bold cursor-not-allowed text-center"
+                        >
+                          Sold Out
+                        </button>
+                      ) : qtyInCart === 0 ? (
+                        <button
+                          onClick={() => updateQuantity(item, 1)}
+                          className="w-full flex items-center justify-center gap-1 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 active:from-amber-600 text-stone-950 text-xs font-black rounded-xl shadow-md shadow-amber-950/40 transition-all cursor-pointer transform active:scale-95 uppercase tracking-wider"
+                        >
+                          <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                          <span>Add</span>
+                        </button>
+                      ) : (
+                        <div className="w-full flex items-center justify-between bg-stone-950 rounded-xl p-1 border border-amber-500/50 shadow-md">
+                          <button
+                            onClick={() => updateQuantity(item, -1)}
+                            className="w-6 h-6 rounded-lg bg-stone-800 hover:bg-stone-700 text-white flex items-center justify-center font-black transition-colors cursor-pointer"
+                          >
+                            <Minus className="w-3 h-3" />
+                          </button>
+                          <span className="text-xs font-black text-amber-300">
+                            {qtyInCart}
+                          </span>
+                          <button
+                            onClick={() => updateQuantity(item, 1)}
+                            className="w-6 h-6 rounded-lg bg-amber-500 hover:bg-amber-400 text-stone-950 flex items-center justify-center font-black transition-colors cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                </div>
+              );
+            })}
+          </div>
         )}
 
       </main>
 
       {/* Floating Bottom Cart Bar */}
       {cartSummary.totalItems > 0 && (
-        <div className="fixed bottom-3 left-0 right-0 z-40 px-4">
-          <div className="max-w-2xl mx-auto bg-gradient-to-r from-amber-600 via-amber-700 to-amber-800 text-white p-3.5 rounded-2xl shadow-2xl border border-amber-400/40 flex items-center justify-between gap-3 animate-in slide-in-from-bottom duration-200">
+        <div className="fixed bottom-3 left-0 right-0 z-40 px-3 sm:px-4">
+          <div className="max-w-3xl mx-auto bg-gradient-to-r from-amber-600 via-amber-700 to-amber-800 text-white p-3 sm:p-3.5 rounded-2xl shadow-2xl border border-amber-400/40 flex items-center justify-between gap-3 animate-in slide-in-from-bottom duration-200">
             
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 rounded-xl bg-black/20 flex items-center justify-center font-extrabold">
