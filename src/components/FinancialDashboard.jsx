@@ -157,28 +157,9 @@ export default function FinancialDashboard({
     const grossMargin = totalRevenue > 0 ? ((grossProfit / totalRevenue) * 100).toFixed(1) : 0;
     const foodCostPercentage = totalRevenue > 0 ? Math.round((actualMaterialConsumed / totalRevenue) * 100) : 0;
 
-    // 3. Operational Overhead Expenses (Electricity, Rent, Staff Salary, Gas, etc.)
-    const isDaily = timeframe === 'daily';
-    const overheadMetrics = calculateDailyOverheadMetrics(overheadConfig);
-
-    // Fixed categories that the monthly budget covers:
-    const FIXED_BUDGET_CATEGORIES = ['Cafe Rent', 'Electricity', 'Staff Salary', 'Commercial Gas', 'Wi-Fi & Internet'];
-
-    let totalOverheadExpenses = 0;
-    let proratedFixedLoadApplied = 0;
-    let actualLoggedDailyPettyExpenses = 0;
-
-    if (isDaily && overheadConfig.useProratedDailyOverhead) {
-      proratedFixedLoadApplied = overheadMetrics.dailyFixedLoad;
-      // Other one-off variable petty expenses logged today (Water, ice, repair, packaging, cleaning) not already in fixed budget:
-      actualLoggedDailyPettyExpenses = activeExpenses
-        .filter(e => !FIXED_BUDGET_CATEGORIES.includes(e.category))
-        .reduce((sum, e) => sum + Number(e.amount || 0), 0);
-
-      totalOverheadExpenses = proratedFixedLoadApplied + actualLoggedDailyPettyExpenses;
-    } else {
-      totalOverheadExpenses = activeExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
-    }
+    // 3. Operational Overhead Expenses (Electricity, Rent, Staff Salary, Gas, Ice, etc.)
+    // REALITY PRINCIPLE: Expenses show ONLY when actually paid by the user!
+    const totalOverheadExpenses = activeExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
     const overheadPercentage = totalRevenue > 0 ? Math.round((totalOverheadExpenses / totalRevenue) * 100) : 0;
 
     // 4. Raw Material Wastage / Spoilage Loss (Kharab Maal)
@@ -186,13 +167,13 @@ export default function FinancialDashboard({
     const wastagePercentage = totalRevenue > 0 ? Math.round((totalWastageLoss / totalRevenue) * 100) : 0;
 
     // 5. 🏆 TRUE NET IN-HAND PROFIT (Asli Bachat)
-    // Formula: Revenue - Food Cost - Overheads (Rent, Light, Salaries, Gas) - Wastage Loss
+    // Formula: Revenue - Food Cost - Actual Bills Paid - Wastage Loss
     const trueNetProfit = totalRevenue - actualMaterialConsumed - totalOverheadExpenses - totalWastageLoss;
     const trueNetMargin = totalRevenue > 0 ? ((trueNetProfit / totalRevenue) * 100).toFixed(1) : 0;
 
     // 6. Procurement & Cash Flow Outflows (Fresh vs Bulk separation)
     const totalRawMaterialCost = procurement.reduce((sum, p) => sum + Number(p.totalCost || 0), 0);
-    const netCashFlow = totalRevenue - totalRawMaterialCost - (activeExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0));
+    const netCashFlow = totalRevenue - totalRawMaterialCost - totalOverheadExpenses;
 
     const dailyFreshProcurement = procurement
       .filter(p => classifyMaterialProcurementType(p.materialName) === 'daily')
@@ -201,15 +182,44 @@ export default function FinancialDashboard({
       .filter(p => classifyMaterialProcurementType(p.materialName) === 'weekly')
       .reduce((sum, p) => sum + Number(p.totalCost || 0), 0);
 
-    // 7. Daily Break-Even Target Sales calculation
+    // 7. Daily Sales Target Guidance (Rent & Staff Fixed Commitments)
+    // NOTE: Rent & Staff are agreed fixed monthly commitments.
+    // Bijli (Light Bill) is variable meter bill, and Gas is per-cylinder usage; they show when PAID!
+    const overheadMetrics = calculateDailyOverheadMetrics(overheadConfig);
+    const dailyFixedCommitment = overheadMetrics.dailyFixedLoad; // Rent + Staff daily share
+
     const grossMarginRatio = totalRevenue > 0 && grossProfit > 0 ? (grossProfit / totalRevenue) : 0.62;
     const effectiveMargin = Math.max(0.2, Math.min(0.9, grossMarginRatio));
-    const breakEvenTargetSales = Math.round((totalOverheadExpenses + totalWastageLoss) / effectiveMargin);
+
+    // Target sales needed so that gross margin covers daily share of fixed commitments + any bills paid today:
+    const breakEvenTargetSales = Math.round((dailyFixedCommitment + totalOverheadExpenses + totalWastageLoss) / effectiveMargin);
     const isBreakEvenAchieved = totalRevenue >= breakEvenTargetSales;
     const breakEvenProgressPct = breakEvenTargetSales > 0 ? Math.min(250, Math.round((totalRevenue / breakEvenTargetSales) * 100)) : 100;
     const salesShortfall = Math.max(0, breakEvenTargetSales - totalRevenue);
 
-    // 8. Current Stock Valuation (Asset in storage)
+    // 8. Monthly Bills Status Tracker (Rent, Electricity, Staff, Gas)
+    const currentYearMonth = getTodayDateString(0).slice(0, 7);
+    const thisMonthExpenses = expenses.filter(e => e.date && e.date.startsWith(currentYearMonth));
+
+    const rentPaidThisMonth = thisMonthExpenses
+      .filter(e => e.category === 'Cafe Rent')
+      .reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
+    const electricityPaidThisMonth = thisMonthExpenses
+      .filter(e => e.category === 'Electricity')
+      .reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
+    const staffPaidThisMonth = thisMonthExpenses
+      .filter(e => e.category === 'Staff Salary')
+      .reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
+    const gasPaidThisMonth = thisMonthExpenses
+      .filter(e => e.category === 'Commercial Gas')
+      .reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    const gasCylindersCountThisMonth = thisMonthExpenses
+      .filter(e => e.category === 'Commercial Gas').length;
+
+    // 9. Current Stock Valuation (Asset in storage)
     const inventoryValuation = inventoryItems.reduce((sum, item) => sum + (Number(item.currentStock || 0) * (Number(item.unitCost) || 0)), 0);
 
     // Category-wise expense breakdown
@@ -281,12 +291,16 @@ export default function FinancialDashboard({
       topItems,
       overheadMetrics,
       overheadConfig,
+      dailyFixedCommitment,
       breakEvenTargetSales,
       isBreakEvenAchieved,
       breakEvenProgressPct,
       salesShortfall,
-      proratedFixedLoadApplied,
-      actualLoggedDailyPettyExpenses
+      rentPaidThisMonth,
+      electricityPaidThisMonth,
+      staffPaidThisMonth,
+      gasPaidThisMonth,
+      gasCylindersCountThisMonth
     };
   }, [salesLogs, procurementLogs, menuItems, inventoryItems, expenses, wastageLogs, timeframe, selectedDate, overheadConfig]);
 
@@ -406,7 +420,7 @@ export default function FinancialDashboard({
         </div>
       </div>
 
-      {/* 🎯 TODAY'S BREAK-EVEN TARGET & LIVE MOTIVATION METER (Prominently in Daily View) */}
+      {/* 🎯 TODAY'S SALES TARGET & MONTHLY BILLS STATUS (Daily View Guide) */}
       {timeframe === 'daily' && (
         <div className="bg-gradient-to-br from-stone-900 via-stone-900 to-amber-950 text-white rounded-3xl border border-stone-800 p-4 sm:p-5 shadow-lg space-y-4 relative overflow-hidden">
           {/* Subtle warm glow background */}
@@ -421,14 +435,14 @@ export default function FinancialDashboard({
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm sm:text-base font-black tracking-tight">
-                    🎯 Aaj Ka Break-Even Target & Asli Munafa Meter
+                    🎯 Roz Ka Sales Target Guide (Rent & Staff Nikalna)
                   </h3>
                   <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-stone-800 text-stone-300 border border-stone-700">
                     {selectedDate}
                   </span>
                 </div>
                 <p className="text-[11px] text-stone-400 mt-0.5">
-                  Roz ka Rent, Bijli, Staff, Gas aur Maal nikaalne ke liye kitni sale chahiye aur abhi cafe kahan khada hai.
+                  Dukan ka Fixed Rent aur Staff nikaalne ke liye target sales. Bijli aur Gas ka bill pay karne par hi P&L me minus hota hai.
                 </p>
               </div>
             </div>
@@ -441,30 +455,10 @@ export default function FinancialDashboard({
                   setIsOverheadModalOpen(true);
                 }}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-200 hover:text-white text-xs font-bold rounded-xl border border-stone-700 shadow-2xs transition-all cursor-pointer"
-                title="Configure Monthly Rent, Electricity, Staff, Gas"
+                title="Configure Monthly Rent & Staff Salaries"
               >
                 <Settings className="w-3.5 h-3.5 text-amber-400" />
-                <span>⚙️ Set Fixed Bills</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  const updated = {
-                    ...overheadConfig,
-                    useProratedDailyOverhead: !overheadConfig.useProratedDailyOverhead
-                  };
-                  setOverheadConfig(updated);
-                  saveStoredOverheadConfig(updated);
-                }}
-                className={`px-2.5 py-1.5 text-[11px] font-bold rounded-xl border transition-all cursor-pointer ${
-                  overheadConfig.useProratedDailyOverhead
-                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                    : 'bg-stone-800 text-stone-400 border-stone-700 hover:text-stone-300'
-                }`}
-                title="Toggle Daily Proration for Rent, Light, Staff, Gas"
-              >
-                {overheadConfig.useProratedDailyOverhead ? '✅ Prorated Fixed Burden: ON' : '⚠️ Raw Cash: ON'}
+                <span>⚙️ Set Rent & Staff</span>
               </button>
             </div>
           </div>
@@ -474,7 +468,7 @@ export default function FinancialDashboard({
             {/* Target Sales */}
             <div className="bg-stone-800/70 border border-stone-700/80 rounded-2xl p-3 flex flex-col justify-between">
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-stone-400">
-                🎯 Aaj Ka Target (Break-Even)
+                🎯 Target Sales (Aaj Ka)
               </span>
               <div className="my-1">
                 <span className="text-xl sm:text-2xl font-black text-amber-400">
@@ -482,7 +476,7 @@ export default function FinancialDashboard({
                 </span>
               </div>
               <span className="text-[10px] text-stone-400 font-medium">
-                Is sale par 0 loss hoga
+                Rent & Staff cover target
               </span>
             </div>
 
@@ -499,41 +493,39 @@ export default function FinancialDashboard({
               <span className={`text-[10px] font-extrabold ${
                 filteredData.isBreakEvenAchieved ? 'text-emerald-400' : 'text-amber-400'
               }`}>
-                {filteredData.breakEvenProgressPct}% of Target Reached
+                {filteredData.breakEvenProgressPct}% Target Reached
               </span>
             </div>
 
-            {/* Roz Ka Fixed Burden */}
+            {/* Fixed Daily Commitments (Rent + Staff) */}
             <div className="bg-stone-800/70 border border-stone-700/80 rounded-2xl p-3 flex flex-col justify-between">
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-stone-400">
-                🏛️ Roz Ka Kharcha (Fixed)
+                🏛️ Fixed Burden (Rent + Staff)
               </span>
               <div className="my-1">
                 <span className="text-xl sm:text-2xl font-black text-purple-300">
-                  ₹{filteredData.overheadMetrics.dailyFixedLoad.toLocaleString()}
+                  ₹{filteredData.dailyFixedCommitment.toLocaleString()}
                 </span>
               </div>
               <span className="text-[10px] text-purple-400/80 font-medium">
-                Rent, Bijli, Staff & Gas
+                Rent ₹{filteredData.overheadMetrics.dailyBreakdown.rent} + Staff ₹{filteredData.overheadMetrics.dailyBreakdown.staff}
               </span>
             </div>
 
-            {/* Net Today Profit Status */}
-            <div className={`border rounded-2xl p-3 flex flex-col justify-between ${
-              filteredData.isBreakEvenAchieved
-                ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-100'
-                : 'bg-rose-950/60 border-rose-500/40 text-rose-100'
-            }`}>
-              <span className="text-[10px] font-extrabold uppercase tracking-wider opacity-80">
-                {filteredData.isBreakEvenAchieved ? '🚀 Aaj Ka Pure Munafa' : '⚠️ Aaj Ka Deficit / Loss'}
+            {/* Actual Bills Paid Today */}
+            <div className="bg-stone-800/70 border border-stone-700/80 rounded-2xl p-3 flex flex-col justify-between">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-stone-400">
+                💵 Aaj Pay Kiya Gaya Kharcha
               </span>
               <div className="my-1">
-                <span className="text-xl sm:text-2xl font-black">
-                  {filteredData.trueNetProfit < 0 ? '-' : '+'}₹{Math.abs(filteredData.trueNetProfit).toLocaleString()}
+                <span className={`text-xl sm:text-2xl font-black ${
+                  filteredData.totalOverheadExpenses > 0 ? 'text-rose-400' : 'text-stone-300'
+                }`}>
+                  ₹{filteredData.totalOverheadExpenses.toLocaleString()}
                 </span>
               </div>
-              <span className="text-[10px] font-bold">
-                {filteredData.isBreakEvenAchieved ? 'Jeb me pure bachat' : `₹${filteredData.salesShortfall.toLocaleString()} sale aur chahiye`}
+              <span className="text-[10px] text-stone-400 font-medium">
+                {filteredData.activeExpenses.length === 0 ? 'Aaj koi bill pay nahi kiya' : `${filteredData.activeExpenses.length} bills paid today`}
               </span>
             </div>
           </div>
@@ -549,8 +541,8 @@ export default function FinancialDashboard({
               </span>
               <span className="text-[11px] text-stone-400">
                 {filteredData.isBreakEvenAchieved 
-                  ? '🎉 100% Target Crossed! Pure Profit Zone!' 
-                  : `₹${filteredData.salesShortfall.toLocaleString()} baki hai Break-Even ke liye`
+                  ? '🎉 Target Crossed! Rent & Staff Covered!' 
+                  : `₹${filteredData.salesShortfall.toLocaleString()} remaining to hit target`
                 }
               </span>
             </div>
@@ -581,47 +573,88 @@ export default function FinancialDashboard({
             <div className="flex-1">
               {filteredData.isBreakEvenAchieved ? (
                 <>
-                  <strong>Shaandaar Kaam! Aaj Cafe Break-Even paar kar chuka hai! 🚀</strong>
+                  <strong>Shaandaar Kaam! Aaj Cafe ka Sales Target pura ho chuka hai! 🚀</strong>
                   <p className="text-[11px] text-emerald-300/80 mt-0.5">
-                    Aaj ka Rent (₹{filteredData.overheadMetrics.dailyBreakdown.rent}), Bijli (₹{filteredData.overheadMetrics.dailyBreakdown.electricity}), Staff (₹{filteredData.overheadMetrics.dailyBreakdown.staff}), Gas (₹{filteredData.overheadMetrics.dailyBreakdown.gas}) aur Maal sab nikal chuka hai! Ab har naye order ka margin seedha aapke jeb me pure munafa ban raha hai!
+                    Aaj ki sale se Dukan Rent aur Staff ka hissa nikal chuka hai! Aaj ka Asli In-Hand Net Profit: <strong>+₹{filteredData.trueNetProfit.toLocaleString()}</strong>! Ab aage aane wale har order se seedha pure munafa badhega!
                   </p>
                 </>
               ) : (
                 <>
-                  <strong>Abhi Cafe Fixed Burden cover kar raha hai (Shortfall: ₹{filteredData.salesShortfall.toLocaleString()})</strong>
+                  <strong>Aaj ka Rent & Staff Target abhi baki hai (Shortfall: ₹{filteredData.salesShortfall.toLocaleString()})</strong>
                   <p className="text-[11px] text-amber-300/80 mt-0.5">
-                    Aaj ka Rent, Bijli, Staff aur Gas nikaalne ke liye ₹{filteredData.salesShortfall.toLocaleString()} ki aur sale chahiye. Shaam ke rush me thoda aur push karein, Break-Even door nahi hai!
+                    Dukan Rent aur Staff ka hissa nikaalne ke liye ₹{filteredData.salesShortfall.toLocaleString()} ki aur sale chahiye. Shaam ke orders me thoda aur push karein!
                   </p>
                 </>
               )}
             </div>
           </div>
 
-          {/* Daily Prorated Fixed Overheads Breakdown Pills */}
-          <div className="pt-2 border-t border-stone-800 flex flex-wrap items-center justify-between gap-2 text-xs">
-            <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-              <span className="text-stone-400 font-semibold">Roz Ka Fixed Hisaab (Budget):</span>
-              <span className="px-2 py-0.5 rounded-lg bg-stone-800 text-stone-300 border border-stone-700">
-                🏠 Rent: ₹{filteredData.overheadMetrics.dailyBreakdown.rent}/din
+          {/* Monthly Bills Status Strip (Rent, Light Bill, Staff, Gas) */}
+          <div className="pt-2 border-t border-stone-800 space-y-2">
+            <div className="flex items-center justify-between flex-wrap gap-2 text-xs">
+              <span className="text-stone-400 font-bold text-[11px] flex items-center gap-1.5">
+                <span>🗓️ Dukan Ke Bills Ka Status (This Month):</span>
               </span>
-              <span className="px-2 py-0.5 rounded-lg bg-stone-800 text-stone-300 border border-stone-700">
-                ⚡ Bijli: ₹{filteredData.overheadMetrics.dailyBreakdown.electricity}/din
-              </span>
-              <span className="px-2 py-0.5 rounded-lg bg-stone-800 text-stone-300 border border-stone-700">
-                👨‍🍳 Staff: ₹{filteredData.overheadMetrics.dailyBreakdown.staff}/din
-              </span>
-              <span className="px-2 py-0.5 rounded-lg bg-stone-800 text-amber-300 border border-amber-700/50">
-                🔥 Gas: ₹{filteredData.overheadMetrics.dailyBreakdown.gas}/din ({filteredData.overheadConfig.gasCylinderCountMonth || 4} cyl/mo)
-              </span>
-              <span className="px-2 py-0.5 rounded-lg bg-stone-800 text-stone-300 border border-stone-700">
-                🌐 Misc: ₹{filteredData.overheadMetrics.dailyBreakdown.wifiMisc}/din
+              <span className="text-[10px] text-stone-400 italic">
+                *Bijli aur Gas meter/usage ke hisaab se pay karne par hi P&L me minus hote hain.
               </span>
             </div>
 
-            <div className="text-[11px] text-stone-400 font-semibold">
-              Total Fixed Load: <strong className="text-white">₹{filteredData.overheadMetrics.dailyFixedLoad}/day</strong> (₹{filteredData.overheadMetrics.totalMonthlyFixed.toLocaleString()}/mo)
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              {/* Rent */}
+              <div className="bg-stone-800/80 border border-stone-700/80 rounded-xl p-2">
+                <span className="text-[10px] text-stone-400 block font-semibold">🏠 Dukan Rent:</span>
+                <span className={`text-[11px] font-black ${
+                  filteredData.rentPaidThisMonth > 0 ? 'text-emerald-400' : 'text-amber-400'
+                }`}>
+                  {filteredData.rentPaidThisMonth > 0 
+                    ? `🟢 Paid ₹${filteredData.rentPaidThisMonth.toLocaleString()}` 
+                    : `⚠️ Due (₹${filteredData.overheadConfig.monthlyRent.toLocaleString()})`
+                  }
+                </span>
+              </div>
+
+              {/* Light Bill (Electricity) */}
+              <div className="bg-stone-800/80 border border-stone-700/80 rounded-xl p-2">
+                <span className="text-[10px] text-stone-400 block font-semibold">⚡ Light Bill (Meter):</span>
+                <span className={`text-[11px] font-black ${
+                  filteredData.electricityPaidThisMonth > 0 ? 'text-emerald-400' : 'text-stone-300'
+                }`}>
+                  {filteredData.electricityPaidThisMonth > 0 
+                    ? `🟢 Paid ₹${filteredData.electricityPaidThisMonth.toLocaleString()}` 
+                    : `⏳ Bill Aane Par Pay Hoga`
+                  }
+                </span>
+              </div>
+
+              {/* Staff Salary */}
+              <div className="bg-stone-800/80 border border-stone-700/80 rounded-xl p-2">
+                <span className="text-[10px] text-stone-400 block font-semibold">👨‍🍳 Staff Salaries:</span>
+                <span className={`text-[11px] font-black ${
+                  filteredData.staffPaidThisMonth > 0 ? 'text-emerald-400' : 'text-stone-300'
+                }`}>
+                  {filteredData.staffPaidThisMonth > 0 
+                    ? `🟢 Paid ₹${filteredData.staffPaidThisMonth.toLocaleString()}` 
+                    : `⏳ Salary Date Par`
+                  }
+                </span>
+              </div>
+
+              {/* Gas Cylinders */}
+              <div className="bg-stone-800/80 border border-stone-700/80 rounded-xl p-2">
+                <span className="text-[10px] text-stone-400 block font-semibold">🔥 Gas Cylinders:</span>
+                <span className={`text-[11px] font-black ${
+                  filteredData.gasPaidThisMonth > 0 ? 'text-emerald-400' : 'text-stone-300'
+                }`}>
+                  {filteredData.gasPaidThisMonth > 0 
+                    ? `🟢 Paid ₹${filteredData.gasPaidThisMonth.toLocaleString()} (${filteredData.gasCylindersCountThisMonth} cyl)` 
+                    : `⏳ Refill Delivery Par`
+                  }
+                </span>
+              </div>
             </div>
           </div>
+
         </div>
       )}
 
@@ -693,10 +726,10 @@ export default function FinancialDashboard({
             </div>
           </div>
 
-          {/* Step 3: Dukan Bills & Rent (Shows prorated daily share or recorded bills) */}
+          {/* Step 3: Dukan Bills & Rent (Shows ACTUAL PAID BILLS ONLY) */}
           <div className="p-3 rounded-xl bg-purple-50/70 border border-purple-200 flex flex-col justify-between min-w-0">
             <span className="text-[9px] font-extrabold uppercase tracking-wider text-purple-800 block truncate">
-              3. (−) Dukan Bills & Rent
+              3. (−) Dukan Bills & Kharch
             </span>
             <div className="my-1">
               <span className="text-base sm:text-xl font-black text-purple-950 block truncate">
@@ -704,17 +737,18 @@ export default function FinancialDashboard({
               </span>
             </div>
             <div className="text-[10px] font-bold text-purple-700 space-y-0.5">
-              {timeframe === 'daily' && filteredData.overheadConfig.useProratedDailyOverhead ? (
-                <>
-                  <div className="truncate text-purple-900 font-extrabold">₹{filteredData.proratedFixedLoadApplied}/din Prorated</div>
-                  <div className="text-[9px] text-purple-600 font-medium truncate">Rent, Bijli, Staff, Gas</div>
-                </>
-              ) : (
-                <>
-                  <div className="truncate">{filteredData.activeExpenses.length} bills ({filteredData.overheadPercentage}% of sales)</div>
-                  <div className="text-[9px] text-purple-600 font-medium truncate">Bijli, Rent, Staff, Gas</div>
-                </>
-              )}
+              <div className="truncate">
+                {filteredData.totalOverheadExpenses === 0
+                  ? 'Aaj koi bill pay nahi hua (₹0)'
+                  : `${filteredData.activeExpenses.length} bills paid (${filteredData.overheadPercentage}% of sales)`
+                }
+              </div>
+              <div className="text-[9px] text-purple-600 font-medium truncate">
+                {filteredData.totalOverheadExpenses === 0
+                  ? 'Bills pay karne par minus honge'
+                  : 'Bijli, Rent, Staff, Gas, Ice'
+                }
+              </div>
             </div>
           </div>
 
@@ -1349,14 +1383,14 @@ export default function FinancialDashboard({
             <div className="flex items-center justify-between border-b border-stone-100 pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center">
-                  <Settings className="w-4 h-4" />
+                  <Home className="w-4 h-4" />
                 </div>
                 <div>
                   <h3 className="text-base font-extrabold text-stone-900">
-                    Cafe Fixed Bills & Monthly Overhead Budget
+                    Cafe Fixed Commitments (Rent & Staff)
                   </h3>
                   <p className="text-[11px] text-stone-500">
-                    Dukan ke monthly kharche set karein taaki daily P&L me roz ka hissa sahi nikle.
+                    Dukan ka pakka kiraya aur staff salary set karein jo har mahine nikalna zaroori hai.
                   </p>
                 </div>
               </div>
@@ -1380,7 +1414,7 @@ export default function FinancialDashboard({
                 {/* Shop Rent */}
                 <div>
                   <label className="block text-xs font-bold text-stone-700 uppercase mb-1">
-                    🏠 Monthly Shop Rent (₹)
+                    🏠 Dukan Ka Kiraya / Rent (₹/Mahina)
                   </label>
                   <input
                     type="number"
@@ -1392,35 +1426,14 @@ export default function FinancialDashboard({
                     placeholder="e.g. 15000"
                   />
                   <span className="text-[10px] text-stone-500 font-semibold block mt-0.5">
-                    ~₹{Math.round((overheadForm.monthlyRent || 0) / 30)} / day
+                    ~₹{Math.round((overheadForm.monthlyRent || 0) / 30)} / day (Rent obligation)
                   </span>
                 </div>
 
-                {/* Electricity */}
-                <div>
-                  <label className="block text-xs font-bold text-stone-700 uppercase mb-1">
-                    ⚡ Monthly Electricity / Light (₹)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    required
-                    value={overheadForm.monthlyElectricity}
-                    onChange={(e) => setOverheadForm({ ...overheadForm, monthlyElectricity: Number(e.target.value) || 0 })}
-                    className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm font-bold text-stone-900 focus:outline-none focus:border-amber-600"
-                    placeholder="e.g. 4500"
-                  />
-                  <span className="text-[10px] text-stone-500 font-semibold block mt-0.5">
-                    ~₹{Math.round((overheadForm.monthlyElectricity || 0) / 30)} / day
-                  </span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 {/* Staff Salaries */}
                 <div>
                   <label className="block text-xs font-bold text-stone-700 uppercase mb-1">
-                    👨‍🍳 Total Staff Salaries (₹/Month)
+                    👨‍🍳 Staff / Cook Salaries (₹/Mahina)
                   </label>
                   <input
                     type="number"
@@ -1432,102 +1445,74 @@ export default function FinancialDashboard({
                     placeholder="e.g. 18000"
                   />
                   <span className="text-[10px] text-stone-500 font-semibold block mt-0.5">
-                    ~₹{Math.round((overheadForm.monthlyStaffSalary || 0) / 30)} / day
-                  </span>
-                </div>
-
-                {/* Wi-Fi & Internet & Misc */}
-                <div>
-                  <label className="block text-xs font-bold text-stone-700 uppercase mb-1">
-                    🌐 Wi-Fi, Water & Misc (₹/Month)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={overheadForm.monthlyWifiMisc}
-                    onChange={(e) => setOverheadForm({ ...overheadForm, monthlyWifiMisc: Number(e.target.value) || 0 })}
-                    className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm font-bold text-stone-900 focus:outline-none focus:border-amber-600"
-                    placeholder="e.g. 2500"
-                  />
-                  <span className="text-[10px] text-stone-500 font-semibold block mt-0.5">
-                    ~₹{Math.round((overheadForm.monthlyWifiMisc || 0) / 30)} / day
+                    ~₹{Math.round((overheadForm.monthlyStaffSalary || 0) / 30)} / day (Staff obligation)
                   </span>
                 </div>
               </div>
 
-              {/* Commercial LPG Gas Settings */}
-              <div className="p-3.5 bg-rose-50/70 border border-rose-200 rounded-2xl space-y-3">
+              {/* Wi-Fi & Fixed Broadband */}
+              <div>
+                <label className="block text-xs font-bold text-stone-700 uppercase mb-1">
+                  🌐 Cafe Wi-Fi & Internet Plan (₹/Mahina)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={overheadForm.monthlyWifiMisc}
+                  onChange={(e) => setOverheadForm({ ...overheadForm, monthlyWifiMisc: Number(e.target.value) || 0 })}
+                  className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm font-bold text-stone-900 focus:outline-none focus:border-amber-600"
+                  placeholder="e.g. 1000"
+                />
+                <span className="text-[10px] text-stone-500 font-semibold block mt-0.5">
+                  ~₹{Math.round((overheadForm.monthlyWifiMisc || 0) / 30)} / day
+                </span>
+              </div>
+
+              {/* Variable Utility Notice (Light Bill & Gas) */}
+              <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-2 text-xs">
                 <div className="flex items-center gap-2">
-                  <Flame className="w-4 h-4 text-rose-600" />
-                  <h4 className="text-xs font-extrabold text-stone-900 uppercase">
-                    🔥 Commercial LPG Gas Cylinders (19kg) Setup
+                  <Zap className="w-4 h-4 text-amber-600" />
+                  <h4 className="font-extrabold text-amber-900 uppercase text-[11px]">
+                    ⚡ Light Bill aur 🔥 Gas Cylinder Fixed me Kyun Nahi Hain?
                   </h4>
                 </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-stone-700 mb-1">
-                      Rate per Cylinder (₹)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={overheadForm.gasCylinderCost}
-                      onChange={(e) => setOverheadForm({ ...overheadForm, gasCylinderCost: Number(e.target.value) || 0 })}
-                      className="w-full px-3 py-2 bg-white border border-rose-200 rounded-xl text-xs font-bold text-stone-900"
-                      placeholder="e.g. 1850"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-stone-700 mb-1">
-                      Cylinders Used per Month
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.5"
-                      value={overheadForm.gasCylinderCountMonth}
-                      onChange={(e) => setOverheadForm({ ...overheadForm, gasCylinderCountMonth: Number(e.target.value) || 0 })}
-                      className="w-full px-3 py-2 bg-white border border-rose-200 rounded-xl text-xs font-bold text-stone-900"
-                      placeholder="e.g. 4"
-                    />
-                  </div>
-                </div>
-
-                <div className="text-[11px] text-stone-600 font-medium">
-                  Monthly Gas Cost: <strong>₹{((overheadForm.gasCylinderCost || 0) * (overheadForm.gasCylinderCountMonth || 0)).toLocaleString()}</strong> (~₹{Math.round(((overheadForm.gasCylinderCost || 0) * (overheadForm.gasCylinderCountMonth || 0)) / 30)} / day)
+                <div className="text-[11px] text-amber-950 space-y-1 leading-relaxed">
+                  <p>
+                    • <strong>⚡ Light Bill (Bijli):</strong> Meter reading ke hisaab se har mahine alag aati hai (Variable). Ye tabhi P&L me judegi jab aap bijli ka bill pay karenge.
+                  </p>
+                  <p>
+                    • <strong>🔥 Commercial Gas:</strong> Cylinder jab khali hota hai tabhi delivery par pay kiya jata hai.
+                  </p>
+                  <p className="font-semibold text-amber-800 pt-0.5">
+                    👉 Isliye P&L me koi jhootha phantom kharch nahi katega — Light Bill aur Gas jab pay honge tabhi &apos;Dukan Bills &amp; Kharch&apos; me judenge!
+                  </p>
                 </div>
               </div>
 
               {/* Live Calculation Preview Banner */}
               <div className="bg-stone-900 text-white rounded-2xl p-3.5 space-y-1.5 text-xs">
                 <div className="flex items-center justify-between font-bold">
-                  <span className="text-stone-400">Total Monthly Fixed Overheads:</span>
+                  <span className="text-stone-400">Total Monthly Fixed Commitments:</span>
                   <span className="text-amber-400 text-sm">
                     ₹{(
                       (overheadForm.monthlyRent || 0) +
-                      (overheadForm.monthlyElectricity || 0) +
                       (overheadForm.monthlyStaffSalary || 0) +
-                      ((overheadForm.gasCylinderCost || 0) * (overheadForm.gasCylinderCountMonth || 0)) +
                       (overheadForm.monthlyWifiMisc || 0)
                     ).toLocaleString()} / month
                   </span>
                 </div>
                 <div className="flex items-center justify-between font-extrabold border-t border-stone-800 pt-1.5">
-                  <span className="text-stone-200">Daily Fixed Overhead Burden:</span>
+                  <span className="text-stone-200">Daily Target Burden (Rent + Staff):</span>
                   <span className="text-emerald-400 text-base">
                     ₹{Math.round((
                       (overheadForm.monthlyRent || 0) +
-                      (overheadForm.monthlyElectricity || 0) +
                       (overheadForm.monthlyStaffSalary || 0) +
-                      ((overheadForm.gasCylinderCost || 0) * (overheadForm.gasCylinderCountMonth || 0)) +
                       (overheadForm.monthlyWifiMisc || 0)
                     ) / 30)} / day
                   </span>
                 </div>
-                <p className="text-[10px] text-stone-400">
-                  Daily P&L me ye daily fixed hissa har din barabar distribute hoga, taaki jis din Rent ya Gas bhara jaye us din artificial loss na dikhe!
+                <p className="text-[10px] text-stone-400 leading-normal">
+                  Yeh daily burden sirf Sales Target Guide ke liye hai (taaki aapko roz pata chale kitni sale karni hai). Yeh P&amp;L me se paise nahi kaatta!
                 </p>
               </div>
 
@@ -1544,7 +1529,7 @@ export default function FinancialDashboard({
                   type="submit"
                   className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
                 >
-                  Save Fixed Budget
+                  Save Fixed Commitments
                 </button>
               </div>
 

@@ -1338,44 +1338,32 @@ export const saveStoredExpenses = (expenses, cafeId = currentCafeId) => {
   }
 };
 
-// 🏛️ Cafe Monthly Fixed Overhead Budget & Proration Config
+// 🏛️ Cafe Monthly Fixed Commitments (Dukan Rent, Staff Salary, Flat Wi-Fi)
+// NOTE: Bijli / Light Bill is a variable utility (meter bill) and Gas is per-cylinder usage; they show when PAID!
 export const DEFAULT_OVERHEAD_CONFIG = {
-  monthlyRent: 15000,
-  monthlyElectricity: 4500,
-  monthlyStaffSalary: 18000,
-  gasCylinderCost: 1850,
-  gasCylinderCountMonth: 4, // 4 commercial 19kg cylinders/mo = ~₹7,400
-  monthlyWifiMisc: 2500,
-  useProratedDailyOverhead: true // In daily P&L, allocate daily share of Rent, Light, Staff, Gas
+  monthlyRent: 15000, // Shop rent agreement
+  monthlyStaffSalary: 18000, // Fixed staff salaries
+  monthlyWifiMisc: 1000 // Fixed Wi-Fi broadband plan
 };
 
 export const calculateDailyOverheadMetrics = (config = DEFAULT_OVERHEAD_CONFIG) => {
   const rent = Number(config.monthlyRent) || 0;
-  const electricity = Number(config.monthlyElectricity) || 0;
   const staff = Number(config.monthlyStaffSalary) || 0;
-  const gasCylinderCost = Number(config.gasCylinderCost) || 0;
-  const gasCount = Number(config.gasCylinderCountMonth) || 0;
-  const monthlyGas = gasCylinderCost * gasCount;
   const wifiMisc = Number(config.monthlyWifiMisc) || 0;
 
-  const totalMonthlyFixed = rent + electricity + staff + monthlyGas + wifiMisc;
+  // Truly fixed commitments:
+  const totalMonthlyFixed = rent + staff + wifiMisc;
   const dailyFixedLoad = Math.round(totalMonthlyFixed / 30);
 
   return {
     monthlyRent: rent,
-    monthlyElectricity: electricity,
     monthlyStaffSalary: staff,
-    gasCylinderCost,
-    gasCylinderCountMonth: gasCount,
-    monthlyGas,
     monthlyWifiMisc: wifiMisc,
     totalMonthlyFixed,
     dailyFixedLoad,
     dailyBreakdown: {
       rent: Math.round(rent / 30),
-      electricity: Math.round(electricity / 30),
       staff: Math.round(staff / 30),
-      gas: Math.round(monthlyGas / 30),
       wifiMisc: Math.round(wifiMisc / 30)
     }
   };
