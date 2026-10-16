@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Sparkles,
   Zap,
@@ -29,7 +29,14 @@ import {
   Flame,
   Percent,
   ChevronDown,
-  Camera
+  Camera,
+  Play,
+  Pause,
+  RotateCcw,
+  Volume2,
+  VolumeX,
+  Target,
+  DollarSign
 } from 'lucide-react';
 import BrandLogo from './BrandLogo';
 
@@ -41,6 +48,68 @@ export default function LandingPage({
   const [billingCycle, setBillingCycle] = useState('monthly'); // 'monthly' | 'yearly'
   const [activeFeatureTab, setActiveFeatureTab] = useState('counter');
   const [dailyOrders, setDailyOrders] = useState(60); // for ROI calculator slider
+
+  // 🎥 Interactive Video Walkthrough State for "Daily Target / Aaj Itna Kamana Padega"
+  const [isPlayingVideo, setIsPlayingVideo] = useState(false);
+  const [activeVideoScene, setActiveVideoScene] = useState(0); // 0: Bill Entry, 1: Smart Math, 2: Rush Meter, 3: Profit Locked
+  const [isAudioMuted, setIsAudioMuted] = useState(false);
+  const [videoProgress, setVideoProgress] = useState(25);
+
+  // Auto-advance scenes when video is playing
+  useEffect(() => {
+    let timer;
+    if (isPlayingVideo) {
+      timer = setInterval(() => {
+        setVideoProgress(prev => {
+          if (prev >= 100) {
+            setActiveVideoScene(s => (s + 1) % 4);
+            return 0;
+          }
+          return prev + 5;
+        });
+      }, 350);
+    }
+    return () => clearInterval(timer);
+  }, [isPlayingVideo]);
+
+  const videoScenes = [
+    {
+      id: 0,
+      title: '1. Bill Entry: 5 Tarikh Ko ₹25,000 Ka Rent & Light Bill',
+      subtitle: 'Real Cafe Problem: Mahine ke achanak kharche budget hila dete hain',
+      duration: '0:35',
+      badge: 'Step 1: Real-life Bill Entry',
+      badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
+      description: 'Owner jab 5 ya 6 tarikh ko dukan ka ₹20,000 rent aur ₹5,000 electricity bill enter karta hai, pura system dynamic update ho jata hai.',
+    },
+    {
+      id: 1,
+      title: '2. Smart Breakeven Engine: Target Spreading Formula',
+      subtitle: 'Bache hue 25 dino me barabar divide — Zero month-end shock',
+      duration: '0:45',
+      badge: 'Step 2: Smart Target Formula',
+      badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+      description: '₹25,000 ÷ 25 din = ₹1,000/din fixed share + ₹1,470 food cost (35%) + packaging + minimum ₹1,000 profit = Subah ka clear target: ₹4,200!',
+    },
+    {
+      id: 2,
+      title: '3. Live Rush-Hour Meter: Dine-in, Swiggy & Zomato',
+      subtitle: 'Har ek order par dial ghumta hai: Red se Yellow fir Green',
+      duration: '0:50',
+      badge: 'Step 3: Real-Time Meter Movement',
+      badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
+      description: 'POS me order bante hi packaging cost automatically kat jati hai. Owner aur staff ko screen par live dikhta hai ki breakeven tak pahunchne me kitne orders bache hain.',
+    },
+    {
+      id: 3,
+      title: '4. Target Crushed! Profit Locked & Pure Mental Peace',
+      subtitle: 'Sham 8 baje screen Green — ₹5,400 sale par ₹2,550 pure profit pocket me',
+      duration: '0:30',
+      badge: 'Step 4: Goal Achieved & Profit Locked',
+      badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+      description: 'Target cross hote hi system confirm karta hai: Rent ka daily hissa safe, staff salary safe, aur ₹2,550 pure in-hand net cash profit! Month-end ka tension hamesha ke liye khatam.',
+    }
+  ];
 
   // Calculations for interactive ROI slider
   const monthlyOrders = dailyOrders * 30;
@@ -54,13 +123,6 @@ export default function LandingPage({
 
       {/* 🌟 1. STICKY TOP NAVIGATION BAR (Ultra-Clean Glassmorphism) */}
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-200/80 transition-all shadow-xs">
-        {/* Announcement Bar */}
-        {/* <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 text-white px-3 py-1 text-center text-[11px] sm:text-xs font-semibold flex items-center justify-center gap-2">
-          <Flame className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
-          <span>Naya Update: Swiggy & Zomato Automatic Bank Reconciliation Engine 2026 Live!</span>
-          <span className="hidden md:inline bg-white/20 px-2 py-0.2 rounded-full text-[10px] uppercase font-bold">14-Day Free</span>
-        </div> */}
-
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-4">
 
           {/* Brand Logo */}
@@ -69,7 +131,11 @@ export default function LandingPage({
           </a>
 
           {/* Desktop Nav Links */}
-          <nav className="hidden md:flex items-center space-x-7 text-xs font-bold text-slate-600">
+          <nav className="hidden md:flex items-center space-x-6 text-xs font-bold text-slate-600">
+            <a href="#daily-target-video" className="text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5 bg-indigo-50/80 px-3 py-1.5 rounded-xl border border-indigo-200/80 transition-all shadow-2xs hover:bg-indigo-100">
+              <Play className="w-3.5 h-3.5 fill-indigo-600 text-indigo-600 animate-pulse" />
+              <span>Target Video Tour</span>
+            </a>
             <a href="#features" className="hover:text-indigo-600 transition-colors">Features</a>
             <a href="#demo-preview" className="hover:text-indigo-600 transition-colors">POS Simulator</a>
             <a href="#calculator" className="hover:text-indigo-600 transition-colors">ROI Calculator</a>
@@ -391,6 +457,564 @@ export default function LandingPage({
                 <p className="text-[11px] text-slate-500">Mobile, Tablet & PC Ready</p>
               </div>
             </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* 🎬 2.5 EXCLUSIVE FEATURE VIDEO TOUR: "AAJ ITNA KAMANA PADEGA" (Daily Sales Target Walkthrough) */}
+      <section id="daily-target-video" className="py-20 bg-slate-950 text-white relative overflow-hidden border-y border-slate-800">
+        {/* Ambient atmospheric glows */}
+        <div className="absolute -top-32 -left-32 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-emerald-600/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[350px] bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+
+          {/* Section Header */}
+          <div className="text-center max-w-3xl mx-auto mb-10">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 via-rose-500/20 to-indigo-500/20 border border-amber-500/30 text-amber-300 text-xs font-bold uppercase tracking-wider mb-4 shadow-sm">
+              <Flame className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+              <span>India's 1st Cafe Breakeven Video Walkthrough</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+            </div>
+
+            <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight">
+              "Aaj Itna Kamana Padega" <br className="hidden sm:inline" />
+              <span className="bg-gradient-to-r from-amber-400 via-emerald-400 to-teal-300 bg-clip-text text-transparent">
+                Daily Target Kaise Kaam Karta Hai?
+              </span>
+            </h2>
+
+            <p className="mt-4 text-xs sm:text-base text-slate-300 max-w-2xl mx-auto leading-relaxed">
+              Dukan kholte hi screen batayegi ki aaj kitna kamana hai taaki mahine ke aakhri hafte me <span className="text-amber-300 font-bold">Rent, Light Bill aur Chef Salary</span> ka tension zero rahe. Dekhein 4 steps ka live video tour:
+            </p>
+
+            {/* Interactive Chapter Quick Pills */}
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+              {videoScenes.map((scene, idx) => (
+                <button
+                  key={scene.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveVideoScene(idx);
+                    setVideoProgress(0);
+                    setIsPlayingVideo(true);
+                  }}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    activeVideoScene === idx
+                      ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-400/20 scale-105'
+                      : 'bg-slate-900 border border-slate-700/80 text-slate-300 hover:border-slate-500 hover:text-white'
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${activeVideoScene === idx ? 'bg-slate-950' : 'bg-slate-500'}`} />
+                  {idx + 1}. {idx === 0 ? '5 Tarikh Ka Bill' : idx === 1 ? 'Smart Formula' : idx === 2 ? 'Rush Hour Meter' : 'Profit Locked'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 📺 CINEMATIC VIDEO PLAYER CONTAINER */}
+          <div className="max-w-5xl mx-auto bg-slate-900/90 border border-slate-700/80 rounded-3xl shadow-2xl backdrop-blur-xl overflow-hidden relative">
+
+            {/* Top Player Status Bar */}
+            <div className="px-4 py-3 bg-slate-950/80 border-b border-slate-800/80 flex items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded-full bg-rose-500/80" />
+                  <div className="w-3 h-3 rounded-full bg-amber-500/80" />
+                  <div className="w-3 h-3 rounded-full bg-emerald-500/80" />
+                </div>
+                <span className="hidden sm:inline text-slate-400 font-mono text-[11px] ml-2">
+                  CafeBreakeven_Algorithm_Tour.mp4
+                </span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border uppercase tracking-wider ${videoScenes[activeVideoScene].badgeColor}`}>
+                  {videoScenes[activeVideoScene].badge}
+                </span>
+
+                {/* Simulated Audio Equalizer Button */}
+                <button
+                  type="button"
+                  onClick={() => setIsAudioMuted(!isAudioMuted)}
+                  title={isAudioMuted ? 'Unmute Audio Commentary' : 'Mute Audio Commentary'}
+                  className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
+                >
+                  {isAudioMuted ? (
+                    <VolumeX className="w-3.5 h-3.5 text-slate-400" />
+                  ) : (
+                    <>
+                      <Volume2 className="w-3.5 h-3.5 text-emerald-400" />
+                      <div className="flex items-end gap-0.5 h-3">
+                        <span className="w-0.5 h-1.5 bg-emerald-400 rounded-full animate-bounce" />
+                        <span className="w-0.5 h-3 bg-emerald-400 rounded-full animate-bounce delay-75" />
+                        <span className="w-0.5 h-2 bg-emerald-400 rounded-full animate-bounce delay-150" />
+                      </div>
+                    </>
+                  )}
+                  <span className="text-[10px] hidden sm:inline">{isAudioMuted ? 'Muted' : 'Audio On'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Main Player Display Area (16:9 Cinema Frame) */}
+            <div className="relative aspect-video w-full bg-slate-950 overflow-hidden flex items-center justify-center">
+
+              {/* View 1: When Video is PAUSED (Stunning Poster with Big Play Button) */}
+              {!isPlayingVideo && (
+                <div className="relative w-full h-full group cursor-pointer" onClick={() => setIsPlayingVideo(true)}>
+                  <img
+                    src="/daily_target_video_thumb.jpg"
+                    alt="Daily Target Kaise Kaam Karta Hai Video Tour"
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-102"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
+
+                  {/* Center Floating Play Button */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-tr from-amber-500 via-rose-500 to-indigo-500 p-1 shadow-2xl shadow-amber-500/40 transform transition-all group-hover:scale-110 active:scale-95 animate-pulse">
+                      <div className="w-full h-full bg-slate-950/90 rounded-full flex items-center justify-center">
+                        <Play className="w-8 h-8 sm:w-10 sm:h-10 text-amber-400 fill-amber-400 ml-1" />
+                      </div>
+                    </div>
+                    <div className="text-center px-4">
+                      <p className="text-sm sm:text-lg font-black text-white drop-shadow-md">
+                        Dekhein Video Demo: Daily Target Engine
+                      </p>
+                      <p className="text-xs text-amber-300 font-medium">
+                        Click karein aur dekhein kaise month-end loss 0% hota hai (2:40 Min)
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Corner Badges */}
+                  <div className="absolute top-4 left-4 bg-slate-900/90 border border-slate-700/80 backdrop-blur-md px-3 py-1.5 rounded-xl flex items-center gap-2">
+                    <Target className="w-4 h-4 text-emerald-400" />
+                    <span className="text-xs font-bold text-slate-200">Daily Target: ₹4,200</span>
+                  </div>
+
+                  <div className="absolute bottom-4 left-4 sm:bottom-6 sm:left-6 max-w-sm hidden sm:block bg-slate-900/90 border border-slate-700/80 backdrop-blur-md p-3 rounded-2xl">
+                    <p className="text-[11px] text-slate-400 font-medium">Auto Breakeven Calculation:</p>
+                    <p className="text-xs text-emerald-400 font-bold mt-0.5">Rent + Light Bill ÷ 25 Din + Food Cost = Guaranteed Profit</p>
+                  </div>
+
+                  <div className="absolute bottom-4 right-4 bg-emerald-500 text-slate-950 px-3 py-1 rounded-full text-xs font-black shadow-lg">
+                    100% Loss-Free
+                  </div>
+                </div>
+              )}
+
+              {/* View 2: When Video IS PLAYING (Interactive Animated Scene Simulation) */}
+              {isPlayingVideo && (
+                <div className="w-full h-full relative p-4 sm:p-8 flex flex-col justify-between bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+
+                  {/* Scene Title Banner */}
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                        <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider">
+                          Scene {activeVideoScene + 1} of 4: {videoScenes[activeVideoScene].badge}
+                        </span>
+                      </div>
+                      <h3 className="text-lg sm:text-2xl font-black text-white mt-1">
+                        {videoScenes[activeVideoScene].title}
+                      </h3>
+                      <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-2xl">
+                        {videoScenes[activeVideoScene].description}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsPlayingVideo(false)}
+                      className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer shrink-0"
+                      title="Pause Video"
+                    >
+                      <Pause className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {/* Scene Specific Live Visuals */}
+                  <div className="my-auto py-2">
+                    {/* SCENE 0: Bill Entry Problem */}
+                    {activeVideoScene === 0 && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl mx-auto animate-fadeIn">
+                        <div className="bg-slate-900/90 border border-rose-500/30 rounded-2xl p-4 shadow-xl">
+                          <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
+                            <span className="text-xs font-bold text-rose-400 flex items-center gap-1.5">
+                              <Receipt className="w-3.5 h-3.5" /> 5th of Month: Fixed Overheads
+                            </span>
+                            <span className="text-[10px] bg-rose-500/20 text-rose-300 px-2 py-0.5 rounded-full font-mono">
+                              EXPENSE LOGGED
+                            </span>
+                          </div>
+                          <div className="space-y-2 text-xs">
+                            <div className="flex justify-between py-1 border-b border-slate-800/60">
+                              <span className="text-slate-300">Shop Rent (Dukan Kiraya):</span>
+                              <span className="font-bold text-white font-mono">₹20,000</span>
+                            </div>
+                            <div className="flex justify-between py-1 border-b border-slate-800/60">
+                              <span className="text-slate-300">Electricity & Light Bill:</span>
+                              <span className="font-bold text-white font-mono">₹5,000</span>
+                            </div>
+                            <div className="flex justify-between pt-1 text-sm font-black text-rose-300">
+                              <span>Total Monthly Burden:</span>
+                              <span className="font-mono">₹25,000</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-slate-900/90 border border-slate-700 rounded-2xl p-4 flex flex-col justify-center">
+                          <p className="text-xs font-bold text-amber-400 mb-2">⚠️ Purana vs Naya Tarika:</p>
+                          <p className="text-[11px] text-slate-300 leading-relaxed mb-3">
+                            <span className="text-rose-400 font-bold">Purana Software:</span> ₹25,000 ko bas kharche me daal deta tha. Month-end par owner rota tha ki jeb me paise hi nahi bache!
+                          </p>
+                          <div className="p-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold flex items-center gap-2">
+                            <Sparkles className="w-4 h-4 text-indigo-400 shrink-0" />
+                            <span>Hamara Engine ise turant next 25 dino me divide kar deta hai!</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* SCENE 1: Target Breakdown Formula */}
+                    {activeVideoScene === 1 && (
+                      <div className="max-w-3xl mx-auto animate-fadeIn">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4">
+                          <div className="bg-slate-900/90 border border-slate-800 p-3 rounded-2xl text-center">
+                            <span className="text-[10px] text-slate-400 uppercase font-bold">Rent Share</span>
+                            <p className="text-lg font-black text-amber-400 font-mono mt-0.5">₹1,000</p>
+                            <span className="text-[9px] text-slate-500">₹25k ÷ 25 Din</span>
+                          </div>
+                          <div className="bg-slate-900/90 border border-slate-800 p-3 rounded-2xl text-center">
+                            <span className="text-[10px] text-slate-400 uppercase font-bold">Food Cost (35%)</span>
+                            <p className="text-lg font-black text-rose-400 font-mono mt-0.5">₹1,470</p>
+                            <span className="text-[9px] text-slate-500">Raw Milk, Paneer</span>
+                          </div>
+                          <div className="bg-slate-900/90 border border-slate-800 p-3 rounded-2xl text-center">
+                            <span className="text-[10px] text-slate-400 uppercase font-bold">Packaging & Box</span>
+                            <p className="text-lg font-black text-sky-400 font-mono mt-0.5">₹350</p>
+                            <span className="text-[9px] text-slate-500">₹7/order Auto-cut</span>
+                          </div>
+                          <div className="bg-slate-900/90 border border-emerald-500/30 bg-emerald-500/5 p-3 rounded-2xl text-center">
+                            <span className="text-[10px] text-emerald-300 uppercase font-bold">Target Profit</span>
+                            <p className="text-lg font-black text-emerald-400 font-mono mt-0.5">₹1,380</p>
+                            <span className="text-[9px] text-emerald-500/80">Pocket Guaranteed</span>
+                          </div>
+                        </div>
+
+                        <div className="bg-gradient-to-r from-amber-500/20 via-emerald-500/20 to-teal-500/20 border border-amber-400/40 rounded-2xl p-3.5 text-center flex items-center justify-between px-6">
+                          <span className="text-xs sm:text-sm font-bold text-slate-200">
+                            Subah Dukan Kholte Hi Screen Par Goal:
+                          </span>
+                          <span className="text-base sm:text-xl font-black text-amber-300 font-mono flex items-center gap-1.5">
+                            <Target className="w-5 h-5 text-amber-400" />
+                            Target: ₹4,200 / Day
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* SCENE 2: Live Rush Hour Meter */}
+                    {activeVideoScene === 2 && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl mx-auto animate-fadeIn items-center">
+                        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 text-center">
+                          <span className="text-[11px] uppercase font-bold text-slate-400">Live Rush Hour Dial</span>
+                          <div className="my-3 relative w-32 h-32 mx-auto flex items-center justify-center">
+                            {/* Circular Dial SVG */}
+                            <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                              <path
+                                className="text-slate-800"
+                                strokeWidth="3.5"
+                                stroke="currentColor"
+                                fill="none"
+                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                              />
+                              <path
+                                className="text-amber-400 transition-all duration-500"
+                                strokeDasharray="75, 100"
+                                strokeWidth="3.5"
+                                strokeLinecap="round"
+                                stroke="currentColor"
+                                fill="none"
+                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                              />
+                            </svg>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center">
+                              <span className="text-xl font-black text-white font-mono">75%</span>
+                              <span className="text-[9px] text-amber-300 font-bold">₹3,150 Done</span>
+                            </div>
+                          </div>
+                          <span className="text-xs text-amber-400 font-semibold">
+                            Bas ₹1,050 Baaki — Green Hone Me!
+                          </span>
+                        </div>
+
+                        <div className="space-y-2 text-xs">
+                          <div className="bg-slate-900/90 border border-slate-800 p-2.5 rounded-xl flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                              <span className="text-slate-300 font-medium">Table 4: Cold Coffee + Fries</span>
+                            </div>
+                            <span className="font-bold text-white font-mono">+₹380</span>
+                          </div>
+                          <div className="bg-slate-900/90 border border-slate-800 p-2.5 rounded-xl flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-amber-400" />
+                              <span className="text-slate-300 font-medium">Zomato: Veg Pizza + Box (₹7)</span>
+                            </div>
+                            <span className="font-bold text-amber-300 font-mono">+₹260</span>
+                          </div>
+                          <div className="bg-slate-900/90 border border-slate-800 p-2.5 rounded-xl flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-indigo-400" />
+                              <span className="text-slate-300 font-medium">Swiggy: Burger Combo Parcel</span>
+                            </div>
+                            <span className="font-bold text-indigo-300 font-mono">+₹410</span>
+                          </div>
+                          <p className="text-[10px] text-slate-400 italic text-center pt-1">
+                            Staff ko dial dikhta hai toh wo bina kahe upselling karte hain!
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* SCENE 3: Goal Crushed & Profit Locked */}
+                    {activeVideoScene === 3 && (
+                      <div className="max-w-2xl mx-auto bg-slate-900/90 border border-emerald-500/40 rounded-2xl p-5 shadow-2xl animate-fadeIn text-center">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold mb-3 border border-emerald-500/30">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                          <span>TARGET CRUSHED: 128% ACHIEVED!</span>
+                        </div>
+
+                        <h4 className="text-2xl sm:text-3xl font-black text-white">
+                          Aaj Ki Total Sale: <span className="text-emerald-400 font-mono">₹5,400</span>
+                        </h4>
+
+                        <div className="grid grid-cols-3 gap-2 my-4 text-xs">
+                          <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                            <span className="text-slate-400 text-[10px] block">Rent & Light Safe</span>
+                            <span className="text-amber-400 font-bold font-mono">₹1,200</span>
+                          </div>
+                          <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                            <span className="text-slate-400 text-[10px] block">Raw Material Paid</span>
+                            <span className="text-rose-400 font-bold font-mono">₹1,650</span>
+                          </div>
+                          <div className="bg-emerald-500/20 p-2.5 rounded-xl border border-emerald-500/40">
+                            <span className="text-emerald-300 text-[10px] font-bold block">In-Hand Cash Profit</span>
+                            <span className="text-emerald-400 font-black font-mono text-sm">+₹2,550</span>
+                          </div>
+                        </div>
+
+                        <p className="text-xs text-slate-300 italic">
+                          "Har din ka rent pehle se alag ho chuka hai. 30 tarikh ko 1 rupaye ka bhi udhar ya tension nahi!"
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Scene Navigation Buttons inside simulation */}
+                  <div className="flex items-center justify-between text-xs pt-3 border-t border-slate-800/80">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveVideoScene(s => (s === 0 ? 3 : s - 1));
+                        setVideoProgress(0);
+                      }}
+                      className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold cursor-pointer transition-colors"
+                    >
+                      ← Previous Step
+                    </button>
+
+                    <span className="text-[11px] text-slate-400 font-mono">
+                      Auto-playing Next in a few seconds...
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveVideoScene(s => (s + 1) % 4);
+                        setVideoProgress(0);
+                      }}
+                      className="px-3 py-1 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold cursor-pointer transition-colors"
+                    >
+                      Next Step →
+                    </button>
+                  </div>
+
+                </div>
+              )}
+
+            </div>
+
+            {/* Video Timeline & Controls Bar */}
+            <div className="px-4 py-3 bg-slate-950/90 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+
+              {/* Play/Pause & Progress Scrubber */}
+              <div className="flex items-center gap-3 flex-1">
+                <button
+                  type="button"
+                  onClick={() => setIsPlayingVideo(!isPlayingVideo)}
+                  className="w-8 h-8 rounded-full bg-amber-400 hover:bg-amber-300 text-slate-950 flex items-center justify-center transition-all cursor-pointer shrink-0 font-bold shadow-md shadow-amber-400/20"
+                >
+                  {isPlayingVideo ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveVideoScene(0);
+                    setVideoProgress(0);
+                    setIsPlayingVideo(true);
+                  }}
+                  title="Restart Video Tour"
+                  className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-all cursor-pointer shrink-0"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+
+                {/* Scrubber Bar */}
+                <div className="flex-1 bg-slate-800 h-2 rounded-full overflow-hidden relative cursor-pointer" onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const pct = Math.round(((e.clientX - rect.left) / rect.width) * 100);
+                  setVideoProgress(Math.min(100, Math.max(0, pct)));
+                }}>
+                  <div
+                    className="h-full bg-gradient-to-r from-amber-400 via-rose-400 to-emerald-400 transition-all duration-300"
+                    style={{ width: `${((activeVideoScene * 25) + (videoProgress * 0.25))}%` }}
+                  />
+                </div>
+
+                <span className="text-[11px] font-mono text-slate-400 shrink-0">
+                  Step {activeVideoScene + 1}/4
+                </span>
+              </div>
+
+              {/* Direct Chapter Selector */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+                {videoScenes.map((s, i) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveVideoScene(i);
+                      setVideoProgress(0);
+                      setIsPlayingVideo(true);
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer transition-colors shrink-0 ${
+                      activeVideoScene === i
+                        ? 'bg-amber-400 text-slate-950'
+                        : 'bg-slate-800/60 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Scene {i + 1}
+                  </button>
+                ))}
+              </div>
+
+            </div>
+
+          </div>
+
+          {/* 💡 3 HIGH-CONVERSION SALES PILLARS: Why Cafe Owners Buy Paid Plan */}
+          <div className="mt-16 max-w-5xl mx-auto">
+            <div className="text-center mb-8">
+              <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+                100% High-Conversion Value
+              </span>
+              <h3 className="text-xl sm:text-3xl font-black text-white mt-2">
+                Is Video Ko Dekhkar Cafe Owners Turant Plan Kyu Kharidte Hain?
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-400 mt-1">
+                Software ka monthly plan ₹999 hai, jabki ye akela feature har mahine ₹15,000+ ka loss bachata hai:
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+
+              {/* Pillar 1 */}
+              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 hover:border-amber-400/50 transition-all group">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-4 text-amber-400 group-hover:scale-110 transition-transform">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <h4 className="text-base font-bold text-white">30 Tarikh Ka Panic Khatam</h4>
+                <p className="text-xs text-slate-400 mt-2 leading-relaxed">
+                  Aam cafe owner aakhri hafte me karza leta hai. Hamara system 1st se 30th tak har din thoda rent reserve karta hai, jisse mahina khatam hone par gulla hamesha bhara rehta hai.
+                </p>
+                <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-[11px] text-amber-300 font-semibold">
+                  <span>Mental Relief:</span>
+                  <span className="font-mono">Zero Surprise Loans</span>
+                </div>
+              </div>
+
+              {/* Pillar 2 */}
+              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 hover:border-emerald-400/50 transition-all group">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-4 text-emerald-400 group-hover:scale-110 transition-transform">
+                  <TrendingUp className="w-5 h-5" />
+                </div>
+                <h4 className="text-base font-bold text-white">Staff Gamification: Upselling Boost</h4>
+                <p className="text-xs text-slate-400 mt-2 leading-relaxed">
+                  Counter staff ko bolna nahi padta. Screen par red dial dekhkar counter boy khud customer ko brownie aur extra cheese suggest karta hai taaki dial GREEN ho sake!
+                </p>
+                <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-[11px] text-emerald-300 font-semibold">
+                  <span>Upsell Conversion:</span>
+                  <span className="font-mono">+28% Daily AOV</span>
+                </div>
+              </div>
+
+              {/* Pillar 3 */}
+              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 hover:border-indigo-400/50 transition-all group">
+                <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-4 text-indigo-400 group-hover:scale-110 transition-transform">
+                  <Boxes className="w-5 h-5" />
+                </div>
+                <h4 className="text-base font-bold text-white">Zomato / Swiggy Box Leakage Stop</h4>
+                <p className="text-xs text-slate-400 mt-2 leading-relaxed">
+                  Online order me har parcel box (₹7) aur foil paper recipe cost me auto-deduct hota hai. Pure saal me ₹25,000 se zyada packaging leakage pakad me aati hai.
+                </p>
+                <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-[11px] text-indigo-300 font-semibold">
+                  <span>Annual Saving:</span>
+                  <span className="font-mono">₹25,000+ Saved</span>
+                </div>
+              </div>
+
+            </div>
+
+            {/* High-Impact CTA Banner */}
+            <div className="mt-10 bg-gradient-to-r from-amber-500/20 via-emerald-500/20 to-teal-500/20 border border-amber-400/40 rounded-3xl p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-2xl">
+              <div>
+                <span className="text-xs font-bold text-amber-300 uppercase tracking-wider">
+                  🔥 Limited Founder Offer
+                </span>
+                <h4 className="text-xl sm:text-2xl font-black text-white mt-1">
+                  Apne Cafe Ko Aaj Hi Daily Breakeven Engine Par Layein!
+                </h4>
+                <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-xl">
+                  14-din ka free trial leiye. Agar pehle hafte me dukan ka hisab clear na lage, toh 1 rupaya bhi mat dijiye.
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center gap-3 shrink-0 w-full sm:w-auto">
+                <a
+                  href="#pricing"
+                  className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 to-emerald-400 text-slate-950 font-black text-xs sm:text-sm shadow-xl shadow-amber-400/20 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span>Plan Activate Karein</span>
+                  <ArrowRight className="w-4 h-4" />
+                </a>
+
+                <button
+                  type="button"
+                  onClick={onOpenSignup}
+                  className="w-full sm:w-auto px-5 py-3.5 rounded-2xl bg-slate-900 border border-slate-700 text-white font-bold text-xs sm:text-sm hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span>Free Trial Shuru Karein</span>
+                </button>
+              </div>
+            </div>
+
           </div>
 
         </div>
