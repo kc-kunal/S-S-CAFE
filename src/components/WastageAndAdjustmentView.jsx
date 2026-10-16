@@ -49,7 +49,7 @@ export default function WastageAndAdjustmentView({
       ingredientId: item.id,
       ingredientName: item.materialName,
       quantity: Number(wQty),
-      unit: item.consumptionUnit || item.unit,
+      unit: item.unit || item.consumptionUnit || 'Unit',
       reason: wReason,
       costValue: Math.round(Number(wQty) * (item.unitCost || 0) * 100) / 100,
       user: wUser.trim() || 'Kitchen Manager',
@@ -132,7 +132,7 @@ export default function WastageAndAdjustmentView({
                 >
                   {inventoryMaster.map(item => (
                     <option key={item.id} value={item.id}>
-                      {item.materialName} (Stock: {item.currentStock} {item.consumptionUnit})
+                      {item.materialName} (Stock: {item.currentStock} {item.unit || item.consumptionUnit || 'Units'})
                     </option>
                   ))}
                 </select>

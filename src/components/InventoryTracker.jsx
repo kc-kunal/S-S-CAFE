@@ -4,6 +4,68 @@ import { Package, AlertTriangle, CheckCircle2, XCircle, Plus, Edit2, Trash2, Sea
 const CATEGORIES = ['Dairy', 'Beans & Teas', 'Produce', 'Bakery', 'Packaging', 'Groceries', 'Beverages', 'Spices & Sauces', 'Frozen'];
 const UNITS = ['Kg', 'Gram', 'Liters', 'ml', 'Piece', 'Slice', 'Portion', 'Packets', 'Bags', 'Boxes', 'Packs', 'Units'];
 
+// Smart rate formatter: shows both bulk standard rate (Kg/L) and base unit rate (gm/ml) so owner never gets confused
+export const formatStockRate = (item) => {
+  const cost = Number(item?.unitCost) || 0;
+  const unit = (item?.unit || '').trim().toLowerCase();
+
+  if (unit === 'gram' || unit === 'gm' || unit === 'g') {
+    const perKg = cost * 1000;
+    const formattedKg = perKg >= 1 ? Math.round(perKg).toLocaleString() : perKg.toFixed(1);
+    return {
+      primary: `₹${formattedKg}/Kg`,
+      secondary: `(₹${cost >= 0.01 ? cost.toFixed(2) : cost}/gm)`,
+      factor: 1000,
+      bulkUnit: 'Kg'
+    };
+  }
+
+  if (unit === 'ml' || unit === 'milliliter') {
+    const perLiter = cost * 1000;
+    const formattedLiter = perLiter >= 1 ? Math.round(perLiter).toLocaleString() : perLiter.toFixed(1);
+    return {
+      primary: `₹${formattedLiter}/L`,
+      secondary: `(₹${cost >= 0.01 ? cost.toFixed(2) : cost}/ml)`,
+      factor: 1000,
+      bulkUnit: 'Liter'
+    };
+  }
+
+  return {
+    primary: `₹${cost.toLocaleString()}/${item?.unit || 'unit'}`,
+    secondary: null,
+    factor: 1,
+    bulkUnit: item?.unit || 'unit'
+  };
+};
+
+// Smart quantity formatter: displays both base count and bulk measure (e.g. 3,000 gm (3.0 Kg))
+export const formatStockQuantity = (item) => {
+  const stock = Number(item?.currentStock) || 0;
+  const unit = (item?.unit || '').trim().toLowerCase();
+
+  if ((unit === 'gram' || unit === 'gm' || unit === 'g') && stock >= 1000) {
+    const inKg = (stock / 1000).toFixed(stock % 1000 === 0 ? 0 : 2);
+    return {
+      primary: `${stock.toLocaleString()} gm`,
+      secondary: `(${inKg} Kg)`
+    };
+  }
+
+  if ((unit === 'ml' || unit === 'milliliter') && stock >= 1000) {
+    const inL = (stock / 1000).toFixed(stock % 1000 === 0 ? 0 : 2);
+    return {
+      primary: `${stock.toLocaleString()} ml`,
+      secondary: `(${inL} L)`
+    };
+  }
+
+  return {
+    primary: `${stock.toLocaleString()} ${item?.unit || ''}`,
+    secondary: null
+  };
+};
+
 export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteItem, onAdjustStock, onNavigateToProcurement }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
@@ -125,10 +187,10 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
         </button>
 
         {/* Total Stock Valuation */}
-        <div className="bg-white rounded-2xl p-3 sm:p-3.5 border border-stone-200 shadow-xs">
+        <div className="bg-white rounded-2xl p-3 sm:p-3.5 border border-stone-200 shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-stone-500">
-              Stock Valuation
+              Stock Valuation (Godam Ka Maal)
             </span>
             <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
               <Layers className="w-4 h-4" />
@@ -136,8 +198,11 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
           </div>
           <div className="mt-1 flex items-baseline gap-1">
             <h3 className="text-xl sm:text-2xl font-black text-amber-900">₹{Math.round(totalValuation).toLocaleString()}</h3>
-            <span className="text-[10px] font-bold text-stone-400">est.</span>
+            <span className="text-[10px] font-bold text-stone-400">asset</span>
           </div>
+          <p className="text-[9px] text-stone-400 font-medium mt-0.5 leading-tight">
+            Dukan / Fridge me pade raw material ki khareed keemat (Stock × Rate)
+          </p>
         </div>
 
         {/* Low Stock Alerts */}
@@ -328,8 +393,8 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
                     <th className="py-2.5 px-3">Category</th>
                     <th className="py-2.5 px-3 text-center">Current Stock</th>
                     <th className="py-2.5 px-3 text-center">Alert Level</th>
-                    <th className="py-2.5 px-3 text-right">Unit Cost</th>
-                    <th className="py-2.5 px-3 text-right">Est. Value</th>
+                    <th className="py-2.5 px-3 text-right">Khareed Rate</th>
+                    <th className="py-2.5 px-3 text-right">Stock Value (Godam)</th>
                     <th className="py-2.5 px-3 text-center">Status</th>
                     <th className="py-2.5 px-3 text-center">Quick Adjust</th>
                     <th className="py-2.5 px-3 text-center">Actions</th>
@@ -340,6 +405,8 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
                     const stockVal = item.currentStock * (item.unitCost || 0);
                     const isOut = item.currentStock <= 0;
                     const isLow = item.currentStock > 0 && item.currentStock <= item.reorderLevel;
+                    const rateMeta = formatStockRate(item);
+                    const qtyMeta = formatStockQuantity(item);
 
                     return (
                       <tr key={item.id} className="hover:bg-amber-50/40 transition-colors">
@@ -358,27 +425,49 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
                         
                         {/* Current Stock */}
                         <td className="py-2.5 px-3 text-center">
-                          <span className={`font-black text-sm ${
-                            isOut ? 'text-rose-600' : isLow ? 'text-amber-700' : 'text-stone-900'
-                          }`}>
-                            {item.currentStock}
-                          </span>
-                          <span className="text-[11px] font-semibold text-stone-500 ml-1">{item.unit}</span>
+                          <div className="flex flex-col items-center">
+                            <span className={`font-black text-sm ${
+                              isOut ? 'text-rose-600' : isLow ? 'text-amber-700' : 'text-stone-900'
+                            }`}>
+                              {qtyMeta.primary}
+                            </span>
+                            {qtyMeta.secondary && (
+                              <span className="text-[10px] font-bold text-stone-500 bg-stone-100 px-1.5 py-0.2 rounded-md mt-0.5">
+                                {qtyMeta.secondary}
+                              </span>
+                            )}
+                          </div>
                         </td>
 
                         {/* Reorder Threshold */}
-                        <td className="py-2.5 px-3 text-center text-stone-500 font-semibold">
+                        <td className="py-2.5 px-3 text-center text-stone-500 font-semibold text-xs">
                           {item.reorderLevel} {item.unit}
                         </td>
 
-                        {/* Unit Cost */}
-                        <td className="py-2.5 px-3 text-right font-medium text-stone-600">
-                          ₹{Number(item.unitCost || 0).toFixed(1)}
+                        {/* Khareed Rate (Unit Cost) */}
+                        <td className="py-2.5 px-3 text-right">
+                          <div className="flex flex-col items-end">
+                            <span className="font-extrabold text-xs text-stone-900">
+                              {rateMeta.primary}
+                            </span>
+                            {rateMeta.secondary && (
+                              <span className="text-[10px] font-semibold text-stone-400">
+                                {rateMeta.secondary}
+                              </span>
+                            )}
+                          </div>
                         </td>
 
-                        {/* Total Value */}
-                        <td className="py-2.5 px-3 text-right font-black text-amber-900">
-                          ₹{Math.round(stockVal).toLocaleString()}
+                        {/* Total Stock Value */}
+                        <td className="py-2.5 px-3 text-right">
+                          <div className="flex flex-col items-end">
+                            <span className="font-black text-xs text-amber-900">
+                              ₹{Math.round(stockVal).toLocaleString()}
+                            </span>
+                            <span className="text-[9px] text-stone-400 font-medium">
+                              (Stock × Rate)
+                            </span>
+                          </div>
                         </td>
 
                         {/* Stock Status Badge */}
@@ -466,6 +555,8 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
                 const stockVal = item.currentStock * (item.unitCost || 0);
                 const isOut = item.currentStock <= 0;
                 const isLow = item.currentStock > 0 && item.currentStock <= item.reorderLevel;
+                const rateMeta = formatStockRate(item);
+                const qtyMeta = formatStockQuantity(item);
 
                 return (
                   <div key={item.id} className="p-3 bg-stone-50/70 border border-stone-200 rounded-xl space-y-2 shadow-2xs">
@@ -502,18 +593,25 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
                     {/* Stock Details 3-Box Strip */}
                     <div className="grid grid-cols-3 gap-1.5 bg-white p-2 rounded-xl border border-stone-200/80 text-center">
                       <div>
-                        <span className="text-[9px] text-stone-400 font-extrabold block uppercase">Current</span>
-                        <span className={`text-xs font-black ${isOut ? 'text-rose-600' : isLow ? 'text-amber-700' : 'text-stone-900'}`}>
-                          {item.currentStock} {item.unit}
+                        <span className="text-[9px] text-stone-400 font-extrabold block uppercase">Current Stock</span>
+                        <span className={`text-xs font-black block ${isOut ? 'text-rose-600' : isLow ? 'text-amber-700' : 'text-stone-900'}`}>
+                          {qtyMeta.primary}
                         </span>
+                        {qtyMeta.secondary && (
+                          <span className="text-[9px] font-bold text-stone-500 block">{qtyMeta.secondary}</span>
+                        )}
                       </div>
                       <div>
-                        <span className="text-[9px] text-stone-400 font-extrabold block uppercase">Unit Cost</span>
-                        <span className="text-xs font-bold text-stone-700">₹{Number(item.unitCost || 0).toFixed(1)}</span>
+                        <span className="text-[9px] text-stone-400 font-extrabold block uppercase">Khareed Rate</span>
+                        <span className="text-xs font-bold text-stone-800 block">{rateMeta.primary}</span>
+                        {rateMeta.secondary && (
+                          <span className="text-[9px] text-stone-400 block">{rateMeta.secondary}</span>
+                        )}
                       </div>
                       <div>
-                        <span className="text-[9px] text-stone-400 font-extrabold block uppercase">Value</span>
-                        <span className="text-xs font-black text-amber-900">₹{Math.round(stockVal).toLocaleString()}</span>
+                        <span className="text-[9px] text-stone-400 font-extrabold block uppercase">Stock Value</span>
+                        <span className="text-xs font-black text-amber-900 block">₹{Math.round(stockVal).toLocaleString()}</span>
+                        <span className="text-[9px] text-stone-400 block">In Godown</span>
                       </div>
                     </div>
 
@@ -653,16 +751,40 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-extrabold text-stone-700 uppercase mb-1">Unit Cost (₹)</label>
+                  <label className="block text-[11px] font-extrabold text-stone-700 uppercase mb-1">
+                    Khareed Rate (₹ per {formData.unit})
+                  </label>
                   <input
                     type="number"
+                    step="any"
                     value={formData.unitCost}
                     onChange={(e) => setFormData({ ...formData, unitCost: e.target.value })}
-                    placeholder="50"
+                    placeholder={formData.unit === 'Gram' ? '0.45' : formData.unit === 'ml' ? '0.06' : '15'}
                     className="w-full px-3 py-2 border border-stone-300 rounded-xl text-xs font-semibold bg-stone-50 text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                   />
+                  {Number(formData.unitCost) > 0 && (
+                    <div className="mt-1 text-[10px] text-stone-500">
+                      {(formData.unit === 'Gram' || formData.unit === 'gm') && (
+                        <span>Rate: <strong>₹{(Number(formData.unitCost) * 1000).toLocaleString()}/Kg</strong> (₹{formData.unitCost}/gm)</span>
+                      )}
+                      {(formData.unit === 'ml') && (
+                        <span>Rate: <strong>₹{(Number(formData.unitCost) * 1000).toLocaleString()}/Liter</strong> (₹{formData.unitCost}/ml)</span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
+
+              {/* Live Total Stock Asset Value Preview */}
+              {Number(formData.currentStock) > 0 && Number(formData.unitCost) > 0 && (
+                <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200/80 flex items-center justify-between text-xs">
+                  <span className="text-stone-600 font-medium">Kul Stock Asset Value:</span>
+                  <span className="font-extrabold text-amber-900">
+                    ₹{Math.round(Number(formData.currentStock) * Number(formData.unitCost)).toLocaleString()}
+                    <span className="text-[10px] font-normal text-stone-400 ml-1">({formData.currentStock} {formData.unit} × ₹{formData.unitCost})</span>
+                  </span>
+                </div>
+              )}
 
               <div className="flex justify-end gap-2 pt-2 border-t border-stone-100">
                 <button 

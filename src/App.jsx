@@ -751,12 +751,24 @@ export default function App() {
     }
   };
 
-  // 🗑️ Raw Material Spoilage / Wastage Handlers (Auto Stock Deduction)
+  // 🗑️ Raw Material Spoilage / Wastage Handlers (Auto Stock Deduction with Unit Conversion)
   const handleAddWastage = (entry) => {
-    // 1. Deduct raw material quantity from current stock in inventory
+    // 1. Deduct raw material quantity from current stock in inventory with smart unit conversion
+    let matchedItemName = entry.ingredientName || '';
+    let deductedQty = 0;
+    let invUnit = entry.unit || '';
+
     const updatedInv = inventoryItems.map(item => {
-      if (item.id === entry.ingredientId) {
-        const newStock = Math.max(0, Math.round((Number(item.currentStock) - Number(entry.quantity)) * 100) / 100);
+      const isMatch = item.id === entry.ingredientId ||
+        (entry.ingredientName && item.materialName.toLowerCase() === entry.ingredientName.toLowerCase());
+
+      if (isMatch) {
+        matchedItemName = item.materialName;
+        invUnit = item.unit;
+        // Convert wastage entry unit to the inventory base unit (e.g. Kg <-> gm, L <-> ml)
+        const convertedDeduct = convertQuantity(Number(entry.quantity) || 0, entry.unit, item.unit);
+        deductedQty = convertedDeduct;
+        const newStock = Math.max(0, Math.round((Number(item.currentStock) - convertedDeduct) * 100) / 100);
         return {
           ...item,
           currentStock: newStock,
@@ -770,16 +782,24 @@ export default function App() {
     // 2. Add to wastage records
     const updatedWastage = [entry, ...wastageLogs];
     updateWastage(updatedWastage);
-    showToast(`⚠️ Kharab Maal Logged: Deducted ${entry.quantity} ${entry.unit} from "${entry.ingredientName}". Loss: ₹${entry.costValue}`);
+
+    const conversionNote = (entry.unit && invUnit && entry.unit.toLowerCase() !== invUnit.toLowerCase())
+      ? ` (${deductedQty} ${invUnit} inventory stock)`
+      : '';
+    showToast(`⚠️ Kharab Maal Logged: Deducted ${entry.quantity} ${entry.unit}${conversionNote} from "${matchedItemName || entry.ingredientName}". Loss: ₹${entry.costValue}`);
   };
 
   const handleDeleteWastage = (id) => {
     const toDelete = wastageLogs.find(w => w.id === id);
     if (toDelete) {
-      // Revert raw material stock
+      // Revert raw material stock with smart unit conversion
       const updatedInv = inventoryItems.map(item => {
-        if (item.id === toDelete.ingredientId) {
-          const newStock = Math.round((Number(item.currentStock) + Number(toDelete.quantity)) * 100) / 100;
+        const isMatch = item.id === toDelete.ingredientId ||
+          (toDelete.ingredientName && item.materialName.toLowerCase() === toDelete.ingredientName.toLowerCase());
+
+        if (isMatch) {
+          const convertedRevert = convertQuantity(Number(toDelete.quantity) || 0, toDelete.unit, item.unit);
+          const newStock = Math.round((Number(item.currentStock) + convertedRevert) * 100) / 100;
           return {
             ...item,
             currentStock: newStock,
@@ -792,7 +812,7 @@ export default function App() {
     }
     const updatedWastage = wastageLogs.filter(w => w.id !== id);
     updateWastage(updatedWastage);
-    if (isFirebaseConfigured()) deleteSingleWastage(id);
+    if (isFirebaseConfigured() && typeof deleteSingleWastage === 'function') deleteSingleWastage(id);
     showToast('Wastage record deleted & raw material stock restored');
   };
 

@@ -25,6 +25,7 @@ import {
   FileText,
   Bike
 } from 'lucide-react';
+import { formatStockRate, formatStockQuantity } from './InventoryTracker';
 
 export const EXPENSE_CATEGORIES = [
   { id: 'Platform Commission', label: 'Platform Commission (Swiggy / Zomato)', icon: Bike, color: 'text-orange-700 bg-orange-50 border-orange-200' },
@@ -685,8 +686,13 @@ export default function ExpenseTracker({
                               {item.reason}
                             </span>
                           </td>
-                          <td className="py-3.5 px-4 text-right font-extrabold text-base text-rose-700">
-                            ₹{Number(item.costValue || 0).toLocaleString()}
+                          <td className="py-3.5 px-4 text-right">
+                            <span className="font-extrabold text-base text-rose-700 block">
+                              ₹{Number(item.costValue || 0).toLocaleString()}
+                            </span>
+                            <span className="text-[10px] text-stone-400 font-medium block">
+                              (-{item.quantity} {item.unit} stock)
+                            </span>
                           </td>
                           <td className="py-3.5 px-4 text-xs text-stone-600">{item.loggedBy || 'Staff'}</td>
                           <td className="py-3.5 px-4 text-xs text-stone-500 max-w-xs truncate">{item.remarks || '—'}</td>
@@ -909,17 +915,34 @@ export default function ExpenseTracker({
                   onChange={(e) => setWastageForm({ ...wastageForm, ingredientId: e.target.value })}
                   className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm font-semibold focus:outline-none"
                 >
-                  {inventoryItems.map(item => (
-                    <option key={item.id} value={item.id}>
-                      {item.materialName} ({item.currentStock} {item.unit} in stock - ₹{item.unitCost || 0}/{item.unit})
-                    </option>
-                  ))}
+                  {inventoryItems.map(item => {
+                    const rateM = formatStockRate(item);
+                    const qtyM = formatStockQuantity(item);
+                    return (
+                      <option key={item.id} value={item.id}>
+                        {item.materialName} ({qtyM.primary} stock • {rateM.primary})
+                      </option>
+                    );
+                  })}
                 </select>
-                {selectedWastageItem && (
-                  <p className="text-[11px] text-stone-500 mt-1">
-                    Current Available Stock: <strong className="text-stone-900">{selectedWastageItem.currentStock} {selectedWastageItem.unit}</strong> (Est. Cost: ₹{selectedWastageItem.unitCost || 0} per {selectedWastageItem.unit})
-                  </p>
-                )}
+                {selectedWastageItem && (() => {
+                  const rateM = formatStockRate(selectedWastageItem);
+                  const qtyM = formatStockQuantity(selectedWastageItem);
+                  return (
+                    <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-2.5 mt-2 flex items-center justify-between text-xs">
+                      <div>
+                        <span className="text-stone-500 font-medium">Available Stock: </span>
+                        <strong className="text-stone-900 font-extrabold">{qtyM.primary}</strong>
+                        {qtyM.secondary && <span className="text-stone-500 ml-1 font-bold">{qtyM.secondary}</span>}
+                      </div>
+                      <div className="text-right">
+                        <span className="text-stone-500 font-medium">Khareed Rate: </span>
+                        <strong className="text-amber-900 font-extrabold">{rateM.primary}</strong>
+                        {rateM.secondary && <span className="text-stone-500 ml-1 text-[11px]">{rateM.secondary}</span>}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Quantity & Reason */}
@@ -931,11 +954,11 @@ export default function ExpenseTracker({
                   <input
                     type="number"
                     required
-                    min="0.1"
+                    min="0.01"
                     step="any"
                     value={wastageForm.quantity}
                     onChange={(e) => setWastageForm({ ...wastageForm, quantity: e.target.value })}
-                    placeholder={`e.g. 5 ${selectedWastageItem?.unit || ''}`}
+                    placeholder={`e.g. 500 ${selectedWastageItem?.unit || ''}`}
                     className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm font-semibold focus:outline-none"
                   />
                 </div>
@@ -955,12 +978,26 @@ export default function ExpenseTracker({
               </div>
 
               {/* Live Cost Calculation Banner */}
-              {estimatedWastageCost > 0 && (
-                <div className="bg-rose-50 border border-rose-200 rounded-2xl p-3 flex items-center justify-between text-xs">
-                  <span className="font-bold text-rose-900">Estimated Financial Loss:</span>
-                  <span className="text-base font-extrabold text-rose-700">₹{estimatedWastageCost.toLocaleString()}</span>
-                </div>
-              )}
+              {estimatedWastageCost > 0 && selectedWastageItem && (() => {
+                const rateM = formatStockRate(selectedWastageItem);
+                return (
+                  <div className="bg-rose-50 border border-rose-200 rounded-2xl p-3 text-xs space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-rose-900 flex items-center gap-1.5">
+                        <AlertOctagon className="w-4 h-4 text-rose-600" />
+                        <span>Estimated Financial Loss (Nuksan):</span>
+                      </span>
+                      <span className="text-base font-extrabold text-rose-700">₹{estimatedWastageCost.toLocaleString()}</span>
+                    </div>
+                    <p className="text-[11px] text-rose-700 leading-relaxed">
+                      Hisaab: <strong>{wastageForm.quantity} {selectedWastageItem.unit}</strong> × <strong>₹{selectedWastageItem.unitCost}/{selectedWastageItem.unit}</strong> {rateM.secondary ? `(${rateM.primary})` : ''} = <strong>₹{estimatedWastageCost}</strong>.
+                      <span className="block text-stone-500 text-[10px] mt-0.5">
+                        Yeh nuksan P&amp;L me se katega aur inventory stock me se <strong>{wastageForm.quantity} {selectedWastageItem.unit}</strong> minus ho jayega.
+                      </span>
+                    </p>
+                  </div>
+                );
+              })()}
 
               {/* Date & Logged By */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
