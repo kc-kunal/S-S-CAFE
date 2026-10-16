@@ -1323,8 +1323,8 @@ export default function SalesTracker({
         {/* WORKSPACE: LEFT (TOUCH MENU) + RIGHT (LIVE ORDER PAD / CART) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-stone-200">
           
-          {/* LEFT COLUMN: TOUCH MENU (7 cols on lg, 8 on xl) */}
-          <div className="lg:col-span-7 xl:col-span-8 p-3 sm:p-3.5 space-y-2.5">
+          {/* LEFT COLUMN: TOUCH MENU (8 cols on lg/xl, 9 on 2xl) */}
+          <div className="lg:col-span-8 xl:col-span-8 2xl:col-span-9 p-2.5 sm:p-3 space-y-2.5">
             
             {/* Search & Category Pills */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
@@ -1376,7 +1376,7 @@ export default function SalesTracker({
             )}
 
             {/* Touch Grid of Menu Items */}
-            <div className="max-h-[460px] lg:max-h-[490px] overflow-y-auto pr-1">
+            <div className="max-h-[500px] lg:max-h-[550px] xl:max-h-[600px] overflow-y-auto pr-1">
               {Object.keys(groupedMenuItems).length === 0 ? (
                 <div className="py-8 text-center text-stone-400">
                   <ShoppingBag className="w-8 h-8 mx-auto mb-1.5 opacity-40" />
@@ -1393,7 +1393,7 @@ export default function SalesTracker({
                         </h4>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-2.5">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 2xl:grid-cols-6 gap-2">
                         {items.map((item) => {
                           const stockStatus = getRecipeStockStatus(item);
                           const currentCart = punchTab === 'counter' ? counterCart : onlineCart;
@@ -1402,103 +1402,139 @@ export default function SalesTracker({
                           return (
                             <div
                               key={item.id}
-                              className={`p-3 rounded-2xl border transition-all flex flex-col justify-between ${
+                              onClick={() => {
+                                if (!stockStatus.isOutOfStock) {
+                                  if (punchTab === 'counter') handleAddToCounterCart(item, 1);
+                                  else handleAddToOnlineCart(item, 1);
+                                }
+                              }}
+                              className={`p-2 sm:p-2.5 rounded-xl border transition-all flex flex-col justify-between cursor-pointer select-none group relative ${
                                 stockStatus.isOutOfStock
-                                  ? 'bg-rose-50/20 border-rose-200 opacity-60'
+                                  ? 'bg-rose-50/20 border-rose-200 opacity-60 cursor-not-allowed'
                                   : inCartQty > 0
                                   ? currentTheme.cardActive
-                                  : 'bg-white hover:bg-stone-50 border-stone-200 hover:border-amber-400 shadow-2xs'
+                                  : 'bg-white hover:bg-amber-50/40 border-stone-200 hover:border-amber-400 shadow-2xs hover:shadow-xs active:scale-[0.98]'
                               }`}
                             >
                               {/* Top: Name & Price */}
                               <div>
                                 <div className="flex items-start justify-between gap-1">
-                                  <h5 className="text-xs font-bold text-stone-900 line-clamp-1 leading-tight" title={item.name}>
+                                  <h5 className="text-[11px] sm:text-xs font-bold text-stone-900 line-clamp-1 leading-tight group-hover:text-amber-900" title={item.name}>
                                     {item.name}
                                   </h5>
-                                  <span className="text-xs font-black text-stone-900 shrink-0">
+                                  <span className="text-[11px] sm:text-xs font-black text-amber-800 shrink-0">
                                     ₹{item.sellingPrice}
                                   </span>
                                 </div>
 
                                 {/* Badges: Stock & In-Cart */}
-                                <div className="flex items-center justify-between gap-1 mt-1.5 text-[10px]">
+                                <div className="flex items-center justify-between gap-1 mt-1 text-[9px]">
                                   {stockStatus.isOutOfStock ? (
-                                    <span className="font-extrabold text-rose-700 bg-rose-100 px-1.5 py-0.5 rounded">
+                                    <span className="font-extrabold text-rose-700 bg-rose-100 px-1 py-0.2 rounded">
                                       Out of Stock
                                     </span>
                                   ) : (
-                                    <span className="font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                                    <span className="font-semibold text-emerald-800 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200 truncate max-w-[70px]">
                                       ✓ {stockStatus.maxPortions} left
                                     </span>
                                   )}
 
                                   {inCartQty > 0 && (
-                                    <span className={`font-black px-2 py-0.5 rounded-full text-white ${currentTheme.inCartBadge}`}>
+                                    <span className={`font-black px-1.5 py-0.2 rounded-full text-white shrink-0 ${currentTheme.inCartBadge}`}>
                                       {inCartQty} in Cart
                                     </span>
                                   )}
                                 </div>
                               </div>
 
-                              {/* Quick Add Buttons: [-1] [+Add] [+2] [+5] */}
-                              <div className="mt-2.5 pt-2 border-t border-stone-100 flex items-center gap-1">
-                                {inCartQty > 0 && (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      if (punchTab === 'counter') handleUpdateCounterCartQty(item.id, -1);
-                                      else handleUpdateOnlineCartQty(item.id, -1);
-                                    }}
-                                    className="px-2 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-black transition-all cursor-pointer active:scale-95"
-                                    title="Decrease Qty"
-                                  >
-                                    -1
-                                  </button>
+                              {/* Quick Add Buttons: [-1] [+Add/+1] [+5] */}
+                              <div 
+                                className="mt-1.5 pt-1.5 border-t border-stone-100 flex items-center gap-1"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {inCartQty > 0 ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (punchTab === 'counter') handleUpdateCounterCartQty(item.id, -1);
+                                        else handleUpdateOnlineCartQty(item.id, -1);
+                                      }}
+                                      className="w-6 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-[11px] font-black transition-all cursor-pointer active:scale-95 flex items-center justify-center shrink-0"
+                                      title="Decrease Qty"
+                                    >
+                                      -1
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (punchTab === 'counter') handleAddToCounterCart(item, 1);
+                                        else handleAddToOnlineCart(item, 1);
+                                      }}
+                                      disabled={stockStatus.isOutOfStock}
+                                      className={`flex-1 py-1 rounded-lg text-[11px] font-black transition-all flex items-center justify-center gap-0.5 cursor-pointer active:scale-95 ${
+                                        stockStatus.isOutOfStock
+                                          ? 'bg-stone-200 text-stone-400 cursor-not-allowed'
+                                          : `${currentTheme.addBtn}`
+                                      }`}
+                                      title="Add 1 more"
+                                    >
+                                      <Plus className="w-3 h-3 stroke-[3]" />
+                                      <span>+1</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (punchTab === 'counter') handleAddToCounterCart(item, 5);
+                                        else handleAddToOnlineCart(item, 5);
+                                      }}
+                                      disabled={stockStatus.isOutOfStock || stockStatus.maxPortions < (inCartQty + 5)}
+                                      className="px-1.5 py-1 bg-stone-100 hover:bg-amber-100 text-stone-800 border border-stone-200 rounded-lg text-[10px] font-bold cursor-pointer active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                                      title="Add 5"
+                                    >
+                                      +5
+                                    </button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (punchTab === 'counter') handleAddToCounterCart(item, 1);
+                                        else handleAddToOnlineCart(item, 1);
+                                      }}
+                                      disabled={stockStatus.isOutOfStock}
+                                      className={`flex-1 py-1 rounded-lg text-[11px] font-extrabold transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-95 ${
+                                        stockStatus.isOutOfStock
+                                          ? 'bg-stone-200 text-stone-400 cursor-not-allowed'
+                                          : `${currentTheme.addBtn}`
+                                      }`}
+                                    >
+                                      <Plus className="w-3 h-3 stroke-[3]" />
+                                      <span>+Add</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (punchTab === 'counter') handleAddToCounterCart(item, 5);
+                                        else handleAddToOnlineCart(item, 5);
+                                      }}
+                                      disabled={stockStatus.isOutOfStock || stockStatus.maxPortions < (inCartQty + 5)}
+                                      className="px-1.5 py-1 bg-stone-100 hover:bg-amber-100 text-stone-800 border border-stone-200 rounded-lg text-[10px] font-bold cursor-pointer active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                                      title="Quick Add 5"
+                                    >
+                                      +5
+                                    </button>
+                                  </>
                                 )}
-
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    if (punchTab === 'counter') handleAddToCounterCart(item, 1);
-                                    else handleAddToOnlineCart(item, 1);
-                                  }}
-                                  disabled={stockStatus.isOutOfStock}
-                                  className={`flex-1 py-1.5 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-95 ${
-                                    stockStatus.isOutOfStock
-                                      ? 'bg-stone-200 text-stone-400 cursor-not-allowed'
-                                      : `${currentTheme.addBtn} active:scale-95`
-                                  }`}
-                                >
-                                  <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                                  <span>+Add</span>
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    if (punchTab === 'counter') handleAddToCounterCart(item, 2);
-                                    else handleAddToOnlineCart(item, 2);
-                                  }}
-                                  disabled={stockStatus.isOutOfStock || stockStatus.maxPortions < (inCartQty + 2)}
-                                  className="px-2 py-1.5 bg-stone-100 hover:bg-amber-100 text-stone-800 border border-stone-200 rounded-xl text-xs font-bold cursor-pointer active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
-                                  title="Add 2"
-                                >
-                                  +2
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    if (punchTab === 'counter') handleAddToCounterCart(item, 5);
-                                    else handleAddToOnlineCart(item, 5);
-                                  }}
-                                  disabled={stockStatus.isOutOfStock || stockStatus.maxPortions < (inCartQty + 5)}
-                                  className="px-2 py-1.5 bg-stone-100 hover:bg-amber-100 text-stone-800 border border-stone-200 rounded-xl text-xs font-bold cursor-pointer active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
-                                  title="Add 5"
-                                >
-                                  +5
-                                </button>
                               </div>
                             </div>
                           );
@@ -1512,8 +1548,8 @@ export default function SalesTracker({
 
           </div>
 
-          {/* RIGHT COLUMN: LIVE ORDER PAD & CART (5 cols on lg, 4 on xl) */}
-          <div className="lg:col-span-5 xl:col-span-4 p-3 sm:p-3.5 bg-stone-50/70 flex flex-col justify-between">
+          {/* RIGHT COLUMN: LIVE ORDER PAD & CART (4 cols on lg/xl, 3 on 2xl) */}
+          <div className="lg:col-span-4 xl:col-span-4 2xl:col-span-3 p-3 sm:p-3.5 bg-stone-50/70 flex flex-col justify-between">
             
             {punchTab === 'counter' ? (
               /* ========================================================== */
