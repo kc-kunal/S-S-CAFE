@@ -109,7 +109,12 @@ export const INITIAL_INVENTORY_ITEMS = [
   { id: 'inv-12', materialName: 'Sandwich Bread', category: 'Bakery', currentStock: 80, unit: 'Slice', reorderLevel: 20, unitCost: 2, lastUpdated: getTodayDateString(0) },
   { id: 'inv-13', materialName: 'Butter', category: 'Dairy', currentStock: 1500, unit: 'Gram', reorderLevel: 250, unitCost: 0.50, lastUpdated: getTodayDateString(0) },
   { id: 'inv-14', materialName: 'Paneer (Cottage Cheese)', category: 'Dairy', currentStock: 2000, unit: 'Gram', reorderLevel: 400, unitCost: 0.38, lastUpdated: getTodayDateString(0) },
-  { id: 'inv-15', materialName: 'Cheese Slice', category: 'Dairy', currentStock: 50, unit: 'Piece', reorderLevel: 10, unitCost: 8, lastUpdated: getTodayDateString(0) }
+  { id: 'inv-15', materialName: 'Cheese Slice', category: 'Dairy', currentStock: 50, unit: 'Piece', reorderLevel: 10, unitCost: 8, lastUpdated: getTodayDateString(0) },
+  // 📦 Takeaway & Delivery Packaging Materials
+  { id: 'inv-16', materialName: 'Pizza Delivery Box (7 inch)', category: 'Packaging', currentStock: 80, unit: 'Piece', reorderLevel: 20, unitCost: 6, lastUpdated: getTodayDateString(0) },
+  { id: 'inv-17', materialName: 'Burger Packaging Box', category: 'Packaging', currentStock: 80, unit: 'Piece', reorderLevel: 20, unitCost: 3.5, lastUpdated: getTodayDateString(0) },
+  { id: 'inv-18', materialName: 'Cold Drink Cup with Lid (300ml)', category: 'Packaging', currentStock: 100, unit: 'Piece', reorderLevel: 25, unitCost: 4.5, lastUpdated: getTodayDateString(0) },
+  { id: 'inv-19', materialName: 'Delivery Kraft Paper Carry Bag', category: 'Packaging', currentStock: 120, unit: 'Piece', reorderLevel: 25, unitCost: 5, lastUpdated: getTodayDateString(0) }
 ];
 
 // Official S&S Cafe Menu Catalog with Built-in Recipes
@@ -1834,7 +1839,12 @@ export const KNOWN_MATERIAL_ALIASES = {
   'gulab jamun (canned/fresh)': ['gulab jamun', 'gulabjamun', 'jamun', 'gulab jamoon'],
   'crispy boondi (gram flour)': ['boondi', 'bundi', 'raita boondi', 'namkeen boondi'],
   'assorted fresh vegetables (peas, carrot, capsicum)': ['vegetables', 'mix veg', 'green peas', 'matar', 'gajar', 'beans', 'capsicum', 'shimla mirch', 'sabzi'],
-  'special biryani masala & saffron': ['biryani masala', 'dum masala', 'kesar', 'saffron', 'biriyani masala']
+  'special biryani masala & saffron': ['biryani masala', 'dum masala', 'kesar', 'saffron', 'biriyani masala'],
+  // Packaging Aliases
+  'pizza delivery box (7 inch)': ['pizza box', 'box pizza', 'pizza packaging', 'dabba', 'pizza dabba', '7 inch box', 'pizza pack'],
+  'burger packaging box': ['burger box', 'burger pack', 'burger packaging', 'burger dabba', 'burger pouch', 'burger wrapper'],
+  'cold drink cup with lid (300ml)': ['cup', 'glass', 'disposable cup', 'coffee cup', 'cold coffee cup', 'cup lid', 'straw', 'shake cup'],
+  'delivery kraft paper carry bag': ['paper bag', 'carry bag', 'parcel bag', 'delivery bag', 'thaili', 'kraft bag', 'bag', 'parcel pouch']
 };
 
 // Unit conversion helper (handles Kg <-> Gram, Liters <-> ml)

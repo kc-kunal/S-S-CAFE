@@ -960,13 +960,98 @@ export default function App() {
       }
     });
 
+    // 🛵 Automatic Delivery Packaging Deduction for Online / Parcel Orders (Swiggy / Zomato / Takeaway):
+    let packagingDeducted = [];
+    const isOnlineOrDelivery = salesList.some(s => {
+      const pm = (s.paymentMethod || '').toLowerCase();
+      return pm === 'swiggy' || pm === 'zomato' || Number(s.packagingCharge) > 0;
+    });
+
+    if (isOnlineOrDelivery) {
+      // 1. Deduct 1x Carry Bag for the whole delivery parcel
+      const bagIndex = currentInv.findIndex(i =>
+        i.category === 'Packaging' &&
+        (i.materialName.toLowerCase().includes('carry bag') ||
+         i.materialName.toLowerCase().includes('paper bag') ||
+         i.materialName.toLowerCase().includes('parcel bag'))
+      );
+      if (bagIndex !== -1 && currentInv[bagIndex].currentStock > 0) {
+        currentInv[bagIndex] = {
+          ...currentInv[bagIndex],
+          currentStock: Math.max(0, currentInv[bagIndex].currentStock - 1),
+          lastUpdated: new Date().toISOString().split('T')[0]
+        };
+        packagingDeducted.push(`1x ${currentInv[bagIndex].materialName}`);
+      }
+
+      // 2. Deduct item-specific packaging if the item recipe does not already include packaging
+      salesList.forEach(sale => {
+        const targetItem = menuItems.find(m => m.id === sale.itemId || m.name === sale.itemName);
+        const hasPackagingInRecipe = targetItem && Array.isArray(targetItem.recipe) &&
+          targetItem.recipe.some(r => {
+            const nameLower = (r.name || '').toLowerCase();
+            return nameLower.includes('box') || nameLower.includes('cup') || nameLower.includes('wrap');
+          });
+
+        if (!hasPackagingInRecipe) {
+          const itemLower = (sale.itemName || '').toLowerCase();
+          const catLower = ((sale.category || '') + ' ' + (targetItem?.category || '')).toLowerCase();
+          const qty = Number(sale.quantitySold) || 1;
+
+          // Pizza -> Pizza Box
+          if (catLower.includes('pizza') || itemLower.includes('pizza')) {
+            const boxIdx = currentInv.findIndex(i =>
+              i.category === 'Packaging' && i.materialName.toLowerCase().includes('pizza')
+            );
+            if (boxIdx !== -1 && currentInv[boxIdx].currentStock > 0) {
+              currentInv[boxIdx] = {
+                ...currentInv[boxIdx],
+                currentStock: Math.max(0, currentInv[boxIdx].currentStock - qty),
+                lastUpdated: new Date().toISOString().split('T')[0]
+              };
+              packagingDeducted.push(`${qty}x Pizza Box`);
+            }
+          }
+          // Burger -> Burger Box
+          else if (catLower.includes('burger') || itemLower.includes('burger')) {
+            const boxIdx = currentInv.findIndex(i =>
+              i.category === 'Packaging' && i.materialName.toLowerCase().includes('burger')
+            );
+            if (boxIdx !== -1 && currentInv[boxIdx].currentStock > 0) {
+              currentInv[boxIdx] = {
+                ...currentInv[boxIdx],
+                currentStock: Math.max(0, currentInv[boxIdx].currentStock - qty),
+                lastUpdated: new Date().toISOString().split('T')[0]
+              };
+              packagingDeducted.push(`${qty}x Burger Box`);
+            }
+          }
+          // Cold Coffee / Shakes -> Cup with Lid
+          else if (catLower.includes('coffee') || catLower.includes('shake') || itemLower.includes('shake') || itemLower.includes('cold coffee')) {
+            const cupIdx = currentInv.findIndex(i =>
+              i.category === 'Packaging' && (i.materialName.toLowerCase().includes('cup') || i.materialName.toLowerCase().includes('glass'))
+            );
+            if (cupIdx !== -1 && currentInv[cupIdx].currentStock > 0) {
+              currentInv[cupIdx] = {
+                ...currentInv[cupIdx],
+                currentStock: Math.max(0, currentInv[cupIdx].currentStock - qty),
+                lastUpdated: new Date().toISOString().split('T')[0]
+              };
+              packagingDeducted.push(`${qty}x Cup`);
+            }
+          }
+        }
+      });
+    }
+
     updateSales(currentSales);
     updateInventory(currentInv);
 
     const totalRev = salesList.reduce((s, x) => s + (Number(x.totalRevenue) || 0), 0);
     const orderRef = salesList[0]?.platformOrderId || '';
     const platform = salesList[0]?.paymentMethod || 'Online';
-    showToast(`⚡ ${platform} Order ${orderRef ? `${orderRef} ` : ''}Punched! (${salesList.length} items • ₹${totalRev})`);
+    const packMsg = packagingDeducted.length > 0 ? ` • Packaging: ${packagingDeducted.join(', ')}` : '';
+    showToast(`⚡ ${platform} Order ${orderRef ? `${orderRef} ` : ''}Punched! (${salesList.length} items • ₹${totalRev})${packMsg}`);
     return true;
   };
 
