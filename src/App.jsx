@@ -1993,15 +1993,17 @@ export default function App() {
                   <Sparkles className="w-3.5 h-3.5 text-amber-300" />
                   <span>📸 AI Menu Scanner</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setIsCafeProfileModalOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-semibold rounded-xl cursor-pointer transition-colors"
-                  title="Wipe demo items & start blank slate for production testing"
-                >
-                  <Trash2 className="w-3.5 h-3.5 text-amber-600" />
-                  <span>Clear Demo Data</span>
-                </button>
+                {(!isCleanSlateActive(currentCafe?.cafeId) && !currentCafe?.isCleanSlate) && (
+                  <button
+                    type="button"
+                    onClick={() => setIsCafeProfileModalOpen(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-semibold rounded-xl cursor-pointer transition-colors"
+                    title="Wipe demo items & start blank slate for production testing"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Clear Demo Data</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => { setEditingItem(null); setIsModalOpen(true); }}

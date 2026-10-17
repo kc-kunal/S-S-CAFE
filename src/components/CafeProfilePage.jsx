@@ -30,6 +30,7 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { updateCafeDetails, createAdditionalCafeOutlet } from '../utils/auth';
+import { isCleanSlateActive } from '../utils/storage';
 
 export default function CafeProfilePage({
   currentCafe,
@@ -75,6 +76,7 @@ export default function CafeProfilePage({
   const [newOutletPhone, setNewOutletPhone] = useState('');
 
   // Clean Slate Confirmation
+  const isCleanSlate = Boolean(currentCafe?.isCleanSlate || isCleanSlateActive(currentCafe?.cafeId));
   const [isConfirmingCleanSlate, setIsConfirmingCleanSlate] = useState(false);
   const [cleanOptions, setCleanOptions] = useState({
     clearMenu: true,
@@ -809,74 +811,95 @@ export default function CafeProfilePage({
             </div>
           </div>
 
-          {/* 🧹 Clear Demo Data (Clean Slate Option) */}
-          <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-xs space-y-3">
-            <div className="flex items-center gap-2">
-              <Trash2 className="w-4 h-4 text-amber-600" />
-              <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
-                Production Onboarding (Reset Data)
-              </h4>
-            </div>
-            <p className="text-[11px] text-slate-500 leading-relaxed">
-              If you tested with sample pizzas or burgers, you can clear demo items to start fresh with your original menu and recipe catalog.
-            </p>
+          {/* 🧹 Clear Demo Data (Clean Slate Option) - Only visible if NOT already cleared */}
+          {!isCleanSlate ? (
+            <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-xs space-y-3">
+              <div className="flex items-center gap-2">
+                <Trash2 className="w-4 h-4 text-amber-600" />
+                <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
+                  Production Onboarding (Reset Data)
+                </h4>
+              </div>
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                If you tested with sample pizzas or burgers, you can clear demo items to start fresh with your original menu and recipe catalog.
+              </p>
 
-            {!isConfirmingCleanSlate ? (
-              <button
-                type="button"
-                onClick={() => setIsConfirmingCleanSlate(true)}
-                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-xl text-xs font-bold cursor-pointer transition-colors"
-              >
-                <RotateCcw className="w-3.5 h-3.5 text-amber-700" />
-                <span>Wipe Demo Data (Clean Slate)</span>
-              </button>
-            ) : (
-              <div className="p-3.5 bg-amber-50/80 border border-amber-300 rounded-2xl space-y-3 text-xs animate-in fade-in">
-                <div className="font-bold text-amber-950">Confirm Data Reset</div>
-                <div className="space-y-1.5">
-                  <label className="flex items-center gap-2 text-[11px] text-amber-900 font-medium cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={cleanOptions.clearMenu}
-                      onChange={(e) => setCleanOptions(prev => ({ ...prev, clearMenu: e.target.checked }))}
-                      className="rounded text-amber-600"
-                    />
-                    <span>Wipe Menu Items & Categories</span>
-                  </label>
-                  <label className="flex items-center gap-2 text-[11px] text-amber-900 font-medium cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={cleanOptions.clearInventory}
-                      onChange={(e) => setCleanOptions(prev => ({ ...prev, clearInventory: e.target.checked }))}
-                      className="rounded text-amber-600"
-                    />
-                    <span>Wipe Raw Material Inventory</span>
-                  </label>
+              {!isConfirmingCleanSlate ? (
+                <button
+                  type="button"
+                  onClick={() => setIsConfirmingCleanSlate(true)}
+                  className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-xl text-xs font-bold cursor-pointer transition-colors"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-amber-700" />
+                  <span>Wipe Demo Data (Clean Slate)</span>
+                </button>
+              ) : (
+                <div className="p-3.5 bg-amber-50/80 border border-amber-300 rounded-2xl space-y-3 text-xs animate-in fade-in">
+                  <div className="font-bold text-amber-950">Confirm Data Reset</div>
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-2 text-[11px] text-amber-900 font-medium cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={cleanOptions.clearMenu}
+                        onChange={(e) => setCleanOptions(prev => ({ ...prev, clearMenu: e.target.checked }))}
+                        className="rounded text-amber-600"
+                      />
+                      <span>Wipe Menu Items & Categories</span>
+                    </label>
+                    <label className="flex items-center gap-2 text-[11px] text-amber-900 font-medium cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={cleanOptions.clearInventory}
+                        onChange={(e) => setCleanOptions(prev => ({ ...prev, clearInventory: e.target.checked }))}
+                        className="rounded text-amber-600"
+                      />
+                      <span>Wipe Raw Material Inventory</span>
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (onResetToCleanSlate) {
+                          onResetToCleanSlate(cleanOptions);
+                          setIsConfirmingCleanSlate(false);
+                        }
+                      }}
+                      className="flex-1 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl cursor-pointer"
+                    >
+                      Confirm Wipe
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsConfirmingCleanSlate(false)}
+                      className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-xl cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (onResetToCleanSlate) {
-                        onResetToCleanSlate(cleanOptions);
-                        setIsConfirmingCleanSlate(false);
-                      }
-                    }}
-                    className="flex-1 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl cursor-pointer"
-                  >
-                    Confirm Wipe
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsConfirmingCleanSlate(false)}
-                    className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-xl cursor-pointer"
-                  >
-                    Cancel
-                  </button>
+              )}
+            </div>
+          ) : (
+            <div className="bg-emerald-50/70 rounded-3xl border border-emerald-200 p-4 shadow-xs flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-emerald-950">Active Production Account</span>
+                    <span className="text-[10px] bg-emerald-200 text-emerald-900 font-extrabold px-2 py-0.5 rounded-full">
+                      Live
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-emerald-800/80 mt-0.5">
+                    Demo data successfully clear ho chuka hai. Aapka cafe apne original menu aur inventory records par live chal raha hai.
+                  </p>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Session Logout Action */}
           <div className="bg-white rounded-3xl border border-slate-200 p-4 shadow-xs flex items-center justify-between">
