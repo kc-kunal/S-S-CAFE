@@ -417,22 +417,25 @@ export const exportCafeDataToJson = (data) => {
 // ==========================================
 export const wipeCloudTenantCollections = async (cafeId = getCurrentCafeId(), options = {}) => {
   const db = getFirebaseDb();
-  if (!db || !cafeId || cafeId === 'default') return false;
+  if (!db || !cafeId) return false;
 
   const {
     clearMenu = true,
     clearInventory = true,
     clearProcurement = true,
+    clearPurchases = true,
     clearWastage = true,
     clearSales = false,
     clearExpenses = false,
     clearDiningOrders = true
   } = options;
 
+  const shouldClearPurchases = clearProcurement || clearPurchases;
+
   const targetCollections = [];
   if (clearMenu) targetCollections.push(COLLECTIONS.MENU);
   if (clearInventory) targetCollections.push(COLLECTIONS.INVENTORY);
-  if (clearProcurement) targetCollections.push(COLLECTIONS.PROCUREMENT);
+  if (shouldClearPurchases) targetCollections.push(COLLECTIONS.PROCUREMENT);
   if (clearWastage) targetCollections.push(COLLECTIONS.WASTAGE);
   if (clearSales) targetCollections.push(COLLECTIONS.SALES);
   if (clearExpenses) targetCollections.push(COLLECTIONS.EXPENSES);
@@ -451,6 +454,26 @@ export const wipeCloudTenantCollections = async (cafeId = getCurrentCafeId(), op
       console.warn(`Could not clear cloud collection ${colKey}:`, e);
     }
   }
+
+  // If cafeId is default, also wipe legacy single documents so old demo data never revives
+  if (cafeId === 'default') {
+    try {
+      const legacyKeys = [];
+      if (clearMenu) legacyKeys.push('menu');
+      if (clearInventory) legacyKeys.push('inventory');
+      if (shouldClearPurchases) legacyKeys.push('procurement');
+      if (clearWastage) legacyKeys.push('wastage');
+      if (clearSales) legacyKeys.push('sales');
+      if (clearExpenses) legacyKeys.push('expenses');
+
+      for (const k of legacyKeys) {
+        try {
+          await deleteDoc(doc(db, COLLECTIONS.LEGACY, k));
+        } catch (err) {}
+      }
+    } catch (e) {}
+  }
+
   return true;
 };
 

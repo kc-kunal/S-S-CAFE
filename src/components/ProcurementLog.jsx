@@ -130,8 +130,9 @@ export default function ProcurementLog({
     const sortedFromPurchases = Object.entries(purchaseCounts)
       .sort((a, b) => b[1] - a[1])
       .map(([name, count]) => {
+        const safeName = String(name || '').toLowerCase();
         const matchedInv = (inventoryItems || []).find(
-          i => i.materialName.toLowerCase() === name.toLowerCase()
+          i => String(i?.materialName || '').toLowerCase() === safeName
         );
         return {
           name,
@@ -145,9 +146,9 @@ export default function ProcurementLog({
       });
 
     // 2. If purchase logs are few (< 12), fill with active inventory items from this cafe
-    const existingNames = new Set(sortedFromPurchases.map(s => s.name.toLowerCase()));
+    const existingNames = new Set(sortedFromPurchases.map(s => String(s.name || '').toLowerCase()));
     const fromInventory = (inventoryItems || [])
-      .filter(i => !existingNames.has(i.materialName.toLowerCase()))
+      .filter(i => i?.materialName && !existingNames.has(String(i.materialName).toLowerCase()))
       .map(inv => ({
         name: inv.materialName,
         category: inv.category || 'Groceries',
@@ -165,7 +166,7 @@ export default function ProcurementLog({
   const exactMatch = useMemo(() => {
     if (!materialName || materialName.trim().length === 0) return null;
     const q = materialName.toLowerCase().trim();
-    return allAvailableMaterials.find(m => m.name.toLowerCase() === q);
+    return allAvailableMaterials.find(m => String(m?.name || m?.materialName || '').toLowerCase() === q);
   }, [materialName, allAvailableMaterials]);
 
   // Smart spelling correction recommendation (e.g. "mozzerella" -> "Mozzarella Cheese", "pizza basse" -> "Pizza Base")
@@ -174,23 +175,25 @@ export default function ProcurementLog({
     const q = materialName.toLowerCase().trim();
 
     // If already exact match, no correction needed
-    if (allAvailableMaterials.some(m => m.name.toLowerCase() === q)) return null;
+    if (allAvailableMaterials.some(m => String(m?.name || m?.materialName || '').toLowerCase() === q)) return null;
 
     // Check aliases
     for (const [canonical, aliases] of Object.entries(KNOWN_MATERIAL_ALIASES)) {
       if (aliases.some(a => a === q || a.includes(q) || q.includes(a))) {
-        const target = allAvailableMaterials.find(m => m.name.toLowerCase() === canonical) ||
-                       INITIAL_INVENTORY_ITEMS.find(m => m.materialName.toLowerCase() === canonical);
-        if (target && target.name.toLowerCase() !== q) {
-          return target;
+        const target = allAvailableMaterials.find(m => String(m?.name || m?.materialName || '').toLowerCase() === canonical) ||
+                       INITIAL_INVENTORY_ITEMS.find(m => String(m?.materialName || m?.name || '').toLowerCase() === canonical);
+        const targetName = target ? (target.name || target.materialName || '') : '';
+        if (target && targetName.toLowerCase() !== q) {
+          return { ...target, name: targetName };
         }
       }
     }
 
     // Check fuzzy match
     const matched = findMatchingInventoryItem(materialName, allAvailableMaterials);
-    if (matched && matched.name.toLowerCase() !== q) {
-      return matched;
+    const matchedName = matched ? (matched.name || matched.materialName || '') : '';
+    if (matched && matchedName.toLowerCase() !== q) {
+      return { ...matched, name: matchedName };
     }
 
     return null;
@@ -198,7 +201,8 @@ export default function ProcurementLog({
 
   // Choose a raw material from suggestions or quick chips
   const handleSelectMaterial = (item) => {
-    setMaterialName(item.name);
+    const itemName = item?.name || item?.materialName || '';
+    setMaterialName(itemName);
     setCategory(item.category || 'Groceries');
 
     // Auto-select unit: If recipe uses Grams, purchase default is Kg; if recipe uses ml, purchase is Liters
@@ -211,7 +215,7 @@ export default function ProcurementLog({
     }
 
     // Suggest previous rate if exists in procurementLogs
-    const prevLog = procurementLogs.find(p => p.materialName.toLowerCase() === item.name.toLowerCase());
+    const prevLog = procurementLogs.find(p => String(p?.materialName || '').toLowerCase() === itemName.toLowerCase());
     if (prevLog && prevLog.ratePerUnit) {
       setRatePerUnit(prevLog.ratePerUnit);
       if (quantity) {
@@ -297,8 +301,8 @@ export default function ProcurementLog({
       const matchesCat = filterCategory === 'ALL' || p.category === filterCategory;
       const freq = classifyMaterialProcurementType(p.materialName);
       const matchesFreq = frequencyFilter === 'ALL' || freq === frequencyFilter;
-      const matchesSearch = !searchFilter || p.materialName.toLowerCase().includes(searchFilter.toLowerCase()) ||
-                            (p.supplier && p.supplier.toLowerCase().includes(searchFilter.toLowerCase()));
+      const matchesSearch = !searchFilter || String(p?.materialName || '').toLowerCase().includes(searchFilter.toLowerCase()) ||
+                            (p?.supplier && String(p.supplier).toLowerCase().includes(searchFilter.toLowerCase()));
       return matchesCat && matchesFreq && matchesSearch;
     });
   }, [procurementLogs, filterCategory, frequencyFilter, searchFilter]);

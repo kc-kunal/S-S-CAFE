@@ -139,8 +139,10 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
   // Filtering
   const filteredItems = useMemo(() => {
     return inventoryItems.filter(item => {
-      const matchesSearch = item.materialName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            item.category.toLowerCase().includes(searchQuery.toLowerCase());
+      const mat = String(item?.materialName || '').toLowerCase();
+      const cat = String(item?.category || '').toLowerCase();
+      const q = (searchQuery || '').toLowerCase();
+      const matchesSearch = mat.includes(q) || cat.includes(q);
       const matchesCat = categoryFilter === 'ALL' || item.category === categoryFilter;
       
       let matchesStatus = true;

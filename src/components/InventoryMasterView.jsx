@@ -110,9 +110,11 @@ export default function InventoryMasterView({ inventoryMaster, onSaveItem, onDel
 
   const filteredItems = useMemo(() => {
     return inventoryMaster.filter(item => {
-      const matchesSearch = item.materialName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            item.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            (item.batchNumber && item.batchNumber.toLowerCase().includes(searchQuery.toLowerCase()));
+      const mat = String(item?.materialName || '').toLowerCase();
+      const cat = String(item?.category || '').toLowerCase();
+      const batch = String(item?.batchNumber || '').toLowerCase();
+      const q = (searchQuery || '').toLowerCase();
+      const matchesSearch = mat.includes(q) || cat.includes(q) || batch.includes(q);
       const matchesCat = selectedCategory === 'ALL' || item.category === selectedCategory;
       const matchesStatus = selectedStatus === 'ALL' || item.status === selectedStatus;
       return matchesSearch && matchesCat && matchesStatus;

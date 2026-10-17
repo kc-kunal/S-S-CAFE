@@ -167,7 +167,8 @@ export const loginLocalCafeOwner = (email, password = '') => {
 
   if (isKc) {
     const localId = 'cafe_kc_hotel';
-    const cafeProfile = {
+    const existing = getLocalActiveCafe();
+    const cafeProfile = (existing && existing.ownerEmail === 'kc@gmail.com') ? existing : {
       cafeId: localId,
       ownerUid: localId,
       cafeName: 'KC Grand Hotel & Family Restaurant',
@@ -194,7 +195,6 @@ export const loginLocalCafeOwner = (email, password = '') => {
     };
     setLocalActiveCafe(cafeProfile);
     setLocalUserSession(user);
-    seedHotelRestaurantData(localId);
 
     recordUserLogin({
       uid: localId,
@@ -411,26 +411,27 @@ export const loginCafeOwner = async (email, password) => {
     }
 
     if (isKc) {
-      cafeProfile = {
-        cafeId: user.uid,
-        ownerUid: user.uid,
-        cafeName: 'KC Grand Hotel & Family Restaurant',
-        ownerName: 'Kunal Chaudhary (KC)',
-        ownerEmail: 'kc@gmail.com',
-        phone: '9826012345',
-        city: 'Indore',
-        address: 'Main Commercial Hub, Ring Road, Indore',
-        businessType: 'restaurant',
-        currency: '₹',
-        role: 'owner',
-        createdAt: new Date().toISOString(),
-        isPrimary: true,
-        upiId: 'kc.grandhotel@upi',
-        fssai: '11424850000123',
-        gstin: '23AABCK9988C1Z4',
-        billFooterNote: 'Thank you for dining with KC Grand Hotel! Please visit again.'
-      };
-      seedHotelRestaurantData(user.uid);
+      if (!cafeProfile) {
+        cafeProfile = getLocalActiveCafe() || {
+          cafeId: user.uid,
+          ownerUid: user.uid,
+          cafeName: 'KC Grand Hotel & Family Restaurant',
+          ownerName: 'Kunal Chaudhary (KC)',
+          ownerEmail: 'kc@gmail.com',
+          phone: '9826012345',
+          city: 'Indore',
+          address: 'Main Commercial Hub, Ring Road, Indore',
+          businessType: 'restaurant',
+          currency: '₹',
+          role: 'owner',
+          createdAt: new Date().toISOString(),
+          isPrimary: true,
+          upiId: 'kc.grandhotel@upi',
+          fssai: '11424850000123',
+          gstin: '23AABCK9988C1Z4',
+          billFooterNote: 'Thank you for dining with KC Grand Hotel! Please visit again.'
+        };
+      }
     } else if (!cafeProfile) {
       cafeProfile = getLocalActiveCafe() || {
         cafeId: user.uid,

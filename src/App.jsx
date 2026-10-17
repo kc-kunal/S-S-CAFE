@@ -27,6 +27,7 @@ import CustomerKhataModal from './components/CustomerKhataModal';
 import {
   subscribeToAuthChanges,
   getLocalActiveCafe,
+  setLocalActiveCafe,
   logoutCafeOwner
 } from './utils/auth';
 import { triggerAutomaticStockAlerts, sendTelegramNewOrderAlert } from './utils/telegramAlert';
@@ -34,6 +35,8 @@ import { playOrderChime } from './utils/audioAlert';
 import {
   setCurrentCafeId,
   getCurrentCafeId,
+  isCleanSlateActive,
+  setCleanSlateMarker,
   getStoredMenu, saveStoredMenu,
   getStoredSales, saveStoredSales,
   getStoredProcurement, saveStoredProcurement,
@@ -255,13 +258,15 @@ export default function App() {
       (currentCafe?.ownerEmail || '').toLowerCase() === 'kc@gmail.com' || 
       currentCafe?.businessType === 'restaurant';
 
+    const cleanSlate = isCleanSlateActive(activeId);
+
     let rawMenu = getStoredMenu(activeId);
     let rawSales = getStoredSales(activeId);
     let rawProc = getStoredProcurement(activeId);
     let rawInv = getStoredInventory(activeId);
 
-    // If it's KC Grand Hotel or a restaurant, and the catalog is empty, auto-seed the Hotel Catalog!
-    if (isKcOrRestaurant && (!rawMenu || rawMenu.length === 0)) {
+    // If it's KC Grand Hotel or a restaurant, and the catalog is empty AND clean slate is NOT active, auto-seed the Hotel Catalog!
+    if (!cleanSlate && isKcOrRestaurant && (!rawMenu || rawMenu.length === 0)) {
       seedHotelRestaurantData(activeId);
       rawMenu = getStoredMenu(activeId);
       rawSales = getStoredSales(activeId);
@@ -269,29 +274,31 @@ export default function App() {
       rawInv = getStoredInventory(activeId);
     }
 
-    // Auto-fix/normalize any existing misspelled items in inventory
+    // Auto-fix/normalize any existing misspelled items in inventory safely
     let invChanged = false;
     const consolidatedInv = [];
     const ALL_INVENTORY_TEMPLATES = [...INITIAL_INVENTORY_ITEMS, ...RESTAURANT_HOTEL_INVENTORY_ITEMS];
 
     const getCanonicalName = (name) => {
-      const lower = (name || '').toLowerCase().trim();
+      const lower = String(name || '').toLowerCase().trim();
+      if (!lower) return name;
       for (const [canonical, aliases] of Object.entries(KNOWN_MATERIAL_ALIASES)) {
         if (aliases.some(a => lower === a || lower.includes(a) || a.includes(lower))) {
-          const match = ALL_INVENTORY_TEMPLATES.find(p => p.materialName.toLowerCase() === canonical);
+          const match = ALL_INVENTORY_TEMPLATES.find(p => String(p?.materialName || '').toLowerCase() === canonical);
           return match ? match.materialName : canonical;
         }
       }
       return name;
     };
 
-    rawInv.forEach(item => {
+    (rawInv || []).forEach(item => {
+      if (!item || !item.materialName) return;
       const canonicalName = getCanonicalName(item.materialName);
       if (canonicalName !== item.materialName) {
         invChanged = true;
-        const standardDef = ALL_INVENTORY_TEMPLATES.find(p => p.materialName.toLowerCase() === canonicalName.toLowerCase());
-        const targetUnit = standardDef ? standardDef.unit : item.unit;
-        const targetCategory = standardDef ? standardDef.category : item.category;
+        const standardDef = ALL_INVENTORY_TEMPLATES.find(p => String(p?.materialName || '').toLowerCase() === String(canonicalName || '').toLowerCase());
+        const targetUnit = standardDef ? standardDef.unit : (item.unit || 'Piece');
+        const targetCategory = standardDef ? standardDef.category : (item.category || 'Groceries');
 
         let stockToAdd = Number(item.currentStock) || 0;
         if ((item.unit === 'Kg' || item.unit === 'Piece' || stockToAdd <= 20) && targetUnit === 'Gram') {
@@ -300,7 +307,7 @@ export default function App() {
           stockToAdd = convertQuantity(stockToAdd, item.unit, targetUnit);
         }
 
-        const existing = consolidatedInv.find(c => c.materialName.toLowerCase() === canonicalName.toLowerCase());
+        const existing = consolidatedInv.find(c => String(c?.materialName || '').toLowerCase() === String(canonicalName || '').toLowerCase());
         if (existing) {
           existing.currentStock = Math.round((existing.currentStock + stockToAdd) * 100) / 100;
         } else {
@@ -313,9 +320,9 @@ export default function App() {
           });
         }
       } else {
-        const existing = consolidatedInv.find(c => c.materialName.toLowerCase() === item.materialName.toLowerCase());
+        const existing = consolidatedInv.find(c => String(c?.materialName || '').toLowerCase() === String(item?.materialName || '').toLowerCase());
         if (existing) {
-          existing.currentStock = Math.round((existing.currentStock + Number(item.currentStock)) * 100) / 100;
+          existing.currentStock = Math.round((existing.currentStock + Number(item.currentStock || 0)) * 100) / 100;
           invChanged = true;
         } else {
           consolidatedInv.push(item);
@@ -386,20 +393,39 @@ export default function App() {
     // Initial fetch from cloud for active cafe
     fetchAllCloudData(activeId).then((cloudData) => {
       if (cloudData) {
-        if (cloudData.menu && Array.isArray(cloudData.menu) && cloudData.menu.length > 0) {
-          setMenuItems(cloudData.menu);
-          saveStoredMenu(cloudData.menu, activeId);
+        const cleanSlate = isCleanSlateActive(activeId);
+        const localMenu = getStoredMenu(activeId) || [];
+        const localInv = getStoredInventory(activeId) || [];
+
+        if (cleanSlate) {
+          // In Clean Slate mode, local custom setup takes precedence!
+          if (localMenu.length > 0) {
+            setMenuItems(localMenu);
+            syncCloudMenu(localMenu, activeId);
+          } else {
+            setMenuItems([]);
+          }
+          if (localInv.length > 0) {
+            setInventoryItems(localInv);
+            syncCloudInventory(localInv, activeId);
+          } else {
+            setInventoryItems([]);
+          }
         } else {
-          const localMenu = getStoredMenu(activeId);
-          if (localMenu && localMenu.length > 0) syncCloudMenu(localMenu, activeId);
+          if (cloudData.menu && Array.isArray(cloudData.menu) && cloudData.menu.length > 0) {
+            setMenuItems(cloudData.menu);
+            saveStoredMenu(cloudData.menu, activeId);
+          } else if (localMenu && localMenu.length > 0) {
+            syncCloudMenu(localMenu, activeId);
+          }
+          if (cloudData.inventory && Array.isArray(cloudData.inventory) && cloudData.inventory.length > 0) {
+            setInventoryItems(cloudData.inventory);
+            saveStoredInventory(cloudData.inventory, activeId);
+          } else if (localInv && localInv.length > 0) {
+            syncCloudInventory(localInv, activeId);
+          }
         }
-        if (cloudData.inventory && Array.isArray(cloudData.inventory) && cloudData.inventory.length > 0) {
-          setInventoryItems(cloudData.inventory);
-          saveStoredInventory(cloudData.inventory, activeId);
-        } else {
-          const localInv = getStoredInventory(activeId);
-          if (localInv && localInv.length > 0) syncCloudInventory(localInv, activeId);
-        }
+
         if (cloudData.sales && Array.isArray(cloudData.sales) && cloudData.sales.length > 0) {
           const localSales = getStoredSales(activeId) || [];
           const localMap = new Map(localSales.map(s => [s.id, s]));
@@ -443,12 +469,22 @@ export default function App() {
     // Realtime subscription across devices for this active cafe
     const unsubscribe = subscribeToCloudData({
       onMenuUpdate: (newMenu) => {
-        setMenuItems(newMenu);
-        saveStoredMenu(newMenu, activeId);
+        const cleanSlate = isCleanSlateActive(activeId);
+        const localMenu = getStoredMenu(activeId) || [];
+        if (cleanSlate && localMenu.length > 0 && (!newMenu || newMenu.length === 0)) {
+          return;
+        }
+        setMenuItems(newMenu || []);
+        saveStoredMenu(newMenu || [], activeId);
       },
       onInventoryUpdate: (newInv) => {
-        setInventoryItems(newInv);
-        saveStoredInventory(newInv, activeId);
+        const cleanSlate = isCleanSlateActive(activeId);
+        const localInv = getStoredInventory(activeId) || [];
+        if (cleanSlate && localInv.length > 0 && (!newInv || newInv.length === 0)) {
+          return;
+        }
+        setInventoryItems(newInv || []);
+        saveStoredInventory(newInv || [], activeId);
       },
       onSalesUpdate: (newSales) => {
         setSalesLogs(prev => {
@@ -635,6 +671,9 @@ export default function App() {
 
     const activeId = currentCafe?.cafeId || 'default';
 
+    // 1. Mark clean slate active so auto-seeding and demo fallbacks are blocked
+    setCleanSlateMarker(activeId, true);
+
     if (clearMenu) {
       saveStoredMenu([], activeId);
       setMenuItems([]);
@@ -660,11 +699,18 @@ export default function App() {
       setExpenses([]);
     }
 
+    if (currentCafe) {
+      const updatedCafe = { ...currentCafe, isCleanSlate: true };
+      setCurrentCafe(updatedCafe);
+      setLocalActiveCafe(updatedCafe);
+    }
+
     try {
       await wipeCloudTenantCollections(activeId, {
         clearMenu,
         clearInventory,
         clearProcurement: clearPurchases,
+        clearPurchases,
         clearWastage,
         clearSales,
         clearExpenses

@@ -1132,6 +1132,41 @@ export const INITIAL_PROCUREMENT_LOGS = [
 // Multi-Tenant Scoped Storage Key Helpers
 let currentCafeId = 'default';
 
+// Clean Slate Marker Key: When active, tenant runs in production clean-slate mode and NEVER falls back to demo data
+const CLEAN_SLATE_STORAGE_KEY = 'ss_cafe_clean_slate_active_v1';
+
+export const isCleanSlateActive = (cafeId = currentCafeId) => {
+  try {
+    const key = getScopedKey(CLEAN_SLATE_STORAGE_KEY, cafeId);
+    const val = localStorage.getItem(key);
+    if (val === 'true') return true;
+    if (cafeId !== 'default') {
+      const baseVal = localStorage.getItem(CLEAN_SLATE_STORAGE_KEY);
+      if (baseVal === 'true') return true;
+    }
+    return false;
+  } catch (e) {
+    return false;
+  }
+};
+
+export const setCleanSlateMarker = (cafeId = currentCafeId, isActive = true) => {
+  try {
+    const key = getScopedKey(CLEAN_SLATE_STORAGE_KEY, cafeId);
+    if (isActive) {
+      localStorage.setItem(key, 'true');
+      if (cafeId === 'default') {
+        localStorage.setItem(CLEAN_SLATE_STORAGE_KEY, 'true');
+      }
+    } else {
+      localStorage.removeItem(key);
+      if (cafeId === 'default') {
+        localStorage.removeItem(CLEAN_SLATE_STORAGE_KEY);
+      }
+    }
+  } catch (e) {}
+};
+
 export const setCurrentCafeId = (cafeId) => {
   currentCafeId = cafeId || 'default';
 };
@@ -1145,6 +1180,7 @@ export const getScopedKey = (baseKey, cafeId = currentCafeId) => {
 
 // Seed complete Hotel & Family Restaurant starter pack into scoped storage
 export const seedHotelRestaurantData = (cafeId = currentCafeId) => {
+  setCleanSlateMarker(cafeId, false);
   saveStoredMenu(RESTAURANT_HOTEL_MENU_ITEMS, cafeId);
   saveStoredInventory(RESTAURANT_HOTEL_INVENTORY_ITEMS, cafeId);
   saveStoredProcurement(RESTAURANT_HOTEL_PROCUREMENT_LOGS, cafeId);
@@ -1163,6 +1199,7 @@ export const seedHotelRestaurantData = (cafeId = currentCafeId) => {
 
 // Seed complete Fast Food Cafe starter pack into scoped storage
 export const seedCafeData = (cafeId = currentCafeId) => {
+  setCleanSlateMarker(cafeId, false);
   saveStoredMenu(INITIAL_MENU_ITEMS, cafeId);
   saveStoredInventory(INITIAL_INVENTORY_ITEMS, cafeId);
   saveStoredProcurement(INITIAL_PROCUREMENT_LOGS, cafeId);
@@ -1191,20 +1228,26 @@ export const getStoredMenu = (cafeId = currentCafeId) => {
   try {
     const key = getScopedKey(MENU_STORAGE_KEY, cafeId);
     let data = localStorage.getItem(key);
-    if (!data && cafeId !== 'default') {
+    if (!data && cafeId !== 'default' && !isCleanSlateActive(cafeId)) {
       // Check if fallback to base key exists
       data = localStorage.getItem(MENU_STORAGE_KEY);
     }
+    if (data !== null) {
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) {
+        return parsed.map(item => ({
+          ...item,
+          recipe: Array.isArray(item.recipe) ? item.recipe : []
+        }));
+      }
+    }
+    if (isCleanSlateActive(cafeId)) {
+      return [];
+    }
     const defaultFallback = isTenantHotelOrRestaurant(cafeId) ? RESTAURANT_HOTEL_MENU_ITEMS : INITIAL_MENU_ITEMS;
-    if (!data) return defaultFallback;
-    const parsed = JSON.parse(data);
-    // Ensure every item has a recipe array
-    return parsed.map(item => ({
-      ...item,
-      recipe: item.recipe || []
-    }));
+    return defaultFallback;
   } catch (e) {
-    return isTenantHotelOrRestaurant(cafeId) ? RESTAURANT_HOTEL_MENU_ITEMS : INITIAL_MENU_ITEMS;
+    return isCleanSlateActive(cafeId) ? [] : (isTenantHotelOrRestaurant(cafeId) ? RESTAURANT_HOTEL_MENU_ITEMS : INITIAL_MENU_ITEMS);
   }
 };
 
@@ -1220,13 +1263,20 @@ export const getStoredInventory = (cafeId = currentCafeId) => {
   try {
     const key = getScopedKey(INVENTORY_STORAGE_KEY, cafeId);
     let data = localStorage.getItem(key);
-    if (!data && cafeId !== 'default') {
+    if (!data && cafeId !== 'default' && !isCleanSlateActive(cafeId)) {
       data = localStorage.getItem(INVENTORY_STORAGE_KEY);
     }
+    if (data !== null) {
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) return parsed;
+    }
+    if (isCleanSlateActive(cafeId)) {
+      return [];
+    }
     const defaultFallback = isTenantHotelOrRestaurant(cafeId) ? RESTAURANT_HOTEL_INVENTORY_ITEMS : INITIAL_INVENTORY_ITEMS;
-    return data ? JSON.parse(data) : defaultFallback;
+    return defaultFallback;
   } catch (e) {
-    return isTenantHotelOrRestaurant(cafeId) ? RESTAURANT_HOTEL_INVENTORY_ITEMS : INITIAL_INVENTORY_ITEMS;
+    return isCleanSlateActive(cafeId) ? [] : (isTenantHotelOrRestaurant(cafeId) ? RESTAURANT_HOTEL_INVENTORY_ITEMS : INITIAL_INVENTORY_ITEMS);
   }
 };
 
@@ -1242,32 +1292,20 @@ export const getStoredSales = (cafeId = currentCafeId) => {
   try {
     const key = getScopedKey(SALES_STORAGE_KEY, cafeId);
     let data = localStorage.getItem(key);
-    if (!data && cafeId !== 'default') {
+    if (!data && cafeId !== 'default' && !isCleanSlateActive(cafeId)) {
       data = localStorage.getItem(SALES_STORAGE_KEY);
     }
-    // Deep fallback: If still no data found, search all localStorage keys starting with SALES_STORAGE_KEY
-    if (!data) {
-      try {
-        for (let i = 0; i < localStorage.length; i++) {
-          const k = localStorage.key(i);
-          if (k && k.startsWith(SALES_STORAGE_KEY)) {
-            const candidate = localStorage.getItem(k);
-            if (candidate && candidate !== '[]' && candidate.length > 2) {
-              data = candidate;
-              break;
-            }
-          }
-        }
-      } catch (err) {}
-    }
-    if (data) {
+    if (data !== null) {
       const parsed = JSON.parse(data);
       if (Array.isArray(parsed)) return parsed;
+    }
+    if (isCleanSlateActive(cafeId)) {
+      return [];
     }
     const defaultFallback = isTenantHotelOrRestaurant(cafeId) ? RESTAURANT_HOTEL_SALES_LOGS : INITIAL_SALES_LOGS;
     return defaultFallback;
   } catch (e) {
-    return isTenantHotelOrRestaurant(cafeId) ? RESTAURANT_HOTEL_SALES_LOGS : INITIAL_SALES_LOGS;
+    return isCleanSlateActive(cafeId) ? [] : (isTenantHotelOrRestaurant(cafeId) ? RESTAURANT_HOTEL_SALES_LOGS : INITIAL_SALES_LOGS);
   }
 };
 
@@ -1277,8 +1315,9 @@ export const saveStoredSales = (sales, cafeId = currentCafeId) => {
     const key = getScopedKey(SALES_STORAGE_KEY, cafeId);
     const jsonStr = JSON.stringify(sales);
     localStorage.setItem(key, jsonStr);
-    // Always mirror to base SALES_STORAGE_KEY so refresh without active tenant NEVER loses punched orders!
-    localStorage.setItem(SALES_STORAGE_KEY, jsonStr);
+    if (cafeId === 'default') {
+      localStorage.setItem(SALES_STORAGE_KEY, jsonStr);
+    }
   } catch (e) {
     console.error('Error saving sales logs to localStorage:', e);
   }
@@ -1288,13 +1327,20 @@ export const getStoredProcurement = (cafeId = currentCafeId) => {
   try {
     const key = getScopedKey(PROCUREMENT_STORAGE_KEY, cafeId);
     let data = localStorage.getItem(key);
-    if (!data && cafeId !== 'default') {
+    if (!data && cafeId !== 'default' && !isCleanSlateActive(cafeId)) {
       data = localStorage.getItem(PROCUREMENT_STORAGE_KEY);
     }
+    if (data !== null) {
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) return parsed;
+    }
+    if (isCleanSlateActive(cafeId)) {
+      return [];
+    }
     const defaultFallback = isTenantHotelOrRestaurant(cafeId) ? RESTAURANT_HOTEL_PROCUREMENT_LOGS : INITIAL_PROCUREMENT_LOGS;
-    return data ? JSON.parse(data) : defaultFallback;
+    return defaultFallback;
   } catch (e) {
-    return isTenantHotelOrRestaurant(cafeId) ? RESTAURANT_HOTEL_PROCUREMENT_LOGS : INITIAL_PROCUREMENT_LOGS;
+    return isCleanSlateActive(cafeId) ? [] : (isTenantHotelOrRestaurant(cafeId) ? RESTAURANT_HOTEL_PROCUREMENT_LOGS : INITIAL_PROCUREMENT_LOGS);
   }
 };
 
@@ -1325,13 +1371,20 @@ export const getStoredExpenses = (cafeId = currentCafeId) => {
   try {
     const key = getScopedKey(EXPENSES_STORAGE_KEY, cafeId);
     let data = localStorage.getItem(key);
-    if (!data && cafeId !== 'default') {
+    if (!data && cafeId !== 'default' && !isCleanSlateActive(cafeId)) {
       data = localStorage.getItem(EXPENSES_STORAGE_KEY);
     }
+    if (data !== null) {
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) return parsed;
+    }
+    if (isCleanSlateActive(cafeId)) {
+      return [];
+    }
     const defaultFallback = isTenantHotelOrRestaurant(cafeId) ? RESTAURANT_HOTEL_EXPENSES : INITIAL_EXPENSES;
-    return data ? JSON.parse(data) : defaultFallback;
+    return defaultFallback;
   } catch (e) {
-    return isTenantHotelOrRestaurant(cafeId) ? RESTAURANT_HOTEL_EXPENSES : INITIAL_EXPENSES;
+    return isCleanSlateActive(cafeId) ? [] : (isTenantHotelOrRestaurant(cafeId) ? RESTAURANT_HOTEL_EXPENSES : INITIAL_EXPENSES);
   }
 };
 
@@ -1426,13 +1479,20 @@ export const getStoredWastage = (cafeId = currentCafeId) => {
   try {
     const key = getScopedKey(WASTAGE_STORAGE_KEY, cafeId);
     let data = localStorage.getItem(key);
-    if (!data && cafeId !== 'default') {
+    if (!data && cafeId !== 'default' && !isCleanSlateActive(cafeId)) {
       data = localStorage.getItem(WASTAGE_STORAGE_KEY);
     }
+    if (data !== null) {
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) return parsed;
+    }
+    if (isCleanSlateActive(cafeId)) {
+      return [];
+    }
     const defaultFallback = isTenantHotelOrRestaurant(cafeId) ? RESTAURANT_HOTEL_WASTAGE_LOGS : INITIAL_WASTAGE_LOGS;
-    return data ? JSON.parse(data) : defaultFallback;
+    return defaultFallback;
   } catch (e) {
-    return isTenantHotelOrRestaurant(cafeId) ? RESTAURANT_HOTEL_WASTAGE_LOGS : INITIAL_WASTAGE_LOGS;
+    return isCleanSlateActive(cafeId) ? [] : (isTenantHotelOrRestaurant(cafeId) ? RESTAURANT_HOTEL_WASTAGE_LOGS : INITIAL_WASTAGE_LOGS);
   }
 };
 
