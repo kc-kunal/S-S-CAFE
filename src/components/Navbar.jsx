@@ -10,7 +10,8 @@ import {
   Bot,
   Lock,
   Unlock,
-  User
+  User,
+  RefreshCw
 } from 'lucide-react';
 import BrandLogo from './BrandLogo';
 
@@ -26,7 +27,9 @@ export default function Navbar({
   onLogout,
   isStaffMode = false,
   onLockToStaffMode,
-  onPromptUnlockStaffMode
+  onPromptUnlockStaffMode,
+  onManualSync,
+  isSyncing = false
 }) {
   const cafeName = currentCafe?.cafeName || 'S&S Cafe';
   const ownerName = currentCafe?.ownerName || currentUser?.displayName || 'Owner';
@@ -144,8 +147,21 @@ export default function Navbar({
           </div>
         </div>
 
-        {/* Clean Header Right: Staff Toggle + Profile Dropdown */}
+        {/* Clean Header Right: Multi-Device Sync + Staff Toggle + Profile Dropdown */}
         <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
+
+          {/* 🔄 Multi-Device Live Sync Button */}
+          {onManualSync && (
+            <button
+              type="button"
+              onClick={onManualSync}
+              className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 sm:py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border bg-slate-800/80 hover:bg-slate-700/80 text-emerald-300 border-slate-700 hover:border-emerald-500/50 shadow-xs active:scale-95"
+              title="Multi-Device Live Sync: Click to instantly fetch latest updates from mobile/laptop"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 ${isSyncing ? 'animate-spin' : ''}`} />
+              <span className="hidden md:inline">{isSyncing ? 'Syncing...' : 'Live Sync'}</span>
+            </button>
+          )}
 
           {/* 🔒 Staff Mode / Owner Mode Toggle */}
           <button

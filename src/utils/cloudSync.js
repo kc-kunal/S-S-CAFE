@@ -119,13 +119,29 @@ const syncCollectionItems = async (collectionName, items, cafeId = getCurrentCaf
   if (!db || !Array.isArray(items)) return false;
 
   try {
-    const operations = items.map((item) => {
+    const colRef = getScopedCollectionRef(db, collectionName, cafeId);
+    const existingSnap = await getDocs(colRef);
+    const currentItemIds = new Set(items.map(i => String(i.id)));
+    const operations = [];
+
+    // 1. Delete documents from Firestore that are no longer present in local array
+    existingSnap.docs.forEach((d) => {
+      if (!currentItemIds.has(String(d.id))) {
+        operations.push({
+          type: 'delete',
+          ref: d.ref
+        });
+      }
+    });
+
+    // 2. Set / update all active items
+    items.forEach((item) => {
       const id = item.id || `item_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-      return {
+      operations.push({
         type: 'set',
         ref: getScopedDocRef(db, collectionName, id, cafeId),
         data: sanitizeFirestoreData({ ...item, id, _lastSynced: new Date().toISOString() })
-      };
+      });
     });
 
     await commitBatches(db, operations);
@@ -335,11 +351,9 @@ export const subscribeToCloudData = (callbacks = {}, cafeId = getCurrentCafeId()
     // Sales Listener (sorted descending by timestamp/date)
     if (callbacks.onSalesUpdate) {
       const unsub = onSnapshot(getScopedCollectionRef(db, COLLECTIONS.SALES, cafeId), (snapshot) => {
-        if (!snapshot.empty) {
-          const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
-          items.sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.id || '').localeCompare(a.id || ''));
-          callbacks.onSalesUpdate(items);
-        }
+        const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
+        items.sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.id || '').localeCompare(a.id || ''));
+        callbacks.onSalesUpdate(items);
       }, (err) => console.error('Sales real-time error:', err));
       unsubscribers.push(unsub);
     }
@@ -347,11 +361,9 @@ export const subscribeToCloudData = (callbacks = {}, cafeId = getCurrentCafeId()
     // Procurement Listener
     if (callbacks.onProcurementUpdate) {
       const unsub = onSnapshot(getScopedCollectionRef(db, COLLECTIONS.PROCUREMENT, cafeId), (snapshot) => {
-        if (!snapshot.empty) {
-          const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
-          items.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-          callbacks.onProcurementUpdate(items);
-        }
+        const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
+        items.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+        callbacks.onProcurementUpdate(items);
       }, (err) => console.error('Procurement real-time error:', err));
       unsubscribers.push(unsub);
     }
@@ -359,11 +371,9 @@ export const subscribeToCloudData = (callbacks = {}, cafeId = getCurrentCafeId()
     // Expenses Listener
     if (callbacks.onExpensesUpdate) {
       const unsub = onSnapshot(getScopedCollectionRef(db, COLLECTIONS.EXPENSES, cafeId), (snapshot) => {
-        if (!snapshot.empty) {
-          const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
-          items.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-          callbacks.onExpensesUpdate(items);
-        }
+        const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
+        items.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+        callbacks.onExpensesUpdate(items);
       }, (err) => console.error('Expenses real-time error:', err));
       unsubscribers.push(unsub);
     }
@@ -371,11 +381,9 @@ export const subscribeToCloudData = (callbacks = {}, cafeId = getCurrentCafeId()
     // Wastage Listener
     if (callbacks.onWastageUpdate) {
       const unsub = onSnapshot(getScopedCollectionRef(db, COLLECTIONS.WASTAGE, cafeId), (snapshot) => {
-        if (!snapshot.empty) {
-          const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
-          items.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-          callbacks.onWastageUpdate(items);
-        }
+        const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
+        items.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+        callbacks.onWastageUpdate(items);
       }, (err) => console.error('Wastage real-time error:', err));
       unsubscribers.push(unsub);
     }

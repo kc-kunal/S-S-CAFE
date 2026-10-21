@@ -154,6 +154,7 @@ export default function App() {
   // Cloud Database Sync State
   const [isCloudConnected, setIsCloudConnected] = useState(isFirebaseConfigured());
   const [isCloudModalOpen, setIsCloudModalOpen] = useState(false);
+  const [isManualSyncing, setIsManualSyncing] = useState(false);
 
   // Excel Export Modal State
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -344,17 +345,11 @@ export default function App() {
         const localMenu = getStoredMenu(activeId) || [];
         const localInv = getStoredInventory(activeId) || [];
 
-        // 1. Menu: Safely merge cloud with local so custom items are permanently retained
+        // 1. Menu: Cloud Firestore is the Single Source of Truth
         let resolvedMenu = [];
         if (cloudData.menu && Array.isArray(cloudData.menu) && cloudData.menu.length > 0) {
-          const cloudMap = new Map(cloudData.menu.map(m => [m.id, m]));
-          localMenu.forEach(lm => {
-            if (!cloudMap.has(lm.id)) {
-              cloudMap.set(lm.id, lm);
-            }
-          });
-          resolvedMenu = Array.from(cloudMap.values());
-        } else if (localMenu && localMenu.length > 0) {
+          resolvedMenu = cloudData.menu;
+        } else if (localMenu && localMenu.length > 0 && !cleanSlate) {
           resolvedMenu = localMenu;
           syncCloudMenu(localMenu, activeId);
         } else if (!cleanSlate) {
@@ -365,17 +360,11 @@ export default function App() {
         setMenuItems(resolvedMenu);
         saveStoredMenu(resolvedMenu, activeId);
 
-        // 2. Inventory: Safely merge cloud with local
+        // 2. Inventory: Cloud Firestore is the Single Source of Truth
         let resolvedInv = [];
         if (cloudData.inventory && Array.isArray(cloudData.inventory) && cloudData.inventory.length > 0) {
-          const cloudMap = new Map(cloudData.inventory.map(i => [i.id, i]));
-          localInv.forEach(li => {
-            if (!cloudMap.has(li.id)) {
-              cloudMap.set(li.id, li);
-            }
-          });
-          resolvedInv = Array.from(cloudMap.values());
-        } else if (localInv && localInv.length > 0) {
+          resolvedInv = cloudData.inventory;
+        } else if (localInv && localInv.length > 0 && !cleanSlate) {
           resolvedInv = localInv;
           syncCloudInventory(localInv, activeId);
         } else if (!cleanSlate) {
@@ -386,28 +375,23 @@ export default function App() {
         setInventoryItems(resolvedInv);
         saveStoredInventory(resolvedInv, activeId);
 
-        if (cloudData.sales && Array.isArray(cloudData.sales) && cloudData.sales.length > 0) {
-          const localSales = getStoredSales(activeId) || [];
-          const localMap = new Map(localSales.map(s => [s.id, s]));
-          cloudData.sales.forEach(cs => {
-            if (!localMap.has(cs.id)) {
-              localMap.set(cs.id, cs);
-            }
-          });
-          const mergedSales = Array.from(localMap.values()).sort((a, b) => {
+        // 3. Sales: Cloud Firestore is the Single Source of Truth
+        if (cloudData.sales && Array.isArray(cloudData.sales)) {
+          const sorted = [...cloudData.sales].sort((a, b) => {
             const timeA = new Date(a.createdAt || `${a.date}T00:00:00`).getTime();
             const timeB = new Date(b.createdAt || `${b.date}T00:00:00`).getTime();
             return timeB - timeA;
           });
-          setSalesLogs(mergedSales);
-          saveStoredSales(mergedSales, activeId);
+          setSalesLogs(sorted);
+          saveStoredSales(sorted, activeId);
         } else {
           const localSales = getStoredSales(activeId);
-          if (localSales && localSales.length > 0) {
+          if (localSales && localSales.length > 0 && !cleanSlate) {
             syncCloudSales(localSales, activeId);
           }
         }
-        if (cloudData.procurement && Array.isArray(cloudData.procurement) && cloudData.procurement.length > 0) {
+
+        if (cloudData.procurement && Array.isArray(cloudData.procurement)) {
           setProcurementLogs(cloudData.procurement);
           saveStoredProcurement(cloudData.procurement, activeId);
         }
@@ -429,87 +413,63 @@ export default function App() {
     // Realtime subscription across devices for this active cafe
     const unsubscribe = subscribeToCloudData({
       onMenuUpdate: (newMenu) => {
-        const cleanSlate = isCleanSlateActive(activeId);
-        const localMenu = getStoredMenu(activeId) || [];
-        if (cleanSlate && localMenu.length > 0 && (!newMenu || newMenu.length === 0)) {
-          return;
-        }
-        if (newMenu && newMenu.length > 0) {
-          const cloudMap = new Map(newMenu.map(m => [m.id, m]));
-          localMenu.forEach(lm => {
-            if (!cloudMap.has(lm.id)) {
-              cloudMap.set(lm.id, lm);
-            }
-          });
-          const merged = Array.from(cloudMap.values());
-          setMenuItems(merged);
-          saveStoredMenu(merged, activeId);
-        } else {
-          setMenuItems(newMenu || []);
-          saveStoredMenu(newMenu || [], activeId);
+        if (Array.isArray(newMenu)) {
+          setMenuItems(newMenu);
+          saveStoredMenu(newMenu, activeId);
         }
       },
       onInventoryUpdate: (newInv) => {
-        const cleanSlate = isCleanSlateActive(activeId);
-        const localInv = getStoredInventory(activeId) || [];
-        if (cleanSlate && localInv.length > 0 && (!newInv || newInv.length === 0)) {
-          return;
-        }
-        if (newInv && newInv.length > 0) {
-          const cloudMap = new Map(newInv.map(i => [i.id, i]));
-          localInv.forEach(li => {
-            if (!cloudMap.has(li.id)) {
-              cloudMap.set(li.id, li);
-            }
-          });
-          const merged = Array.from(cloudMap.values());
-          setInventoryItems(merged);
-          saveStoredInventory(merged, activeId);
-        } else {
-          setInventoryItems(newInv || []);
-          saveStoredInventory(newInv || [], activeId);
+        if (Array.isArray(newInv)) {
+          setInventoryItems(newInv);
+          saveStoredInventory(newInv, activeId);
         }
       },
       onSalesUpdate: (newSales) => {
-        setSalesLogs(prev => {
-          const prevMap = new Map((prev || []).map(s => [s.id, s]));
-          newSales.forEach(s => prevMap.set(s.id, s));
-          const merged = Array.from(prevMap.values()).sort((a, b) => {
+        if (Array.isArray(newSales)) {
+          const sorted = [...newSales].sort((a, b) => {
             const timeA = new Date(a.createdAt || `${a.date}T00:00:00`).getTime();
             const timeB = new Date(b.createdAt || `${b.date}T00:00:00`).getTime();
             return timeB - timeA;
           });
-          saveStoredSales(merged, activeId);
-          return merged;
-        });
+          setSalesLogs(sorted);
+          saveStoredSales(sorted, activeId);
+        }
       },
       onProcurementUpdate: (newProc) => {
-        setProcurementLogs(newProc);
-        saveStoredProcurement(newProc, activeId);
+        if (Array.isArray(newProc)) {
+          setProcurementLogs(newProc);
+          saveStoredProcurement(newProc, activeId);
+        }
       },
       onExpensesUpdate: (newExp) => {
-        setExpenses(newExp);
-        saveStoredExpenses(newExp, activeId);
+        if (Array.isArray(newExp)) {
+          setExpenses(newExp);
+          saveStoredExpenses(newExp, activeId);
+        }
       },
       onWastageUpdate: (newWaste) => {
-        setWastageLogs(newWaste);
-        saveStoredWastage(newWaste, activeId);
+        if (Array.isArray(newWaste)) {
+          setWastageLogs(newWaste);
+          saveStoredWastage(newWaste, activeId);
+        }
       },
       onDiningOrdersUpdate: (newOrders) => {
-        setDiningOrders(prevOrders => {
-          const prevIds = new Set(prevOrders.map(o => o.id));
-          const hasNewIncoming = newOrders.some(o => !prevIds.has(o.id) && o.status === 'pending');
-          if (hasNewIncoming) {
-            const newest = newOrders.find(o => !prevIds.has(o.id) && o.status === 'pending') || newOrders.find(o => !prevIds.has(o.id));
-            playOrderChime({
-              tableNumber: newest?.tableNumber || '',
-              totalAmount: newest?.totalAmount || ''
-            });
-            showToast(`🔔 Naya Dine-In Order: Table #${newest ? newest.tableNumber : ''} (₹${newest ? newest.totalAmount : ''})`);
-          }
-          return newOrders;
-        });
-        saveStoredDiningOrders(newOrders, activeId);
+        if (Array.isArray(newOrders)) {
+          setDiningOrders(prevOrders => {
+            const prevIds = new Set(prevOrders.map(o => o.id));
+            const hasNewIncoming = newOrders.some(o => !prevIds.has(o.id) && o.status === 'pending');
+            if (hasNewIncoming) {
+              const newest = newOrders.find(o => !prevIds.has(o.id) && o.status === 'pending') || newOrders.find(o => !prevIds.has(o.id));
+              playOrderChime({
+                tableNumber: newest?.tableNumber || '',
+                totalAmount: newest?.totalAmount || ''
+              });
+              showToast(`🔔 Naya Dine-In Order: Table #${newest ? newest.tableNumber : ''} (₹${newest ? newest.totalAmount : ''})`);
+            }
+            return newOrders;
+          });
+          saveStoredDiningOrders(newOrders, activeId);
+        }
       }
     }, activeId);
 
@@ -517,6 +477,111 @@ export default function App() {
       if (unsubscribe) unsubscribe();
     };
   }, [isCloudConnected, currentCafe?.cafeId]);
+
+  // 3. Multi-Device Auto-Sync on Tab Focus & Mobile Unlock (Khulte hi refresh!)
+  useEffect(() => {
+    const handleMultiDeviceRefresh = () => {
+      if (document.visibilityState === 'visible') {
+        const activeId = currentCafe?.cafeId || 'default';
+        if (isFirebaseConfigured() && activeId) {
+          fetchAllCloudData(activeId).then((cloudData) => {
+            if (cloudData) {
+              if (Array.isArray(cloudData.menu) && cloudData.menu.length > 0) {
+                setMenuItems(cloudData.menu);
+                saveStoredMenu(cloudData.menu, activeId);
+              }
+              if (Array.isArray(cloudData.inventory) && cloudData.inventory.length > 0) {
+                setInventoryItems(cloudData.inventory);
+                saveStoredInventory(cloudData.inventory, activeId);
+              }
+              if (Array.isArray(cloudData.sales)) {
+                const sorted = [...cloudData.sales].sort((a, b) => {
+                  const timeA = new Date(a.createdAt || `${a.date}T00:00:00`).getTime();
+                  const timeB = new Date(b.createdAt || `${b.date}T00:00:00`).getTime();
+                  return timeB - timeA;
+                });
+                setSalesLogs(sorted);
+                saveStoredSales(sorted, activeId);
+              }
+              if (Array.isArray(cloudData.procurement)) {
+                setProcurementLogs(cloudData.procurement);
+                saveStoredProcurement(cloudData.procurement, activeId);
+              }
+              if (Array.isArray(cloudData.expenses)) {
+                setExpenses(cloudData.expenses);
+                saveStoredExpenses(cloudData.expenses, activeId);
+              }
+              if (Array.isArray(cloudData.wastage)) {
+                setWastageLogs(cloudData.wastage);
+                saveStoredWastage(cloudData.wastage, activeId);
+              }
+              if (Array.isArray(cloudData.diningOrders)) {
+                setDiningOrders(cloudData.diningOrders);
+                saveStoredDiningOrders(cloudData.diningOrders, activeId);
+              }
+            }
+          });
+        }
+      }
+    };
+
+    window.addEventListener('focus', handleMultiDeviceRefresh);
+    document.addEventListener('visibilitychange', handleMultiDeviceRefresh);
+    return () => {
+      window.removeEventListener('focus', handleMultiDeviceRefresh);
+      document.removeEventListener('visibilitychange', handleMultiDeviceRefresh);
+    };
+  }, [currentCafe?.cafeId]);
+
+  // 4. Manual Multi-Device Refresh Trigger
+  const handleManualSync = async () => {
+    const activeId = currentCafe?.cafeId || 'default';
+    if (!isFirebaseConfigured() || !activeId) return;
+    setIsManualSyncing(true);
+    try {
+      const cloudData = await fetchAllCloudData(activeId);
+      if (cloudData) {
+        if (Array.isArray(cloudData.menu)) {
+          setMenuItems(cloudData.menu);
+          saveStoredMenu(cloudData.menu, activeId);
+        }
+        if (Array.isArray(cloudData.inventory)) {
+          setInventoryItems(cloudData.inventory);
+          saveStoredInventory(cloudData.inventory, activeId);
+        }
+        if (Array.isArray(cloudData.sales)) {
+          const sorted = [...cloudData.sales].sort((a, b) => {
+            const timeA = new Date(a.createdAt || `${a.date}T00:00:00`).getTime();
+            const timeB = new Date(b.createdAt || `${b.date}T00:00:00`).getTime();
+            return timeB - timeA;
+          });
+          setSalesLogs(sorted);
+          saveStoredSales(sorted, activeId);
+        }
+        if (Array.isArray(cloudData.procurement)) {
+          setProcurementLogs(cloudData.procurement);
+          saveStoredProcurement(cloudData.procurement, activeId);
+        }
+        if (Array.isArray(cloudData.expenses)) {
+          setExpenses(cloudData.expenses);
+          saveStoredExpenses(cloudData.expenses, activeId);
+        }
+        if (Array.isArray(cloudData.wastage)) {
+          setWastageLogs(cloudData.wastage);
+          saveStoredWastage(cloudData.wastage, activeId);
+        }
+        if (Array.isArray(cloudData.diningOrders)) {
+          setDiningOrders(cloudData.diningOrders);
+          saveStoredDiningOrders(cloudData.diningOrders, activeId);
+        }
+        showToast('🟢 Multi-Device Live Sync: Latest data refreshed!');
+      }
+    } catch (err) {
+      console.error('Manual sync error:', err);
+    } finally {
+      setTimeout(() => setIsManualSyncing(false), 500);
+    }
+  };
 
   // Save State (LocalStorage + Cloud Firestore) scoped to active cafe
   const updateMenu = (newItems) => {
@@ -846,7 +911,8 @@ export default function App() {
     }
     const updatedWastage = wastageLogs.filter(w => w.id !== id);
     updateWastage(updatedWastage);
-    if (isFirebaseConfigured() && typeof deleteSingleWastage === 'function') deleteSingleWastage(id);
+    const activeId = currentCafe?.cafeId || 'default';
+    if (isFirebaseConfigured() && typeof deleteSingleWastage === 'function') deleteSingleWastage(id, activeId);
     showToast('Wastage record deleted & raw material stock restored');
   };
 
@@ -1131,7 +1197,8 @@ export default function App() {
     const saleToDelete = salesLogs.find(s => s.id === id);
     const updatedSales = salesLogs.filter(s => s.id !== id);
     updateSales(updatedSales);
-    if (isFirebaseConfigured()) deleteSingleSale(id);
+    const activeId = currentCafe?.cafeId || 'default';
+    if (isFirebaseConfigured()) deleteSingleSale(id, activeId);
 
     // Restore all recipe ingredients for the deleted sale
     if (saleToDelete) {
@@ -1246,7 +1313,8 @@ export default function App() {
     }
     const updated = procurementLogs.filter(p => p.id !== id);
     updateProcurement(updated);
-    if (isFirebaseConfigured()) deleteSingleProcurement(id);
+    const activeId = currentCafe?.cafeId || 'default';
+    if (isFirebaseConfigured()) deleteSingleProcurement(id, activeId);
     showToast('Procurement log entry deleted & inventory stock adjusted');
   };
 
@@ -1434,8 +1502,9 @@ export default function App() {
     setDiningOrders(updated);
     saveStoredDiningOrders(updated);
 
+    const activeId = currentCafe?.cafeId || 'default';
     if (isFirebaseConfigured()) {
-      syncSingleDiningOrder(newOrder);
+      syncSingleDiningOrder(newOrder, activeId);
     }
 
     // Silent instant Telegram Bot Notification to Cafe Owner
@@ -1455,8 +1524,9 @@ export default function App() {
     saveStoredDiningOrders(updated);
 
     const target = updated.find(o => o.id === orderId);
+    const activeId = currentCafe?.cafeId || 'default';
     if (target && isFirebaseConfigured()) {
-      syncSingleDiningOrder(target);
+      syncSingleDiningOrder(target, activeId);
     }
 
     showToast(`Table #${target ? target.tableNumber : ''} Order: ${newStatus.toUpperCase()}`);
@@ -1492,8 +1562,9 @@ export default function App() {
     const updated = diningOrders.filter(o => o.id !== orderId);
     setDiningOrders(updated);
     saveStoredDiningOrders(updated);
+    const activeId = currentCafe?.cafeId || 'default';
     if (isFirebaseConfigured()) {
-      deleteSingleDiningOrder(orderId);
+      deleteSingleDiningOrder(orderId, activeId);
     }
     showToast('Dining order removed');
   };
@@ -1684,6 +1755,8 @@ export default function App() {
         isStaffMode={isStaffMode}
         onLockToStaffMode={handleLockToStaffMode}
         onPromptUnlockStaffMode={handlePromptUnlockStaffMode}
+        onManualSync={handleManualSync}
+        isSyncing={isManualSyncing}
       />
 
       {/* Main Container with Left Sidebar & Content (Bounded to max 1920px, centered with responsive gutters) */}
