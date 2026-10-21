@@ -52,7 +52,6 @@ import {
   checkItemStock,
   convertQuantity,
   findMatchingInventoryItem,
-  KNOWN_MATERIAL_ALIASES,
   INITIAL_INVENTORY_ITEMS,
   RESTAURANT_HOTEL_INVENTORY_ITEMS,
   RESTAURANT_HOTEL_MENU_ITEMS,
@@ -79,7 +78,8 @@ import {
   deleteSingleMenuItem,
   fetchAllCloudData,
   subscribeToCloudData,
-  wipeCloudTenantCollections
+  wipeCloudTenantCollections,
+  restoreFriendRealData
 } from './utils/cloudSync';
 import AggregatorSettlementModal from './components/AggregatorSettlementModal';
 import { PieChart, ShoppingBag, PackageCheck, Coffee, CheckCircle2, Plus, Boxes, Receipt, UtensilsCrossed, Bike, Sparkles, Trash2, User } from 'lucide-react';
@@ -280,67 +280,6 @@ export default function App() {
       rawSales = getStoredSales(activeId);
       rawProc = getStoredProcurement(activeId);
       rawInv = getStoredInventory(activeId);
-    }
-
-    // Auto-fix/normalize any existing misspelled items in inventory safely
-    let invChanged = false;
-    const consolidatedInv = [];
-    const ALL_INVENTORY_TEMPLATES = [...INITIAL_INVENTORY_ITEMS, ...RESTAURANT_HOTEL_INVENTORY_ITEMS];
-
-    const getCanonicalName = (name) => {
-      const lower = String(name || '').toLowerCase().trim();
-      if (!lower) return name;
-      for (const [canonical, aliases] of Object.entries(KNOWN_MATERIAL_ALIASES)) {
-        if (aliases.some(a => lower === a || lower.includes(a) || a.includes(lower))) {
-          const match = ALL_INVENTORY_TEMPLATES.find(p => String(p?.materialName || '').toLowerCase() === canonical);
-          return match ? match.materialName : canonical;
-        }
-      }
-      return name;
-    };
-
-    (rawInv || []).forEach(item => {
-      if (!item || !item.materialName) return;
-      const canonicalName = getCanonicalName(item.materialName);
-      if (canonicalName !== item.materialName) {
-        invChanged = true;
-        const standardDef = ALL_INVENTORY_TEMPLATES.find(p => String(p?.materialName || '').toLowerCase() === String(canonicalName || '').toLowerCase());
-        const targetUnit = standardDef ? standardDef.unit : (item.unit || 'Piece');
-        const targetCategory = standardDef ? standardDef.category : (item.category || 'Groceries');
-
-        let stockToAdd = Number(item.currentStock) || 0;
-        if ((item.unit === 'Kg' || item.unit === 'Piece' || stockToAdd <= 20) && targetUnit === 'Gram') {
-          stockToAdd = stockToAdd * 1000;
-        } else {
-          stockToAdd = convertQuantity(stockToAdd, item.unit, targetUnit);
-        }
-
-        const existing = consolidatedInv.find(c => String(c?.materialName || '').toLowerCase() === String(canonicalName || '').toLowerCase());
-        if (existing) {
-          existing.currentStock = Math.round((existing.currentStock + stockToAdd) * 100) / 100;
-        } else {
-          consolidatedInv.push({
-            ...item,
-            materialName: canonicalName,
-            category: targetCategory,
-            unit: targetUnit,
-            currentStock: stockToAdd
-          });
-        }
-      } else {
-        const existing = consolidatedInv.find(c => String(c?.materialName || '').toLowerCase() === String(item?.materialName || '').toLowerCase());
-        if (existing) {
-          existing.currentStock = Math.round((existing.currentStock + Number(item.currentStock || 0)) * 100) / 100;
-          invChanged = true;
-        } else {
-          consolidatedInv.push(item);
-        }
-      }
-    });
-
-    if (invChanged) {
-      saveStoredInventory(consolidatedInv, activeId);
-      rawInv = consolidatedInv;
     }
 
     setMenuItems(rawMenu);
@@ -1259,40 +1198,26 @@ export default function App() {
         : '';
       showToast(`Logged purchase: Added ${convertedQty} ${matchedItem.unit}${conversionNote} to "${matchedItem.materialName}" stock!`);
     } else {
-      // Check if it matches any standard cafe ingredient from aliases
-      let standardName = newProc.materialName.trim();
-      let standardUnit = newProc.unit || 'Piece';
-      let standardCategory = newProc.category || 'Groceries';
-
-      for (const [canonical, aliases] of Object.entries(KNOWN_MATERIAL_ALIASES)) {
-        if (aliases.some(a => standardName.toLowerCase() === a || standardName.toLowerCase().includes(a))) {
-          const preset = INITIAL_INVENTORY_ITEMS.find(p => p.materialName.toLowerCase() === canonical);
-          if (preset) {
-            standardName = preset.materialName;
-            standardCategory = preset.category;
-            standardUnit = preset.unit;
-          }
-          break;
-        }
-      }
-
-      const convertedQty = convertQuantity(qty, newProc.unit, standardUnit);
+      // New raw material: Add with user's exact name, category, and unit
+      const matName = newProc.materialName.trim();
+      const matUnit = newProc.unit || 'Piece';
+      const matCategory = newProc.category || 'Groceries';
       const totalPurchasedCost = Number(newProc.totalCost) || (qty * (Number(newProc.ratePerUnit) || 0));
-      const costPerInvUnit = convertedQty > 0 ? (totalPurchasedCost / convertedQty) : (Number(newProc.ratePerUnit) || 0);
+      const costPerInvUnit = qty > 0 ? (totalPurchasedCost / qty) : (Number(newProc.ratePerUnit) || 0);
       const roundedCostPerInvUnit = Math.round(costPerInvUnit * 10000) / 10000;
 
       const newItem = {
         id: `inv-${Date.now()}`,
-        materialName: standardName,
-        category: standardCategory,
-        currentStock: convertedQty,
-        unit: standardUnit,
+        materialName: matName,
+        category: matCategory,
+        currentStock: qty,
+        unit: matUnit,
         reorderLevel: 5,
         unitCost: roundedCostPerInvUnit,
         lastUpdated: new Date().toISOString().split('T')[0]
       };
       updatedInv = [newItem, ...inventoryItems];
-      showToast(`Logged purchase: Added ${convertedQty} ${standardUnit} to "${standardName}" stock!`);
+      showToast(`Logged purchase: Added ${qty} ${matUnit} to "${matName}" stock!`);
     }
 
     updateInventory(updatedInv);
@@ -1366,6 +1291,16 @@ export default function App() {
     });
     updateInventory(updated);
     showToast(`Stock balance adjusted (${delta > 0 ? '+' : ''}${delta})`);
+  };
+
+  const handleRestoreFriendData = async () => {
+    const activeId = currentCafe?.cafeId || 'default';
+    const restored = await restoreFriendRealData(activeId);
+    if (restored) {
+      setInventoryItems(restored.inventory);
+      setProcurementLogs(restored.procurement);
+      showToast('🎉 Friend ke real Stock items (7 Items) & Purchase data successfully restore ho gaye!');
+    }
   };
 
   // ☕ Menu Handlers
@@ -2024,6 +1959,7 @@ export default function App() {
             onDeleteItem={handleDeleteInventoryItem}
             onAdjustStock={handleAdjustStock}
             onNavigateToProcurement={() => setActiveTab('procurement')}
+            onRestoreFriendData={handleRestoreFriendData}
           />
         )}
 

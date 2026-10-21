@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Package, AlertTriangle, CheckCircle2, XCircle, Plus, Edit2, Trash2, Search, Filter, TrendingDown, Layers, PackageCheck } from 'lucide-react';
+import { Package, AlertTriangle, CheckCircle2, XCircle, Plus, Edit2, Trash2, Search, Filter, TrendingDown, Layers, PackageCheck, RotateCcw } from 'lucide-react';
 
 const CATEGORIES = ['Dairy', 'Beans & Teas', 'Produce', 'Bakery', 'Packaging', 'Groceries', 'Beverages', 'Spices & Sauces', 'Frozen'];
 const UNITS = ['Kg', 'Gram', 'Liters', 'ml', 'Piece', 'Slice', 'Portion', 'Packets', 'Bags', 'Boxes', 'Packs', 'Units'];
@@ -66,7 +66,7 @@ export const formatStockQuantity = (item) => {
   };
 };
 
-export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteItem, onAdjustStock, onNavigateToProcurement }) {
+export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteItem, onAdjustStock, onNavigateToProcurement, onRestoreFriendData }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -336,6 +336,19 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
               </button>
             )}
 
+            {/* Restore Friend's Real Stock Button */}
+            {onRestoreFriendData && (
+              <button
+                type="button"
+                onClick={onRestoreFriendData}
+                className="w-full sm:w-auto px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                title="Pehle add kiye gaye real stock items wapas layein (ketchup, onion, chipotale, cheese, buns, etc.)"
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-emerald-700" />
+                <span>Restore Real Stock Data</span>
+              </button>
+            )}
+
             {/* Add Raw Material Button */}
             <button
               type="button"
@@ -383,6 +396,16 @@ export default function InventoryTracker({ inventoryItems, onSaveItem, onDeleteI
             </div>
             <p className="text-xs font-bold text-stone-700">No inventory materials found</p>
             <p className="text-[11px] text-stone-400 mt-0.5">Try clearing filters or search term, or click "+ Add Raw Material" above.</p>
+            {onRestoreFriendData && (
+              <button
+                type="button"
+                onClick={onRestoreFriendData}
+                className="mt-3.5 inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl shadow cursor-pointer transition-all active:scale-95"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>📦 Restore Friend's Real Stock (7 Items)</span>
+              </button>
+            )}
           </div>
         ) : (
           <>

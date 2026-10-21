@@ -1954,69 +1954,27 @@ export const levenshteinDistance = (a, b) => {
   return track[s2.length][s1.length];
 };
 
-// Match user typed query to existing inventory or recipe raw materials
+// Match user typed query to existing inventory raw materials by exact ID, exact name, or plural
 export const findMatchingInventoryItem = (query, inventoryList = []) => {
   if (!query || !inventoryList || inventoryList.length === 0) return null;
-  const q = query.trim().toLowerCase();
+  const q = String(query).trim().toLowerCase();
 
   // 1. Direct ID match
-  const byId = inventoryList.find(i => i.id === query);
+  const byId = inventoryList.find(i => String(i?.id) === String(query));
   if (byId) return byId;
 
   // 2. Exact name match (case-insensitive)
-  const exact = inventoryList.find(i => (i.materialName || '').trim().toLowerCase() === q);
+  const exact = inventoryList.find(i => String(i?.materialName || '').trim().toLowerCase() === q);
   if (exact) return exact;
 
-  // 3. Substring inclusion match (e.g. "mozzarella" in "Mozzarella Cheese")
-  const subMatch = inventoryList.find(i => {
-    const m = (i.materialName || '').trim().toLowerCase();
-    if (m === q) return true;
-    if (m.includes(q)) return true; // Shorter query in longer material name
-    if (q.includes(m)) {
-      // Allow minor generic affixes like "packet", "fresh", "pack", or plural 's'
-      const remainder = q.replace(m, '').trim();
-      const genericAffixes = ['packet', 'packets', 'pack', 'packs', 'box', 'boxes', 'fresh', 'raw', 'piece', 'pieces', 's', 'es'];
-      return !remainder || genericAffixes.includes(remainder) || remainder.length <= 2;
-    }
-    return false;
+  // 3. Simple plural/singular match (e.g. "Burger Bun" <-> "Burger Buns", "Tomato" <-> "Tomatoes")
+  const pluralMatch = inventoryList.find(i => {
+    const m = String(i?.materialName || '').trim().toLowerCase();
+    return m === q + 's' || m === q + 'es' || q === m + 's' || q === m + 'es';
   });
-  if (subMatch) return subMatch;
+  if (pluralMatch) return pluralMatch;
 
-  // 4. Known aliases match (e.g. "mozzerella" -> "mozzarella cheese", "souce" -> "pizza sauce")
-  for (const [canonical, aliases] of Object.entries(KNOWN_MATERIAL_ALIASES)) {
-    const isQueryAlias = aliases.some(a => q === a || q.includes(a) || a.includes(q));
-    if (isQueryAlias) {
-      const candidate = inventoryList.find(i => {
-        const im = (i.materialName || '').toLowerCase();
-        return im === canonical || im.includes(canonical) || canonical.includes(im) || aliases.some(a => im.includes(a));
-      });
-      if (candidate) return candidate;
-    }
-  }
-
-  // 5. Fuzzy typo match using Levenshtein distance
-  let bestItem = null;
-  let minDistance = Infinity;
-
-  for (const inv of inventoryList) {
-    const name = (inv.materialName || '').toLowerCase();
-    const dist = levenshteinDistance(q, name);
-    if (dist <= 2 && dist < minDistance) {
-      minDistance = dist;
-      bestItem = inv;
-    }
-
-    const words = name.split(/\s+/);
-    for (const w of words) {
-      const wordDist = levenshteinDistance(q, w);
-      if (wordDist <= 2 && wordDist < minDistance) {
-        minDistance = wordDist;
-        bestItem = inv;
-      }
-    }
-  }
-
-  return bestItem;
+  return null;
 };
 
 // Real-time stock calculator based on recipe & raw materials inventory (with unit conversion & smart matching)

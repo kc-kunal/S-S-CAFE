@@ -9,7 +9,7 @@ import {
   onSnapshot
 } from 'firebase/firestore';
 import { getFirebaseDb, isFirebaseConfigured } from './firebase';
-import { getCurrentCafeId } from './storage';
+import { getCurrentCafeId, saveStoredInventory, saveStoredProcurement } from './storage';
 
 // Production Firestore Collections
 export const COLLECTIONS = {
@@ -221,6 +221,40 @@ export const fetchAllCloudData = async (cafeId = getCurrentCafeId()) => {
       wastage: wasteSnap.docs.map(d => ({ ...d.data(), id: d.id })),
       diningOrders: diningSnap.docs.map(d => ({ ...d.data(), id: d.id }))
     };
+
+    // Auto-restore Friend's Real Inventory if tenant inventory is empty
+    if (!result.inventory || result.inventory.length === 0) {
+      try {
+        const rootInvSnap = await getDocs(collection(db, COLLECTIONS.INVENTORY));
+        if (!rootInvSnap.empty) {
+          const rootInv = rootInvSnap.docs.map(d => ({ ...d.data(), id: d.id }));
+          result.inventory = rootInv;
+          syncCloudInventory(rootInv, cafeId);
+        } else {
+          result.inventory = [...FRIEND_REAL_INVENTORY_ITEMS];
+        }
+      } catch (e) {
+        console.warn('Fallback to friend real inventory snapshot:', e);
+        result.inventory = [...FRIEND_REAL_INVENTORY_ITEMS];
+      }
+    }
+
+    // Auto-restore Friend's Real Procurement if tenant procurement is empty
+    if (!result.procurement || result.procurement.length === 0) {
+      try {
+        const rootProcSnap = await getDocs(collection(db, COLLECTIONS.PROCUREMENT));
+        if (!rootProcSnap.empty) {
+          const rootProc = rootProcSnap.docs.map(d => ({ ...d.data(), id: d.id }));
+          result.procurement = rootProc;
+          syncCloudProcurement(rootProc, cafeId);
+        } else {
+          result.procurement = [...FRIEND_REAL_PROCUREMENT_LOGS];
+        }
+      } catch (e) {
+        console.warn('Fallback to friend real procurement snapshot:', e);
+        result.procurement = [...FRIEND_REAL_PROCUREMENT_LOGS];
+      }
+    }
 
     // 2. Backward compatibility: If modern collections are empty and cafeId is default, check legacy single document
     const hasModernData = Object.values(result).some(arr => arr && arr.length > 0);
@@ -494,4 +528,166 @@ export const wipeCloudTenantCollections = async (cafeId = getCurrentCafeId(), op
 
   return true;
 };
+
+// ==========================================
+// 6. Friend's Real Stock & Purchase Data
+// ==========================================
+
+export const FRIEND_REAL_INVENTORY_ITEMS = [
+  {
+    id: 'custom-1791547995467',
+    materialName: 'ketchup',
+    category: 'Groceries',
+    currentStock: 1,
+    unit: 'Gram',
+    unitCost: 80,
+    reorderLevel: 5,
+    lastUpdated: '2026-10-12'
+  },
+  {
+    id: 'custom-1791548026393',
+    materialName: 'onion',
+    category: 'Groceries',
+    currentStock: 1,
+    unit: 'Gram',
+    unitCost: 62,
+    reorderLevel: 5,
+    lastUpdated: '2026-10-12'
+  },
+  {
+    id: 'custom-1791548061364',
+    materialName: 'chipotale',
+    category: 'Dairy & Cheese',
+    currentStock: 3.01,
+    unit: 'Liters',
+    unitCost: 173.25,
+    reorderLevel: 5,
+    lastUpdated: '2026-10-12'
+  },
+  {
+    id: 'inv-1790662856273',
+    materialName: 'Mozzarella Cheese',
+    category: 'Dairy & Cheese',
+    currentStock: 7.05,
+    unit: 'Kg',
+    unitCost: 488.25,
+    reorderLevel: 5,
+    lastUpdated: '2026-10-12'
+  },
+  {
+    id: 'inv-1791544770402',
+    materialName: 'Burger Buns',
+    category: 'Bakery & Breads',
+    currentStock: 8,
+    unit: 'Packs',
+    unitCost: 7.5,
+    reorderLevel: 5,
+    lastUpdated: '2026-10-12'
+  },
+  {
+    id: 'inv-1791546930556',
+    materialName: 'French Fries (Frozen)',
+    category: 'Frozen & Pre-Cooked',
+    currentStock: 7500,
+    unit: 'Gram',
+    unitCost: 0.096,
+    reorderLevel: 5,
+    lastUpdated: '2026-10-12'
+  },
+  {
+    id: 'inv-1791548337575',
+    materialName: 'herb chilli patty',
+    category: 'Frozen & Pre-Cooked',
+    currentStock: 75,
+    unit: 'Units',
+    unitCost: 7.8,
+    reorderLevel: 5,
+    lastUpdated: '2026-10-12'
+  }
+];
+
+export const FRIEND_REAL_PROCUREMENT_LOGS = [
+  {
+    id: 'proc-1791546764221',
+    materialName: 'Veg Aloo Patty',
+    category: 'Groceries',
+    quantityReceived: 60,
+    unit: 'Piece',
+    ratePerUnit: 8.75,
+    totalCost: 525,
+    supplier: 'tirupati trading company',
+    date: '2026-10-12',
+    createdAt: '2026-10-12T10:00:00.000Z'
+  },
+  {
+    id: 'proc-1791546930555',
+    materialName: 'French Fries (Frozen)',
+    category: 'Groceries',
+    quantityReceived: 7.5,
+    unit: 'Kg',
+    ratePerUnit: 96,
+    totalCost: 720,
+    supplier: 'Tirupati Trading Company',
+    date: '2026-10-12',
+    createdAt: '2026-10-12T10:05:00.000Z'
+  },
+  {
+    id: 'proc-1791547129266',
+    materialName: 'Veg Aloo Patty',
+    category: 'Groceries',
+    quantityReceived: 75,
+    unit: 'Piece',
+    ratePerUnit: 7.8,
+    totalCost: 585,
+    supplier: 'tirupati trading company',
+    date: '2026-10-12',
+    createdAt: '2026-10-12T10:10:00.000Z'
+  },
+  {
+    id: 'proc-1791547190163',
+    materialName: 'Mozzarella Cheese',
+    category: 'Dairy & Cheese',
+    quantityReceived: 4,
+    unit: 'Kg',
+    ratePerUnit: 488.25,
+    totalCost: 1953,
+    supplier: 'tirupati trading company',
+    date: '2026-10-12',
+    createdAt: '2026-10-12T10:15:00.000Z'
+  }
+];
+
+export const restoreFriendRealData = async (cafeId = getCurrentCafeId()) => {
+  const db = getFirebaseDb();
+  let invItems = [...FRIEND_REAL_INVENTORY_ITEMS];
+  let procItems = [...FRIEND_REAL_PROCUREMENT_LOGS];
+
+  if (db) {
+    try {
+      const rootInvSnap = await getDocs(collection(db, COLLECTIONS.INVENTORY));
+      if (!rootInvSnap.empty) {
+        invItems = rootInvSnap.docs.map(d => ({ ...d.data(), id: d.id }));
+      }
+      const rootProcSnap = await getDocs(collection(db, COLLECTIONS.PROCUREMENT));
+      if (!rootProcSnap.empty) {
+        procItems = rootProcSnap.docs.map(d => ({ ...d.data(), id: d.id }));
+      }
+    } catch (e) {
+      console.warn('Could not read root collections, using cached real data snapshot:', e);
+    }
+
+    // Save to tenant cloud collections
+    await Promise.all([
+      syncCloudInventory(invItems, cafeId),
+      syncCloudProcurement(procItems, cafeId)
+    ]);
+  }
+
+  // Save to local storage
+  saveStoredInventory(invItems, cafeId);
+  saveStoredProcurement(procItems, cafeId);
+
+  return { inventory: invItems, procurement: procItems };
+};
+
 

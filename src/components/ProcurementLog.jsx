@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Plus, PackageCheck, Trash2, Tag, Truck, Calculator, Sparkles, Check, Search, TrendingUp, IndianRupee, Layers, AlertCircle, Calendar } from 'lucide-react';
-import { KNOWN_MATERIAL_ALIASES, INITIAL_INVENTORY_ITEMS, findMatchingInventoryItem, convertQuantity, classifyMaterialProcurementType } from '../utils/storage';
+import { findMatchingInventoryItem, convertQuantity, classifyMaterialProcurementType } from '../utils/storage';
 
 const CATEGORIES = ['Dairy', 'Bakery', 'Groceries', 'Beans & Teas', 'Frozen', 'Dry', 'Packaging'];
 const UNITS = ['Kg', 'Gram', 'Liters', 'ml', 'Piece', 'Packet', 'Box'];
@@ -38,13 +38,13 @@ export default function ProcurementLog({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Collect all known raw materials (from Inventory + Menu Recipes + Preset)
+  // Collect all known raw materials (from Inventory first, then recipe items)
   const allAvailableMaterials = useMemo(() => {
     const map = new Map();
 
-    // 1. Existing inventory items
+    // 1. Existing inventory items (Primary Source of Truth from Stock tab!)
     (inventoryItems || []).forEach(inv => {
-      if (inv.materialName) {
+      if (inv?.materialName) {
         map.set(inv.materialName.toLowerCase().trim(), {
           name: inv.materialName.trim(),
           category: inv.category || 'Groceries',
@@ -55,11 +55,11 @@ export default function ProcurementLog({
       }
     });
 
-    // 2. Ingredients from Menu Items recipes
+    // 2. Ingredients from Menu Items recipes (if added via recipe)
     (menuItems || []).forEach(item => {
       if (Array.isArray(item.recipe)) {
         item.recipe.forEach(r => {
-          if (r.name && !map.has(r.name.toLowerCase().trim())) {
+          if (r?.name && !map.has(r.name.toLowerCase().trim())) {
             map.set(r.name.toLowerCase().trim(), {
               name: r.name.trim(),
               category: 'Groceries',
@@ -72,41 +72,16 @@ export default function ProcurementLog({
       }
     });
 
-    // 3. Preset catalog materials
-    INITIAL_INVENTORY_ITEMS.forEach(init => {
-      if (!map.has(init.materialName.toLowerCase().trim())) {
-        map.set(init.materialName.toLowerCase().trim(), {
-          name: init.materialName,
-          category: init.category,
-          unit: init.unit,
-          currentStock: 0,
-          unitCost: init.unitCost
-        });
-      }
-    });
-
     return Array.from(map.values());
   }, [inventoryItems, menuItems]);
 
-  // Suggestions for autocomplete while user types
+  // Suggestions for autocomplete while user types (exact substring match from stock)
   const suggestions = useMemo(() => {
     if (!materialName || materialName.trim().length === 0) {
       return allAvailableMaterials;
     }
     const q = materialName.toLowerCase().trim();
-
-    return allAvailableMaterials.filter(m => {
-      const name = m.name.toLowerCase();
-      if (name.includes(q)) return true;
-
-      // Check aliases
-      for (const [canonical, aliases] of Object.entries(KNOWN_MATERIAL_ALIASES)) {
-        if (name === canonical || name.includes(canonical)) {
-          if (aliases.some(a => a.includes(q) || q.includes(a))) return true;
-        }
-      }
-      return false;
-    });
+    return allAvailableMaterials.filter(m => m.name.toLowerCase().includes(q));
   }, [materialName, allAvailableMaterials]);
 
   // Dynamically monitor purchase frequency & inventory to build Quick Buttons for THIS cafe (Not hardcoded!)
@@ -169,35 +144,7 @@ export default function ProcurementLog({
     return allAvailableMaterials.find(m => String(m?.name || m?.materialName || '').toLowerCase() === q);
   }, [materialName, allAvailableMaterials]);
 
-  // Smart spelling correction recommendation (e.g. "mozzerella" -> "Mozzarella Cheese", "pizza basse" -> "Pizza Base")
-  const spellingCorrection = useMemo(() => {
-    if (!materialName || materialName.trim().length < 3) return null;
-    const q = materialName.toLowerCase().trim();
 
-    // If already exact match, no correction needed
-    if (allAvailableMaterials.some(m => String(m?.name || m?.materialName || '').toLowerCase() === q)) return null;
-
-    // Check aliases
-    for (const [canonical, aliases] of Object.entries(KNOWN_MATERIAL_ALIASES)) {
-      if (aliases.some(a => a === q || a.includes(q) || q.includes(a))) {
-        const target = allAvailableMaterials.find(m => String(m?.name || m?.materialName || '').toLowerCase() === canonical) ||
-                       INITIAL_INVENTORY_ITEMS.find(m => String(m?.materialName || m?.name || '').toLowerCase() === canonical);
-        const targetName = target ? (target.name || target.materialName || '') : '';
-        if (target && targetName.toLowerCase() !== q) {
-          return { ...target, name: targetName };
-        }
-      }
-    }
-
-    // Check fuzzy match
-    const matched = findMatchingInventoryItem(materialName, allAvailableMaterials);
-    const matchedName = matched ? (matched.name || matched.materialName || '') : '';
-    if (matched && matchedName.toLowerCase() !== q) {
-      return { ...matched, name: matchedName };
-    }
-
-    return null;
-  }, [materialName, allAvailableMaterials]);
 
   // Choose a raw material from suggestions or quick chips
   const handleSelectMaterial = (item) => {
@@ -262,14 +209,9 @@ export default function ProcurementLog({
     e.preventDefault();
     if (!materialName.trim() || !quantity || !totalCost) return;
 
-    // Use normalized spelling if user typed close alias or minor typo
-    let finalName = materialName.trim();
-    if (spellingCorrection && spellingCorrection.name) {
-      finalName = spellingCorrection.name;
-    } else {
-      const fuzzy = findMatchingInventoryItem(finalName, inventoryItems);
-      if (fuzzy) finalName = fuzzy.materialName;
-    }
+    const trimmedName = materialName.trim();
+    const matched = findMatchingInventoryItem(trimmedName, inventoryItems);
+    const finalName = matched ? matched.materialName : trimmedName;
 
     const newEntry = {
       id: `proc-${Date.now()}`,
@@ -449,8 +391,6 @@ export default function ProcurementLog({
                   className={`w-full px-3.5 py-2.5 text-xs font-bold rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 text-stone-900 transition-all ${
                     exactMatch
                       ? 'bg-emerald-50/40 border border-emerald-300'
-                      : spellingCorrection
-                      ? 'bg-amber-50/50 border-2 border-amber-400'
                       : 'bg-stone-50 border border-stone-300'
                   }`}
                 />
@@ -466,7 +406,7 @@ export default function ProcurementLog({
               )}
 
               {/* New Material Notice */}
-              {!exactMatch && !spellingCorrection && materialName.trim().length >= 3 && (
+              {!exactMatch && materialName.trim().length >= 2 && (
                 <div className="mt-1.5 text-[11px] text-indigo-700 font-semibold flex items-center gap-1 bg-indigo-50/70 p-1.5 rounded-lg border border-indigo-200">
                   <span>➕ <strong>Naya Raw Material:</strong> Ye item aapke Stock me naya add ho jayega.</span>
                 </div>
