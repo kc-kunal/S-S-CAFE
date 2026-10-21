@@ -40,6 +40,26 @@ export const getScopedDocRef = (db, collectionKey, id, cafeId = getCurrentCafeId
   return doc(db, collectionKey, String(id));
 };
 
+// Helper to recursively strip undefined properties so Firestore WriteBatch/setDoc never crashes
+export const sanitizeFirestoreData = (data) => {
+  if (data === undefined) return null;
+  if (data === null) return null;
+  if (typeof data !== 'object') return data;
+  if (data instanceof Date) return data.toISOString();
+  if (Array.isArray(data)) {
+    return data
+      .filter(item => item !== undefined)
+      .map(item => sanitizeFirestoreData(item));
+  }
+  const result = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (value !== undefined) {
+      result[key] = sanitizeFirestoreData(value);
+    }
+  }
+  return result;
+};
+
 // Batch commit helper: Firestore allows max 500 ops per batch. We chunk by 400 safely.
 const commitBatches = async (db, operations) => {
   if (!operations || operations.length === 0) return true;
@@ -51,7 +71,8 @@ const commitBatches = async (db, operations) => {
 
     chunk.forEach(({ type, ref, data }) => {
       if (type === 'set') {
-        batch.set(ref, data, { merge: true });
+        const cleanData = sanitizeFirestoreData(data);
+        batch.set(ref, cleanData, { merge: true });
       } else if (type === 'delete') {
         batch.delete(ref);
       }
@@ -69,7 +90,8 @@ const upsertSingleDoc = async (collectionName, item, cafeId = getCurrentCafeId()
   try {
     const id = item.id || `item_${Date.now()}`;
     const docRef = getScopedDocRef(db, collectionName, id, cafeId);
-    await setDoc(docRef, { ...item, id, _lastSynced: new Date().toISOString() }, { merge: true });
+    const cleanData = sanitizeFirestoreData({ ...item, id, _lastSynced: new Date().toISOString() });
+    await setDoc(docRef, cleanData, { merge: true });
     return true;
   } catch (err) {
     console.error(`Error upserting doc in ${collectionName}:`, err);
@@ -102,7 +124,7 @@ const syncCollectionItems = async (collectionName, items, cafeId = getCurrentCaf
       return {
         type: 'set',
         ref: getScopedDocRef(db, collectionName, id, cafeId),
-        data: { ...item, id, _lastSynced: new Date().toISOString() }
+        data: sanitizeFirestoreData({ ...item, id, _lastSynced: new Date().toISOString() })
       };
     });
 
@@ -261,10 +283,8 @@ export const subscribeToCloudData = (callbacks = {}, cafeId = getCurrentCafeId()
     // Menu Listener
     if (callbacks.onMenuUpdate) {
       const unsub = onSnapshot(getScopedCollectionRef(db, COLLECTIONS.MENU, cafeId), (snapshot) => {
-        if (!snapshot.empty) {
-          const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
-          callbacks.onMenuUpdate(items);
-        }
+        const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
+        callbacks.onMenuUpdate(items);
       }, (err) => console.error('Menu real-time error:', err));
       unsubscribers.push(unsub);
     }
@@ -272,10 +292,8 @@ export const subscribeToCloudData = (callbacks = {}, cafeId = getCurrentCafeId()
     // Inventory Listener
     if (callbacks.onInventoryUpdate) {
       const unsub = onSnapshot(getScopedCollectionRef(db, COLLECTIONS.INVENTORY, cafeId), (snapshot) => {
-        if (!snapshot.empty) {
-          const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
-          callbacks.onInventoryUpdate(items);
-        }
+        const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
+        callbacks.onInventoryUpdate(items);
       }, (err) => console.error('Inventory real-time error:', err));
       unsubscribers.push(unsub);
     }

@@ -168,25 +168,25 @@ export default function ItemModal({ isOpen, onClose, onSave, editingItem, onDupl
 
     const finalCategory = isCustomCat ? customCategory.trim() : formData.category;
 
-    // Filter valid recipe ingredients
+    // Filter valid recipe ingredients and ensure no undefined values
     const cleanedRecipe = recipe
-      .filter(r => r.name && r.name.trim() && Number(r.quantity) > 0)
+      .filter(r => r && r.name && String(r.name).trim() && Number(r.quantity) > 0)
       .map(r => ({
-        ingredientId: r.ingredientId || `custom-${Date.now()}`,
-        name: r.name.trim(),
+        ingredientId: r.ingredientId || `custom-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        name: String(r.name).trim(),
         quantity: Number(r.quantity),
         unit: r.unit || 'Piece'
       }));
 
     const itemToSave = {
-      id: editingItem ? editingItem.id : undefined,
+      id: editingItem ? editingItem.id : `item-${Date.now()}`,
       name: formData.name.trim(),
       category: finalCategory,
       sellingPrice: Number(formData.sellingPrice),
       costPrice: Number(formData.costPrice),
-      unit: formData.unit.trim(),
-      imageUrl: formData.imageUrl?.trim() || undefined,
-      isAvailable: formData.isAvailable,
+      unit: formData.unit.trim() || 'Piece',
+      imageUrl: formData.imageUrl?.trim() || '',
+      isAvailable: formData.isAvailable !== false,
       recipe: cleanedRecipe
     };
 

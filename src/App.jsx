@@ -67,6 +67,8 @@ import {
   syncCloudProcurement,
   syncCloudExpenses,
   syncCloudWastage,
+  syncSingleMenuItem,
+  syncSingleInventory,
   syncSingleDiningOrder,
   deleteSingleDiningOrder,
   deleteSingleSale,
@@ -123,6 +125,11 @@ export default function App() {
   const [wastageLogs, setWastageLogs] = useState(() => getStoredWastage(activeIdOnBoot));
   const [settlements, setSettlements] = useState([]);
   const [isAggregatorModalOpen, setIsAggregatorModalOpen] = useState(false);
+
+  // Clean slate reactive state & direct clear demo confirmation modal state
+  const [isCleanSlate, setIsCleanSlate] = useState(() => Boolean(currentCafe?.isCleanSlate || isCleanSlateActive(activeIdOnBoot)));
+  const [isClearDemoModalOpen, setIsClearDemoModalOpen] = useState(false);
+  const [clearDemoLoading, setClearDemoLoading] = useState(false);
 
   // 🔒 Priority 1: Staff PIN Lock State
   const [isStaffMode, setIsStaffMode] = useState(false);
@@ -250,6 +257,7 @@ export default function App() {
   const loadCafeData = (cafeId) => {
     const activeId = cafeId || 'default';
     setCurrentCafeId(activeId);
+    setIsCleanSlate(isCleanSlateActive(activeId));
 
     const isKcOrRestaurant = 
       activeId.includes('kc') || 
@@ -397,34 +405,47 @@ export default function App() {
         const localMenu = getStoredMenu(activeId) || [];
         const localInv = getStoredInventory(activeId) || [];
 
-        if (cleanSlate) {
-          // In Clean Slate mode, local custom setup takes precedence!
-          if (localMenu.length > 0) {
-            setMenuItems(localMenu);
-            syncCloudMenu(localMenu, activeId);
-          } else {
-            setMenuItems([]);
-          }
-          if (localInv.length > 0) {
-            setInventoryItems(localInv);
-            syncCloudInventory(localInv, activeId);
-          } else {
-            setInventoryItems([]);
-          }
+        // 1. Menu: Safely merge cloud with local so custom items are permanently retained
+        let resolvedMenu = [];
+        if (cloudData.menu && Array.isArray(cloudData.menu) && cloudData.menu.length > 0) {
+          const cloudMap = new Map(cloudData.menu.map(m => [m.id, m]));
+          localMenu.forEach(lm => {
+            if (!cloudMap.has(lm.id)) {
+              cloudMap.set(lm.id, lm);
+            }
+          });
+          resolvedMenu = Array.from(cloudMap.values());
+        } else if (localMenu && localMenu.length > 0) {
+          resolvedMenu = localMenu;
+          syncCloudMenu(localMenu, activeId);
+        } else if (!cleanSlate) {
+          resolvedMenu = getStoredMenu(activeId) || [];
         } else {
-          if (cloudData.menu && Array.isArray(cloudData.menu) && cloudData.menu.length > 0) {
-            setMenuItems(cloudData.menu);
-            saveStoredMenu(cloudData.menu, activeId);
-          } else if (localMenu && localMenu.length > 0) {
-            syncCloudMenu(localMenu, activeId);
-          }
-          if (cloudData.inventory && Array.isArray(cloudData.inventory) && cloudData.inventory.length > 0) {
-            setInventoryItems(cloudData.inventory);
-            saveStoredInventory(cloudData.inventory, activeId);
-          } else if (localInv && localInv.length > 0) {
-            syncCloudInventory(localInv, activeId);
-          }
+          resolvedMenu = [];
         }
+        setMenuItems(resolvedMenu);
+        saveStoredMenu(resolvedMenu, activeId);
+
+        // 2. Inventory: Safely merge cloud with local
+        let resolvedInv = [];
+        if (cloudData.inventory && Array.isArray(cloudData.inventory) && cloudData.inventory.length > 0) {
+          const cloudMap = new Map(cloudData.inventory.map(i => [i.id, i]));
+          localInv.forEach(li => {
+            if (!cloudMap.has(li.id)) {
+              cloudMap.set(li.id, li);
+            }
+          });
+          resolvedInv = Array.from(cloudMap.values());
+        } else if (localInv && localInv.length > 0) {
+          resolvedInv = localInv;
+          syncCloudInventory(localInv, activeId);
+        } else if (!cleanSlate) {
+          resolvedInv = getStoredInventory(activeId) || [];
+        } else {
+          resolvedInv = [];
+        }
+        setInventoryItems(resolvedInv);
+        saveStoredInventory(resolvedInv, activeId);
 
         if (cloudData.sales && Array.isArray(cloudData.sales) && cloudData.sales.length > 0) {
           const localSales = getStoredSales(activeId) || [];
@@ -474,8 +495,20 @@ export default function App() {
         if (cleanSlate && localMenu.length > 0 && (!newMenu || newMenu.length === 0)) {
           return;
         }
-        setMenuItems(newMenu || []);
-        saveStoredMenu(newMenu || [], activeId);
+        if (newMenu && newMenu.length > 0) {
+          const cloudMap = new Map(newMenu.map(m => [m.id, m]));
+          localMenu.forEach(lm => {
+            if (!cloudMap.has(lm.id)) {
+              cloudMap.set(lm.id, lm);
+            }
+          });
+          const merged = Array.from(cloudMap.values());
+          setMenuItems(merged);
+          saveStoredMenu(merged, activeId);
+        } else {
+          setMenuItems(newMenu || []);
+          saveStoredMenu(newMenu || [], activeId);
+        }
       },
       onInventoryUpdate: (newInv) => {
         const cleanSlate = isCleanSlateActive(activeId);
@@ -483,8 +516,20 @@ export default function App() {
         if (cleanSlate && localInv.length > 0 && (!newInv || newInv.length === 0)) {
           return;
         }
-        setInventoryItems(newInv || []);
-        saveStoredInventory(newInv || [], activeId);
+        if (newInv && newInv.length > 0) {
+          const cloudMap = new Map(newInv.map(i => [i.id, i]));
+          localInv.forEach(li => {
+            if (!cloudMap.has(li.id)) {
+              cloudMap.set(li.id, li);
+            }
+          });
+          const merged = Array.from(cloudMap.values());
+          setInventoryItems(merged);
+          saveStoredInventory(merged, activeId);
+        } else {
+          setInventoryItems(newInv || []);
+          saveStoredInventory(newInv || [], activeId);
+        }
       },
       onSalesUpdate: (newSales) => {
         setSalesLogs(prev => {
@@ -641,6 +686,7 @@ export default function App() {
       setCurrentCafe(cafe);
       setUserCafes(cafes);
       loadCafeData(cafe.cafeId);
+      setIsCleanSlate(Boolean(cafe.isCleanSlate || isCleanSlateActive(cafe.cafeId)));
     }
     showToast(`🎉 Swagat hai, ${cafe?.cafeName || 'Cafe Owner'}!`);
   };
@@ -673,6 +719,7 @@ export default function App() {
 
     // 1. Mark clean slate active so auto-seeding and demo fallbacks are blocked
     setCleanSlateMarker(activeId, true);
+    setIsCleanSlate(true);
 
     if (clearMenu) {
       saveStoredMenu([], activeId);
@@ -725,6 +772,8 @@ export default function App() {
   // 🍽️ Load Business Catalog Preset (Hotel & Family Restaurant vs Fast Food Cafe)
   const handleLoadCatalogPreset = async (presetType = 'hotel') => {
     const activeId = currentCafe?.cafeId || 'default';
+    setCleanSlateMarker(activeId, false);
+    setIsCleanSlate(false);
     if (presetType === 'hotel') {
       seedHotelRestaurantData(activeId);
       const menu = getStoredMenu(activeId);
@@ -1278,6 +1327,7 @@ export default function App() {
 
   // 📦 Inventory Management Handlers
   const handleSaveInventoryItem = (itemToSave) => {
+    const activeId = currentCafe?.cafeId || 'default';
     const exists = inventoryItems.some(i => i.id === itemToSave.id);
     let updated;
     if (exists) {
@@ -1288,13 +1338,17 @@ export default function App() {
       showToast(`Added raw material "${itemToSave.materialName}" to inventory`);
     }
     updateInventory(updated);
+    if (isFirebaseConfigured()) {
+      syncSingleInventory(itemToSave, activeId);
+    }
   };
 
   const handleDeleteInventoryItem = (id) => {
+    const activeId = currentCafe?.cafeId || 'default';
     const item = inventoryItems.find(i => i.id === id);
     const updated = inventoryItems.filter(i => i.id !== id);
     updateInventory(updated);
-    if (isFirebaseConfigured()) deleteSingleInventory(id);
+    if (isFirebaseConfigured()) deleteSingleInventory(id, activeId);
     showToast(`Deleted "${item ? item.materialName : 'Item'}" from inventory`);
   };
 
@@ -1316,29 +1370,49 @@ export default function App() {
 
   // ☕ Menu Handlers
   const handleSaveMenuItem = (itemToSave) => {
+    const activeId = currentCafe?.cafeId || 'default';
+    const targetId = editingItem ? editingItem.id : (itemToSave.id || `item-${Date.now()}`);
+    const cleanItem = {
+      ...itemToSave,
+      id: targetId,
+      name: (itemToSave.name || '').trim(),
+      category: itemToSave.category || 'Burgers',
+      sellingPrice: Number(itemToSave.sellingPrice) || 0,
+      costPrice: Number(itemToSave.costPrice) || 0,
+      unit: itemToSave.unit || 'Piece',
+      imageUrl: itemToSave.imageUrl || '',
+      isAvailable: itemToSave.isAvailable !== false,
+      recipe: Array.isArray(itemToSave.recipe) ? itemToSave.recipe : []
+    };
+
     let newMenu;
     if (editingItem) {
-      newMenu = menuItems.map(i => i.id === editingItem.id ? { ...i, ...itemToSave } : i);
-      updateMenu(newMenu);
-      showToast(`Updated menu item "${itemToSave.name}" & recipe`);
+      newMenu = menuItems.map(i => i.id === editingItem.id ? cleanItem : i);
+      showToast(`Updated menu item "${cleanItem.name}" & recipe`);
     } else {
-      const newItem = { ...itemToSave, id: `item-${Date.now()}` };
-      newMenu = [newItem, ...menuItems];
-      updateMenu(newMenu);
-      showToast(`Added "${itemToSave.name}" with recipe to menu`);
+      newMenu = [cleanItem, ...menuItems];
+      showToast(`Added "${cleanItem.name}" with recipe to menu`);
+    }
+
+    // 1. Immediately save to local storage & state
+    updateMenu(newMenu);
+
+    // 2. Fast granular Firestore upsert of the single menu item doc
+    if (isFirebaseConfigured()) {
+      syncSingleMenuItem(cleanItem, activeId);
     }
 
     // Auto-register any new recipe ingredients into inventory with 0 stock if not already present
-    if (Array.isArray(itemToSave.recipe) && itemToSave.recipe.length > 0) {
+    if (Array.isArray(cleanItem.recipe) && cleanItem.recipe.length > 0) {
       let invUpdated = false;
       let currentInv = [...inventoryItems];
 
-      itemToSave.recipe.forEach(r => {
+      cleanItem.recipe.forEach(r => {
         const exists = currentInv.some(
           inv => inv.id === r.ingredientId || (inv.materialName && r.name && inv.materialName.toLowerCase() === r.name.toLowerCase())
         );
         if (!exists && r.name && r.name.trim()) {
-          currentInv.push({
+          const newInvItem = {
             id: r.ingredientId || `inv-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
             materialName: r.name.trim(),
             category: 'Groceries',
@@ -1347,8 +1421,12 @@ export default function App() {
             reorderLevel: 5,
             unitCost: 0,
             lastUpdated: new Date().toISOString().split('T')[0]
-          });
+          };
+          currentInv.push(newInvItem);
           invUpdated = true;
+          if (isFirebaseConfigured()) {
+            syncSingleInventory(newInvItem, activeId);
+          }
         }
       });
 
@@ -1362,6 +1440,7 @@ export default function App() {
 
   const handleDuplicateMenuItem = (sourceItem) => {
     if (!sourceItem) return;
+    const activeId = currentCafe?.cafeId || 'default';
 
     const duplicatedItem = {
       ...sourceItem,
@@ -1374,6 +1453,9 @@ export default function App() {
 
     const newMenu = [duplicatedItem, ...menuItems];
     updateMenu(newMenu);
+    if (isFirebaseConfigured()) {
+      syncSingleMenuItem(duplicatedItem, activeId);
+    }
     showToast(`📋 "${sourceItem.name}" duplicate ho gaya! Ab aap ise customize kar sakte hain.`);
 
     // Immediately open editor for this duplicated item
@@ -1382,24 +1464,33 @@ export default function App() {
   };
 
   const handleDeleteMenuItem = (id) => {
+    const activeId = currentCafe?.cafeId || 'default';
     const item = menuItems.find(i => i.id === id);
     const updated = menuItems.filter(i => i.id !== id);
     updateMenu(updated);
-    if (isFirebaseConfigured()) deleteSingleMenuItem(id);
+    if (isFirebaseConfigured()) {
+      deleteSingleMenuItem(id, activeId);
+    }
     showToast(`Deleted "${item ? item.name : 'Item'}" from menu`);
     setDeletingItem(null);
   };
 
   const handleToggleMenuItemStatus = (id) => {
+    const activeId = currentCafe?.cafeId || 'default';
+    let targetItem = null;
     const updated = menuItems.map(i => {
       if (i.id === id) {
         const next = !i.isAvailable;
+        targetItem = { ...i, isAvailable: next };
         showToast(`"${i.name}" marked as ${next ? 'Available' : 'Disabled'}`);
-        return { ...i, isAvailable: next };
+        return targetItem;
       }
       return i;
     });
     updateMenu(updated);
+    if (isFirebaseConfigured() && targetItem) {
+      syncSingleMenuItem(targetItem, activeId);
+    }
   };
 
   // 🛎️ Dine-In Order Handlers
@@ -1993,14 +2084,14 @@ export default function App() {
                   <Sparkles className="w-3.5 h-3.5 text-amber-300" />
                   <span>📸 AI Menu Scanner</span>
                 </button>
-                {(!isCleanSlateActive(currentCafe?.cafeId) && !currentCafe?.isCleanSlate) && (
+                {!isCleanSlate && menuItems.length > 0 && (
                   <button
                     type="button"
-                    onClick={() => setIsCafeProfileModalOpen(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-semibold rounded-xl cursor-pointer transition-colors"
-                    title="Wipe demo items & start blank slate for production testing"
+                    onClick={() => setIsClearDemoModalOpen(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold rounded-xl cursor-pointer transition-colors shadow-xs"
+                    title="Wipe demo items & start blank slate for your own cafe"
                   >
-                    <Trash2 className="w-3.5 h-3.5 text-amber-600" />
+                    <Trash2 className="w-3.5 h-3.5 text-rose-600" />
                     <span>Clear Demo Data</span>
                   </button>
                 )}
@@ -2080,6 +2171,70 @@ export default function App() {
 
         </main>
       </div>
+
+      {/* 🧹 Clear Demo Data Confirmation Modal */}
+      {isClearDemoModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl border border-stone-200 w-full max-w-md p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 border border-rose-200 flex items-center justify-center text-rose-600 shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-stone-900">Clear Demo Data (Clean Slate)</h3>
+                <p className="text-xs text-stone-500">Remove sample menu dishes and starter stock</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-stone-600 leading-relaxed bg-amber-50 border border-amber-200 p-3 rounded-xl">
+              Kya aap sample menu items aur demo raw material stock ko hatana chahte hain? Iske baad aap apna original cafe menu aur recipes add kar sakte hain. Yeh button demo data hatne ke baad hamesha ke liye gayab ho jayega.
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-stone-100">
+              <button
+                type="button"
+                disabled={clearDemoLoading}
+                onClick={() => setIsClearDemoModalOpen(false)}
+                className="px-4 py-2 text-xs font-bold text-stone-600 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 rounded-xl transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={clearDemoLoading}
+                onClick={async () => {
+                  setClearDemoLoading(true);
+                  try {
+                    await handleResetToCleanSlate({
+                      clearMenu: true,
+                      clearInventory: true,
+                      clearPurchases: true,
+                      clearWastage: true,
+                      clearSales: false,
+                      clearExpenses: false
+                    });
+                    setIsCleanSlate(true);
+                    setIsClearDemoModalOpen(false);
+                    showToast('✨ Demo data successfully cleared! Ab aap apna real menu & recipe add karein.');
+                  } catch (err) {
+                    showToast('❌ Error clearing demo data: ' + (err?.message || 'Error'));
+                  } finally {
+                    setClearDemoLoading(false);
+                  }
+                }}
+                className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 active:bg-rose-800 rounded-xl transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                {clearDemoLoading ? (
+                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Trash2 className="w-3.5 h-3.5" />
+                )}
+                <span>{clearDemoLoading ? 'Clearing...' : 'Haan, Demo Data Clear Karein'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Item Form Modal with Recipe Builder */}
       <ItemModal
