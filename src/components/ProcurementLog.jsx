@@ -444,22 +444,7 @@ export default function ProcurementLog({
                 </div>
               )}
 
-              {/* Spelling Auto-Correction Banner (Did you mean?) */}
-              {spellingCorrection && (
-                <div className="mt-2 p-3 bg-amber-50 border-2 border-amber-400 rounded-xl flex items-center justify-between gap-2 shadow-xs animate-in fade-in">
-                  <div className="text-[11px] text-amber-950 font-medium">
-                    <span className="text-amber-800 font-bold block">✨ Auto-Correct Match Found:</span>
-                    <span>Aapne "<strong>{materialName}</strong>" likha hai. Stock me <strong>"{spellingCorrection.name}"</strong> maujood hai.</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectMaterial(spellingCorrection)}
-                    className="px-2.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-white text-[11px] font-extrabold rounded-lg transition-all shadow-xs cursor-pointer shrink-0"
-                  >
-                    Apply "{spellingCorrection.name}"
-                  </button>
-                </div>
-              )}
+
             </div>
 
             {/* 2. Category */}
