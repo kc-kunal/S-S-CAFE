@@ -1959,7 +1959,6 @@ export default function App() {
             onDeleteItem={handleDeleteInventoryItem}
             onAdjustStock={handleAdjustStock}
             onNavigateToProcurement={() => setActiveTab('procurement')}
-            onRestoreFriendData={handleRestoreFriendData}
           />
         )}
 
