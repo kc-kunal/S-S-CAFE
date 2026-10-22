@@ -184,30 +184,49 @@ export default function ProcurementLog({
     setShowSuggestions(false);
   };
 
-  // Auto-calculate Total Cost when Quantity or Rate per Unit changes
+  // Auto-calculate Total Cost and unit rate breakdown
   const handleQuantityChange = (val) => {
     setQuantity(val);
-    if (val && ratePerUnit) {
-      const computed = (Number(val) * Number(ratePerUnit)).toFixed(2);
-      setTotalCost(parseFloat(computed));
-    }
-  };
-
-  const handleRateChange = (val) => {
-    setRatePerUnit(val);
-    if (quantity && val) {
-      const computed = (Number(quantity) * Number(val)).toFixed(2);
-      setTotalCost(parseFloat(computed));
-    }
   };
 
   const handleTotalCostChange = (val) => {
     setTotalCost(val);
-    if (quantity && Number(quantity) > 0 && val) {
-      const computed = (Number(val) / Number(quantity)).toFixed(2);
-      setRatePerUnit(parseFloat(computed));
-    }
   };
+
+  // ⚖️ Live Auto-Calculated Rate Breakdown (e.g. 1 piece rate, 1 ml rate, 1 gm rate)
+  const rateBreakdown = useMemo(() => {
+    const q = Number(quantity);
+    const tc = Number(totalCost);
+    if (!q || q <= 0 || !tc || tc <= 0) return null;
+
+    const rate = tc / q;
+    const unitLower = (unit || '').toLowerCase().trim();
+
+    let mainRate = `₹${rate >= 1 ? rate.toFixed(2) : rate.toFixed(4)} per ${unit}`;
+    let subRate = null;
+
+    if (unitLower === 'liter' || unitLower === 'liters' || unitLower === 'l') {
+      const perMl = rate / 1000;
+      subRate = `1 ml ka rate: ₹${perMl.toFixed(4)}/ml`;
+    } else if (unitLower === 'kg' || unitLower === 'kilogram') {
+      const perGm = rate / 1000;
+      subRate = `1 gm ka rate: ₹${perGm.toFixed(4)}/gm`;
+    } else if (unitLower === 'gram' || unitLower === 'gm' || unitLower === 'g') {
+      const perKg = rate * 1000;
+      subRate = `1 gm ka rate: ₹${rate.toFixed(4)}/gm (₹${Math.round(perKg).toLocaleString()}/Kg)`;
+    } else if (unitLower === 'ml') {
+      const perL = rate * 1000;
+      subRate = `1 ml ka rate: ₹${rate.toFixed(4)}/ml (₹${Math.round(perL).toLocaleString()}/Liter)`;
+    } else {
+      subRate = `1 ${unit} ka rate: ₹${rate.toFixed(2)}`;
+    }
+
+    return {
+      rate,
+      mainRate,
+      subRate
+    };
+  }, [quantity, totalCost, unit]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -217,17 +236,22 @@ export default function ProcurementLog({
     const matched = findMatchingInventoryItem(trimmedName, inventoryItems);
     const finalName = matched ? matched.materialName : trimmedName;
 
+    const now = new Date();
+    const autoDate = now.toISOString().split('T')[0];
+    const autoTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
     const newEntry = {
       id: `proc-${Date.now()}`,
       materialName: finalName,
-      category,
+      category: category || matched?.category || 'Groceries',
       quantityReceived: Number(quantity),
-      unit,
-      ratePerUnit: Number(ratePerUnit) || (Number(totalCost) / Number(quantity)),
+      unit: unit || matched?.unit || 'Piece',
+      ratePerUnit: Number(totalCost) / Number(quantity),
       totalCost: Number(totalCost),
       supplier: supplier.trim(),
-      date,
-      createdAt: new Date().toISOString()
+      date: autoDate,
+      time: autoTime,
+      createdAt: now.toISOString()
     };
 
     onAddProcurement(newEntry);
@@ -235,8 +259,8 @@ export default function ProcurementLog({
     // Reset form
     setMaterialName('');
     setQuantity('');
-    setRatePerUnit('');
     setTotalCost('');
+    setRatePerUnit('');
     setSupplier('');
     setShowSuggestions(false);
   };
@@ -364,11 +388,11 @@ export default function ProcurementLog({
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
             
-            {/* 1. Material Name with Live Suggestions Dropdown */}
-            <div className="relative" ref={suggestionsRef}>
+            {/* 1. Material Name (Click to select from Stock) */}
+            <div className="relative sm:col-span-2" ref={suggestionsRef}>
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-xs font-bold text-stone-700 uppercase">
-                  Raw Material Name *
+                  1. Raw Material Chuniye (Stock Se) *
                 </label>
                 {allAvailableMaterials.length > 0 && (
                   <button
@@ -391,7 +415,7 @@ export default function ProcurementLog({
                     setMaterialName(e.target.value);
                     setShowSuggestions(true);
                   }}
-                  placeholder="e.g. Mozzarella Cheese, Pizza Base..."
+                  placeholder="Click here to select stock item (e.g. Cooking Oil, Cheese, Pizza Box)..."
                   className={`w-full px-3.5 py-2.5 text-xs font-bold rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 text-stone-900 transition-all ${
                     exactMatch
                       ? 'bg-emerald-50/40 border border-emerald-300'
@@ -405,20 +429,13 @@ export default function ProcurementLog({
               {exactMatch && (
                 <div className="mt-1.5 text-[11px] text-emerald-700 font-bold flex items-center gap-1">
                   <Check className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Existing Stock Item: {exactMatch.currentStock} {exactMatch.unit} in stock (Stock isme badhega).</span>
-                </div>
-              )}
-
-              {/* New Material Notice */}
-              {!exactMatch && materialName.trim().length >= 2 && (
-                <div className="mt-1.5 text-[11px] text-indigo-700 font-semibold flex items-center gap-1 bg-indigo-50/70 p-1.5 rounded-lg border border-indigo-200">
-                  <span>➕ <strong>Naya Raw Material:</strong> Ye item aapke Stock me naya add ho jayega.</span>
+                  <span>Existing Stock Item: <strong>{exactMatch.currentStock} {exactMatch.unit}</strong> in stock</span>
                 </div>
               )}
 
               {/* Suggestions Dropdown */}
               {showSuggestions && suggestions.length > 0 && (
-                <div className="absolute z-30 left-0 right-0 top-full mt-1.5 bg-white border border-stone-200 rounded-2xl shadow-xl overflow-hidden max-h-56 overflow-y-auto divide-y divide-stone-100">
+                <div className="absolute z-30 left-0 right-0 top-full mt-1.5 bg-white border border-stone-200 rounded-2xl shadow-xl overflow-hidden max-h-60 overflow-y-auto divide-y divide-stone-100">
                   <div className="p-2 bg-stone-50 text-[10px] font-bold text-stone-500 uppercase tracking-wider flex items-center justify-between">
                     <span>Aapke Stock Me Se Chuniye ({suggestions.length}):</span>
                     <button
@@ -434,144 +451,110 @@ export default function ProcurementLog({
                       key={item.name}
                       type="button"
                       onClick={() => handleSelectMaterial(item)}
-                      className="w-full text-left px-3 py-2 text-xs hover:bg-amber-50/70 transition-colors flex items-center justify-between cursor-pointer group"
+                      className="w-full text-left px-3.5 py-2.5 text-xs hover:bg-amber-50/70 transition-colors flex items-center justify-between cursor-pointer group"
                     >
                       <div>
                         <span className="font-bold text-stone-900 group-hover:text-amber-900">{item.name}</span>
                         <span className="text-[10px] text-stone-400 ml-1.5 font-medium">({item.category})</span>
                       </div>
-                      <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                      <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                         {item.currentStock} {item.unit} in stock
                       </span>
                     </button>
                   ))}
                 </div>
               )}
-
-
             </div>
 
-            {/* 2. Category */}
+            {/* 2. Category (Auto) */}
             <div>
               <label className="block text-xs font-bold text-stone-700 uppercase mb-1">
-                Category *
+                2. Category (Auto)
               </label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-xs font-bold bg-stone-50 border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 text-stone-800"
-              >
-                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-
-            {/* 3. Quantity & Unit */}
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-xs font-bold text-stone-700 uppercase mb-1">
-                  Quantity *
-                </label>
-                <input
-                  type="number"
-                  required
-                  min="0.001"
-                  step="any"
-                  value={quantity}
-                  onChange={(e) => handleQuantityChange(e.target.value)}
-                  placeholder="e.g. 1, 5, 0.5"
-                  className="w-full px-3 py-2.5 text-xs bg-stone-50 border border-stone-300 rounded-xl focus:outline-none font-extrabold text-stone-900"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-stone-700 uppercase mb-1">
-                  Unit *
-                </label>
-                <select
-                  value={unit}
-                  onChange={(e) => setUnit(e.target.value)}
-                  className="w-full px-2 py-2.5 text-xs bg-stone-50 border border-stone-300 rounded-xl focus:outline-none font-extrabold text-amber-900"
-                >
-                  {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                </select>
+              <div className="px-3.5 py-2.5 text-xs font-bold bg-stone-100/90 border border-stone-200 rounded-xl text-stone-800 flex items-center justify-between">
+                <span>{category || 'Groceries'}</span>
+                <span className="text-[10px] bg-stone-200 text-stone-600 px-1.5 py-0.5 rounded font-extrabold">Auto</span>
               </div>
             </div>
 
-            {/* 4. Rate Per Unit (₹) */}
+            {/* 3. Unit (Auto) */}
             <div>
               <label className="block text-xs font-bold text-stone-700 uppercase mb-1">
-                Rate (₹ per {unit}) *
+                3. Stock Unit (Auto)
               </label>
-              <div className="relative">
-                <span className="absolute left-3 top-2.5 text-stone-400 font-bold text-xs">₹</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={ratePerUnit}
-                  onChange={(e) => handleRateChange(e.target.value)}
-                  placeholder={`Rate per ${unit}`}
-                  className="w-full pl-7 pr-3 py-2.5 text-xs font-bold bg-stone-50 border border-stone-300 rounded-xl focus:outline-none text-stone-800"
-                />
+              <div className="px-3.5 py-2.5 text-xs font-bold bg-amber-50/90 border border-amber-200 rounded-xl text-amber-900 flex items-center justify-between">
+                <span>{unit || 'Piece'}</span>
+                <span className="text-[10px] bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded font-extrabold">Auto</span>
               </div>
             </div>
 
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end pt-2 border-t border-stone-100">
-            
-            {/* Total Cost (₹) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-start pt-2 border-t border-stone-100">
+
+            {/* 4. Kitna Maal Kharida (Quantity) */}
             <div>
               <label className="block text-xs font-bold text-stone-700 uppercase mb-1">
-                Total Purchase Cost (₹) *
+                4. Kitna Maal Kharida ({unit || 'Unit'}) *
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  required
+                  min="0.0001"
+                  step="any"
+                  value={quantity}
+                  onChange={(e) => handleQuantityChange(e.target.value)}
+                  placeholder={`Kitne ${unit || 'Piece'} kharide? (e.g. 1, 10)`}
+                  className="w-full px-3.5 py-2.5 text-xs bg-stone-50 border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 font-extrabold text-stone-900"
+                />
+              </div>
+            </div>
+
+            {/* 5. Kitne Ka Aaya Total (₹) */}
+            <div>
+              <label className="block text-xs font-bold text-stone-700 uppercase mb-1">
+                5. Kitne Ka Aaya Total (₹) *
               </label>
               <div className="relative">
                 <span className="absolute left-3 top-2.5 text-amber-900 font-bold text-xs">₹</span>
                 <input
                   type="number"
                   required
-                  min="0"
+                  min="0.01"
                   step="any"
                   value={totalCost}
                   onChange={(e) => handleTotalCostChange(e.target.value)}
-                  placeholder="Auto-calculated"
-                  className="w-full pl-7 pr-3 py-2.5 text-sm font-extrabold bg-amber-50 border border-amber-300 rounded-xl focus:outline-none text-amber-950"
+                  placeholder="Total bill amount (e.g. 150, 200)"
+                  className="w-full pl-7 pr-3 py-2.5 text-xs font-black bg-amber-50 border border-amber-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 text-amber-950"
                 />
               </div>
             </div>
 
-            {/* Supplier / Vendor Name */}
+            {/* Supplier / Vendor Name (Optional) */}
             <div>
               <label className="block text-xs font-bold text-stone-700 uppercase mb-1 flex items-center gap-1">
-                <Truck className="w-3.5 h-3.5 text-amber-600" />
-                <span>Supplier / Vendor Name</span>
+                <Truck className="w-3.5 h-3.5 text-stone-500" />
+                <span>Supplier / Dukaan (Optional)</span>
               </label>
               <input
                 type="text"
                 value={supplier}
                 onChange={(e) => setSupplier(e.target.value)}
-                placeholder="e.g. Metro Wholesale, Amul Vendor"
+                placeholder="e.g. D-Mart, Local Vendor"
                 className="w-full px-3.5 py-2.5 text-xs font-semibold bg-stone-50 border border-stone-300 rounded-xl focus:outline-none"
               />
             </div>
 
-            {/* Date Received */}
-            <div>
-              <label className="block text-xs font-bold text-stone-700 uppercase mb-1">
-                Date Purchased *
-              </label>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-full px-3 py-2.5 text-xs font-bold bg-stone-50 border border-stone-300 rounded-xl focus:outline-none"
-              />
-            </div>
-
-            {/* Submit Button */}
-            <div>
+            {/* Automatic Date & Time Indicator + Submit Button */}
+            <div className="space-y-1">
+              <div className="text-[10px] text-stone-500 font-semibold flex items-center justify-between mb-1">
+                <span>📅 Date & Time:</span>
+                <span className="text-emerald-700 font-bold">⏱️ Live Auto Timestamp</span>
+              </div>
               <button
                 type="submit"
-                className="w-full py-2.5 px-4 bg-amber-600 hover:bg-amber-500 text-white text-xs font-extrabold rounded-xl shadow-md flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-98"
+                className="w-full py-2.5 px-4 bg-amber-600 hover:bg-amber-500 text-white text-xs font-black rounded-xl shadow-md flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-98"
               >
                 <Plus className="w-4 h-4 stroke-[3]" />
                 <span>Add Purchase & Update Stock</span>
@@ -579,6 +562,28 @@ export default function ProcurementLog({
             </div>
 
           </div>
+
+          {/* ⚖️ LIVE AUTO-CALCULATED RATE BREAKDOWN CARD */}
+          {rateBreakdown && (
+            <div className="p-3 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border border-emerald-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">⚖️</span>
+                <div>
+                  <span className="font-bold text-emerald-950 block">
+                    Auto-Calculated Rate: <strong>{rateBreakdown.mainRate}</strong>
+                  </span>
+                  {rateBreakdown.subRate && (
+                    <span className="text-[11px] font-black text-emerald-800">
+                      🎯 {rateBreakdown.subRate}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <span className="text-[10px] text-emerald-700 font-medium bg-emerald-100/60 px-2 py-1 rounded-lg">
+                Stock me yahi rate auto-save hoga
+              </span>
+            </div>
+          )}
 
         </form>
       </div>
@@ -690,7 +695,10 @@ export default function ProcurementLog({
                     const isDaily = classifyMaterialProcurementType(proc.materialName) === 'daily';
                     return (
                       <tr key={proc.id} className="hover:bg-amber-50/40 transition-colors">
-                        <td className="py-3 px-4 text-xs font-semibold text-stone-500">{proc.date}</td>
+                        <td className="py-3 px-4 text-xs font-semibold text-stone-500">
+                          <div>{proc.date}</div>
+                          {proc.time && <div className="text-[10px] text-stone-400 font-normal">{proc.time}</div>}
+                        </td>
                         <td className="py-3 px-4 font-bold text-stone-900">
                           <span>{proc.materialName}</span>
                         </td>
@@ -756,7 +764,7 @@ export default function ProcurementLog({
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2 text-xs text-stone-500 mt-1">
-                        <span>{proc.date}</span>
+                        <span>{proc.date} {proc.time && <span className="text-[10px] text-stone-400">({proc.time})</span>}</span>
                         <span>•</span>
                         <span className="font-bold text-stone-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 text-[10px]">
                           {proc.quantityReceived} {proc.unit}
