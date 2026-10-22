@@ -114,27 +114,17 @@ const deleteSingleDoc = async (collectionName, id, cafeId = getCurrentCafeId()) 
 };
 
 // Sync Collection with Batching (handles O(N) items without 1MB single-document limit)
+// Sync Collection with Batching (handles O(N) items without 1MB single-document limit)
+// NOTE: We only upsert/merge active items. Individual deletes are performed by explicit deleteSingle* handlers
+// or wipeCloudTenantCollections. This guarantees zero accidental data loss for real cafe users!
 const syncCollectionItems = async (collectionName, items, cafeId = getCurrentCafeId()) => {
   const db = getFirebaseDb();
-  if (!db || !Array.isArray(items)) return false;
+  if (!db || !Array.isArray(items) || items.length === 0) return true;
 
   try {
-    const colRef = getScopedCollectionRef(db, collectionName, cafeId);
-    const existingSnap = await getDocs(colRef);
-    const currentItemIds = new Set(items.map(i => String(i.id)));
     const operations = [];
 
-    // 1. Delete documents from Firestore that are no longer present in local array
-    existingSnap.docs.forEach((d) => {
-      if (!currentItemIds.has(String(d.id))) {
-        operations.push({
-          type: 'delete',
-          ref: d.ref
-        });
-      }
-    });
-
-    // 2. Set / update all active items
+    // Set / update all active items
     items.forEach((item) => {
       const id = item.id || `item_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
       operations.push({

@@ -259,13 +259,6 @@ export default function App() {
     setCurrentCafeId(activeId);
     setIsCleanSlate(isCleanSlateActive(activeId));
 
-    const isKcOrRestaurant = 
-      activeId.includes('kc') || 
-      activeId.includes('hotel') ||
-      activeId.includes('restaurant') ||
-      (currentCafe?.ownerEmail || '').toLowerCase() === 'kc@gmail.com' || 
-      currentCafe?.businessType === 'restaurant';
-
     const cleanSlate = isCleanSlateActive(activeId);
 
     let rawMenu = getStoredMenu(activeId);
@@ -273,8 +266,9 @@ export default function App() {
     let rawProc = getStoredProcurement(activeId);
     let rawInv = getStoredInventory(activeId);
 
-    // If it's KC Grand Hotel or a restaurant, and the catalog is empty AND clean slate is NOT active, auto-seed the Hotel Catalog!
-    if (!cleanSlate && isKcOrRestaurant && (!rawMenu || rawMenu.length === 0)) {
+    // Only seed hotel demo data if the user explicitly opens the offline demo hotel 'cafe_kc_hotel'
+    // REAL USERS (like kc9998008@gmail.com) WILL NEVER BE OVERWRITTEN!
+    if (activeId === 'cafe_kc_hotel' && (!cleanSlate) && (!rawMenu || rawMenu.length === 0)) {
       seedHotelRestaurantData(activeId);
       rawMenu = getStoredMenu(activeId);
       rawSales = getStoredSales(activeId);
@@ -345,37 +339,25 @@ export default function App() {
         const localInv = getStoredInventory(activeId) || [];
 
         // 1. Menu: Cloud Firestore is the Single Source of Truth
-        let resolvedMenu = [];
         if (cloudData.menu && Array.isArray(cloudData.menu) && cloudData.menu.length > 0) {
-          resolvedMenu = cloudData.menu;
-        } else if (localMenu && localMenu.length > 0 && !cleanSlate) {
-          resolvedMenu = localMenu;
-          syncCloudMenu(localMenu, activeId);
-        } else if (!cleanSlate) {
-          resolvedMenu = getStoredMenu(activeId) || [];
-        } else {
-          resolvedMenu = [];
+          setMenuItems(cloudData.menu);
+          saveStoredMenu(cloudData.menu, activeId);
+        } else if (activeId === 'default' && !cleanSlate) {
+          const localMenu = getStoredMenu(activeId) || [];
+          setMenuItems(localMenu);
         }
-        setMenuItems(resolvedMenu);
-        saveStoredMenu(resolvedMenu, activeId);
 
         // 2. Inventory: Cloud Firestore is the Single Source of Truth
-        let resolvedInv = [];
         if (cloudData.inventory && Array.isArray(cloudData.inventory) && cloudData.inventory.length > 0) {
-          resolvedInv = cloudData.inventory;
-        } else if (localInv && localInv.length > 0 && !cleanSlate) {
-          resolvedInv = localInv;
-          syncCloudInventory(localInv, activeId);
-        } else if (!cleanSlate) {
-          resolvedInv = getStoredInventory(activeId) || [];
-        } else {
-          resolvedInv = [];
+          setInventoryItems(cloudData.inventory);
+          saveStoredInventory(cloudData.inventory, activeId);
+        } else if (activeId === 'default' && !cleanSlate) {
+          const localInv = getStoredInventory(activeId) || [];
+          setInventoryItems(localInv);
         }
-        setInventoryItems(resolvedInv);
-        saveStoredInventory(resolvedInv, activeId);
 
         // 3. Sales: Cloud Firestore is the Single Source of Truth
-        if (cloudData.sales && Array.isArray(cloudData.sales)) {
+        if (cloudData.sales && Array.isArray(cloudData.sales) && cloudData.sales.length > 0) {
           const sorted = [...cloudData.sales].sort((a, b) => {
             const timeA = new Date(a.createdAt || `${a.date}T00:00:00`).getTime();
             const timeB = new Date(b.createdAt || `${b.date}T00:00:00`).getTime();
@@ -383,11 +365,9 @@ export default function App() {
           });
           setSalesLogs(sorted);
           saveStoredSales(sorted, activeId);
-        } else {
-          const localSales = getStoredSales(activeId);
-          if (localSales && localSales.length > 0 && !cleanSlate) {
-            syncCloudSales(localSales, activeId);
-          }
+        } else if (activeId === 'default' && !cleanSlate) {
+          const localSales = getStoredSales(activeId) || [];
+          setSalesLogs(localSales);
         }
 
         if (cloudData.procurement && Array.isArray(cloudData.procurement)) {
@@ -1922,20 +1902,13 @@ export default function App() {
             </div>
 
             {activeTab === 'menu' && (
-              <div className="space-y-1.5 pt-1">
+              <div className="pt-1">
                 <button
                   type="button"
-                  onClick={() => setIsAIScannerOpen(true)}
-                  className="w-full flex items-center justify-center gap-1.5 py-2 px-3 bg-gradient-to-r from-indigo-600 to-blue-600 text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                  <span>AI Menu Scanner</span>
-                </button>
-                <button
                   onClick={() => { setEditingItem(null); setIsModalOpen(true); }}
-                  className="w-full flex items-center justify-center gap-1.5 py-2 px-3 bg-slate-900 text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer"
+                  className="w-full flex items-center justify-center gap-1.5 py-2 px-3 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer active:scale-95 transition-all"
                 >
-                  <Plus className="w-3.5 h-3.5 text-indigo-400" />
+                  <Plus className="w-3.5 h-3.5 text-white" />
                   <span>+ Add Item</span>
                 </button>
               </div>
@@ -2054,12 +2027,11 @@ export default function App() {
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setIsAIScannerOpen(true)}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-indigo-600 via-indigo-700 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer transition-all transform hover:-translate-y-0.5"
-                  title="Scan Menu Card Photo or Paste Digital Rate List"
+                  onClick={() => { setEditingItem(null); setIsModalOpen(true); }}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-bold text-xs rounded-xl shadow-md shadow-amber-600/20 cursor-pointer active:scale-95 transition-all"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                  <span>📸 AI Menu Scanner</span>
+                  <Plus className="w-4 h-4" />
+                  <span>+ Add Item</span>
                 </button>
                 {!isCleanSlate && menuItems.length > 0 && (
                   <button
@@ -2072,14 +2044,6 @@ export default function App() {
                     <span>Clear Demo Data</span>
                   </button>
                 )}
-                <button
-                  type="button"
-                  onClick={() => { setEditingItem(null); setIsModalOpen(true); }}
-                  className="flex sm:hidden items-center gap-1.5 px-3 py-1.5 bg-slate-900 text-white text-xs font-bold rounded-xl cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5 text-indigo-400" />
-                  <span>Add Item</span>
-                </button>
                 <div className="flex items-center bg-stone-100 p-1 rounded-xl text-xs">
                   <button
                     onClick={() => setViewMode('cards')}
@@ -2107,7 +2071,6 @@ export default function App() {
                 onToggleStatus={handleToggleMenuItemStatus}
                 onSaveItem={handleSaveMenuItem}
                 onDuplicate={handleDuplicateMenuItem}
-                onOpenAIScanner={() => setIsAIScannerOpen(true)}
                 onOpenAddItem={() => { setEditingItem(null); setIsModalOpen(true); }}
               />
             ) : (

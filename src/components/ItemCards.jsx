@@ -11,7 +11,6 @@ export default function ItemCards({
   onToggleStatus,
   onSaveItem,
   onDuplicate,
-  onOpenAIScanner,
   onOpenAddItem
 }) {
   const [editingPriceId, setEditingPriceId] = useState(null);
@@ -25,27 +24,17 @@ export default function ItemCards({
         </div>
         <h3 className="text-lg font-bold text-stone-900">Aapka Cafe Menu Abhi Khaali Hai</h3>
         <p className="text-xs text-stone-500 mt-1 max-w-sm mx-auto leading-relaxed">
-          Apne cafe ke printed menu card ki photo click karke scan karein, digital rate list paste karein, ya manual item add karein.
+          Naya item add karne ke liye niche diye button par click karein.
         </p>
-        <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
-          {onOpenAIScanner && (
-            <button
-              type="button"
-              onClick={onOpenAIScanner}
-              className="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-indigo-600 via-indigo-700 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-600/25 flex items-center justify-center gap-2 cursor-pointer transition-all transform hover:-translate-y-0.5"
-            >
-              <Sparkles className="w-4 h-4 text-amber-300" />
-              <span>📸 AI Menu Card Scanner</span>
-            </button>
-          )}
+        <div className="mt-6 flex items-center justify-center">
           {onOpenAddItem && (
             <button
               type="button"
               onClick={onOpenAddItem}
-              className="w-full sm:w-auto px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+              className="px-5 py-2.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-bold text-xs rounded-xl shadow-md shadow-amber-600/20 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95"
             >
-              <Plus className="w-3.5 h-3.5 text-slate-600" />
-              <span>Add Item Manually</span>
+              <Plus className="w-4 h-4 text-white" />
+              <span>+ Add Item</span>
             </button>
           )}
         </div>
