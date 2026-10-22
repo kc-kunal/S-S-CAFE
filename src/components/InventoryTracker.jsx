@@ -85,16 +85,44 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
     linkedItemIds: []
   });
 
-  const handleOpenAdd = () => {
+  // Packaging selection search & category filter inside modal
+  const [packagingSearch, setPackagingSearch] = useState('');
+  const [packagingCategory, setPackagingCategory] = useState('ALL');
+
+  // Extract unique categories from menu items for packaging linking filter
+  const menuCategories = useMemo(() => {
+    const cats = new Set();
+    menuItems.forEach(item => {
+      if (item.category) cats.add(item.category);
+    });
+    return Array.from(cats);
+  }, [menuItems]);
+
+  // Filtered menu items for packaging linking
+  const filteredPackagingMenuItems = useMemo(() => {
+    return menuItems.filter(item => {
+      const q = packagingSearch.trim().toLowerCase();
+      const matchesSearch = !q || 
+        (item.name || '').toLowerCase().includes(q) ||
+        (item.category || '').toLowerCase().includes(q);
+      const matchesCat = packagingCategory === 'ALL' || item.category === packagingCategory;
+      return matchesSearch && matchesCat;
+    });
+  }, [menuItems, packagingSearch, packagingCategory]);
+
+  const handleOpenAdd = (initialCategory = 'Groceries') => {
     setEditingItem(null);
+    const cat = typeof initialCategory === 'string' && initialCategory ? initialCategory : 'Groceries';
     setFormData({
       materialName: '',
-      category: 'Groceries',
-      unit: 'Kg',
-      reorderLevel: '5',
+      category: cat,
+      unit: cat === 'Packaging' ? 'Piece' : 'Kg',
+      reorderLevel: cat === 'Packaging' ? '20' : '5',
       packagingChannel: 'online',
       linkedItemIds: []
     });
+    setPackagingSearch('');
+    setPackagingCategory('ALL');
     setIsModalOpen(true);
   };
 
@@ -103,12 +131,63 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
     setFormData({
       materialName: item.materialName || '',
       category: item.category || 'Groceries',
-      unit: item.unit || 'Kg',
+      unit: item.unit || (item.category === 'Packaging' ? 'Piece' : 'Kg'),
       reorderLevel: item.reorderLevel !== undefined ? String(item.reorderLevel) : '5',
       packagingChannel: item.packagingChannel || (item.category === 'Packaging' ? 'online' : 'both'),
       linkedItemIds: Array.isArray(item.linkedItemIds) ? item.linkedItemIds : []
     });
+    setPackagingSearch('');
+    setPackagingCategory('ALL');
     setIsModalOpen(true);
+  };
+
+  const handleCategoryChange = (newCat) => {
+    setFormData(prev => ({
+      ...prev,
+      category: newCat,
+      // Packaging default unit is Piece; if switching from bulk weight/liquid, auto-switch to Piece
+      unit: newCat === 'Packaging' && (prev.unit === 'Kg' || prev.unit === 'Gram' || prev.unit === 'Liters' || prev.unit === 'ml')
+        ? 'Piece'
+        : prev.unit,
+      reorderLevel: newCat === 'Packaging' && prev.reorderLevel === '5' ? '20' : prev.reorderLevel,
+      packagingChannel: prev.packagingChannel || 'online',
+      linkedItemIds: Array.isArray(prev.linkedItemIds) ? prev.linkedItemIds : []
+    }));
+  };
+
+  const toggleLinkedItem = (itemId) => {
+    const current = Array.isArray(formData.linkedItemIds) ? formData.linkedItemIds : [];
+    if (current.includes(itemId)) {
+      setFormData({
+        ...formData,
+        linkedItemIds: current.filter(id => id !== itemId)
+      });
+    } else {
+      setFormData({
+        ...formData,
+        linkedItemIds: [...current, itemId]
+      });
+    }
+  };
+
+  const handleSelectAllFiltered = () => {
+    const current = new Set(Array.isArray(formData.linkedItemIds) ? formData.linkedItemIds : []);
+    const allFilteredSelected = filteredPackagingMenuItems.length > 0 && 
+      filteredPackagingMenuItems.every(item => current.has(item.id));
+
+    if (allFilteredSelected) {
+      const filteredIds = new Set(filteredPackagingMenuItems.map(m => m.id));
+      setFormData({
+        ...formData,
+        linkedItemIds: (Array.isArray(formData.linkedItemIds) ? formData.linkedItemIds : []).filter(id => !filteredIds.has(id))
+      });
+    } else {
+      filteredPackagingMenuItems.forEach(item => current.add(item.id));
+      setFormData({
+        ...formData,
+        linkedItemIds: Array.from(current)
+      });
+    }
   };
 
   const handleSubmit = (e) => {
@@ -125,7 +204,7 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
       reorderLevel: Number(formData.reorderLevel) || 0,
       unitCost: editingItem ? (Number(editingItem.unitCost) || 0) : 0,
       packagingChannel: formData.category === 'Packaging' ? formData.packagingChannel : undefined,
-      linkedItemIds: formData.category === 'Packaging' ? formData.linkedItemIds : undefined,
+      linkedItemIds: formData.category === 'Packaging' ? (Array.isArray(formData.linkedItemIds) ? formData.linkedItemIds : []) : undefined,
       lastUpdated: new Date().toISOString().split('T')[0]
     };
 
@@ -341,10 +420,21 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
 
 
 
+            {/* Quick Add Packaging Button */}
+            <button
+              type="button"
+              onClick={() => handleOpenAdd('Packaging')}
+              className="w-full sm:w-auto px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold rounded-xl shadow-2xs transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+              title="Add Packaging Material (Box, Plate, Cup, Bag)"
+            >
+              <Package className="w-4 h-4 text-amber-700" />
+              <span>+ Add Packaging</span>
+            </button>
+
             {/* Add Raw Material Button */}
             <button
               type="button"
-              onClick={handleOpenAdd}
+              onClick={() => handleOpenAdd('Groceries')}
               className="w-full sm:w-auto px-3.5 py-2 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white text-xs font-bold rounded-xl shadow-md shadow-amber-600/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
             >
               <Plus className="w-4 h-4" />
@@ -678,235 +768,417 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
 
       {/* Add / Edit Inventory Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/60 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-stone-200 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/70 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-stone-200 w-full max-w-xl max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 my-auto">
             
-            <div className="bg-stone-950 text-white px-5 py-3.5 flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-black text-amber-300">
-                  {editingItem ? 'Edit Raw Material' : 'Add Raw Material'}
-                </h3>
-                <p className="text-[10px] text-stone-400">Inventory & Recipe tracking stock unit</p>
+            {/* Modal Header */}
+            <div className="shrink-0 bg-stone-950 text-white px-5 sm:px-6 py-3.5 flex items-center justify-between border-b border-stone-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
+                  {formData.category === 'Packaging' ? <Package className="w-4 h-4" /> : <Layers className="w-4 h-4" />}
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-amber-300">
+                    {editingItem
+                      ? (formData.category === 'Packaging' ? 'Edit Packaging Material' : 'Edit Raw Material')
+                      : (formData.category === 'Packaging' ? 'Add Packaging Material' : 'Add Raw Material')}
+                  </h3>
+                  <p className="text-[10px] text-stone-400">
+                    {formData.category === 'Packaging'
+                      ? 'Box, Plate, Bag ya Glass auto-deduction ke sath set karein'
+                      : 'Inventory & Recipe tracking stock unit'}
+                  </p>
+                </div>
               </div>
               <button 
                 type="button"
                 onClick={() => setIsModalOpen(false)} 
-                className="text-stone-400 hover:text-white text-sm font-bold w-6 h-6 flex items-center justify-center rounded-lg hover:bg-stone-800 cursor-pointer"
+                className="text-stone-400 hover:text-white text-base font-bold w-7 h-7 flex items-center justify-center rounded-xl hover:bg-stone-800 cursor-pointer transition-colors"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-4 sm:p-5 space-y-3.5">
-              <div>
-                <label className="block text-[11px] font-extrabold text-stone-700 uppercase mb-1">Material Name *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.materialName}
-                  onChange={(e) => setFormData({ ...formData, materialName: e.target.value })}
-                  placeholder="e.g. Whole Milk, Coffee Beans, Burger Buns"
-                  className="w-full px-3 py-2 border border-stone-300 rounded-xl text-xs font-semibold bg-stone-50 text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-extrabold text-stone-700 uppercase mb-1">Category *</label>
-                <select
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="w-full px-3 py-2 border border-stone-300 rounded-xl text-xs font-bold bg-stone-50 text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
-                >
-                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {/* Modal Form */}
+            <form id="inventory-material-form" onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+              
+              {/* Scrollable Form Body */}
+              <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+                
+                {/* Material / Packaging Name */}
                 <div>
-                  <label className="block text-[11px] font-extrabold text-stone-700 uppercase mb-1">Stock Unit *</label>
-                  <select
-                    value={formData.unit}
-                    onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                    className="w-full px-2.5 py-2 border border-stone-300 rounded-xl text-xs font-bold bg-stone-50 text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
-                  >
-                    {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                  </select>
-                  <p className="text-[10px] text-stone-400 mt-0.5">Ye unit Purchase tab me automatically aayegi.</p>
+                  <label className="block text-[11px] font-extrabold text-stone-700 uppercase mb-1">
+                    {formData.category === 'Packaging' ? 'Packaging Item Name *' : 'Material Name *'}
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.materialName}
+                    onChange={(e) => setFormData({ ...formData, materialName: e.target.value })}
+                    placeholder={
+                      formData.category === 'Packaging'
+                        ? 'e.g. Pizza Box 7", Paper Plate Medium, Shake Glass, Burger Bag'
+                        : 'e.g. Whole Milk, Coffee Beans, Burger Buns, Mozzarella Cheese'
+                    }
+                    className="w-full px-3 py-2 border border-stone-300 rounded-xl text-xs font-semibold bg-stone-50 text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                  />
+                  {formData.category === 'Packaging' && (
+                    <div className="flex flex-wrap gap-1.5 mt-1.5 items-center">
+                      <span className="text-[10px] text-stone-400 font-medium">Quick Suggestions:</span>
+                      {['Pizza Box 7"', 'Burger Box', 'Paper Plate', 'Coffee Cup', 'Shake Glass', 'Parcel Bag'].map(preset => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, materialName: preset }))}
+                          className="text-[10px] px-2 py-0.5 rounded-md bg-stone-100 hover:bg-amber-100 text-stone-700 hover:text-amber-900 font-semibold border border-stone-200 transition-colors cursor-pointer"
+                        >
+                          + {preset}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
+                {/* Category & Unit in responsive grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-extrabold text-stone-700 uppercase mb-1">Category *</label>
+                    <select
+                      value={formData.category}
+                      onChange={(e) => handleCategoryChange(e.target.value)}
+                      className="w-full px-3 py-2 border border-stone-300 rounded-xl text-xs font-bold bg-stone-50 text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                    >
+                      {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-extrabold text-stone-700 uppercase mb-1">Stock Unit *</label>
+                    <select
+                      value={formData.unit}
+                      onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                      className="w-full px-2.5 py-2 border border-stone-300 rounded-xl text-xs font-bold bg-stone-50 text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                    >
+                      {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                    </select>
+                    <p className="text-[10px] text-stone-400 mt-0.5">Ye unit Purchase tab me automatically aayegi.</p>
+                  </div>
+                </div>
+
+                {/* Low Stock Alert Level */}
                 <div>
-                  <label className="block text-[11px] font-extrabold text-stone-700 uppercase mb-1">Low Stock Alert Level *</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-extrabold text-stone-700 uppercase">
+                      Low Stock Alert Level ({formData.unit}) *
+                    </label>
+                    <span className="text-[10px] text-stone-400">Stock isse kam hone par alert aayega</span>
+                  </div>
                   <input
                     type="number"
                     required
+                    min="0"
                     value={formData.reorderLevel}
                     onChange={(e) => setFormData({ ...formData, reorderLevel: e.target.value })}
-                    placeholder="e.g. 5"
+                    placeholder={formData.category === 'Packaging' ? 'e.g. 20' : 'e.g. 5'}
                     className="w-full px-3 py-2 border border-stone-300 rounded-xl text-xs font-semibold bg-stone-50 text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                   />
-                  <p className="text-[10px] text-stone-400 mt-0.5">Stock isse kam hone par alert aayega.</p>
                 </div>
-              </div>
 
-              {/* Zero Quantity Notice Banner */}
-              {!editingItem && (
-                <div className="p-2.5 bg-amber-50/70 border border-amber-200/80 rounded-xl flex items-center gap-2 text-xs text-amber-900">
-                  <span className="text-base">ℹ️</span>
-                  <span>Naya item <strong>0 quantity</strong> se save hoga. Iska actual stock aur khareed rate <strong>Purchase tab</strong> se add hoga.</span>
-                </div>
-              )}
+                {/* Zero Quantity Notice Banner */}
+                {!editingItem && (
+                  <div className="p-2.5 bg-amber-50/70 border border-amber-200/80 rounded-xl flex items-center gap-2 text-xs text-amber-900">
+                    <span className="text-base shrink-0">ℹ️</span>
+                    <span className="text-[11px]">Naya item <strong>0 quantity</strong> se save hoga. Iska actual stock aur khareed rate <strong>Purchase tab</strong> se add hoga.</span>
+                  </div>
+                )}
 
-              {/* If editing item, show current stock indicator */}
-              {editingItem && (
-                <div className="p-2.5 bg-stone-100 border border-stone-200 rounded-xl flex items-center justify-between text-xs text-stone-700">
-                  <span>Current Stock: <strong>{editingItem.currentStock} {editingItem.unit}</strong></span>
-                  <span className="text-[10px] text-stone-500">Stock update Purchase tab ya Stock adjustment se karein</span>
-                </div>
-              )}
+                {/* If editing item, show current stock indicator */}
+                {editingItem && (
+                  <div className="p-2.5 bg-stone-100 border border-stone-200 rounded-xl flex items-center justify-between text-xs text-stone-700">
+                    <span>Current Stock: <strong>{editingItem.currentStock} {editingItem.unit}</strong></span>
+                    <span className="text-[10px] text-stone-500">Stock update Purchase tab se karein</span>
+                  </div>
+                )}
 
-              {/* 📦 SMART PACKAGING MAPPING & AUTO-DEDUCTION RULES (Shown when category === 'Packaging') */}
-              {formData.category === 'Packaging' && (
-                <div className="bg-amber-50/70 border border-amber-200/90 rounded-2xl p-3.5 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-base">📦</span>
+                {/* 📦 SMART PACKAGING SECTION (Active when category === 'Packaging') */}
+                {formData.category === 'Packaging' && (
+                  <div className="bg-amber-50/80 border border-amber-300/80 rounded-2xl p-3.5 sm:p-4 space-y-3.5 shadow-2xs">
+                    
+                    {/* Header */}
+                    <div className="flex items-center gap-2 pb-2 border-b border-amber-200/80">
+                      <span className="text-lg">📦</span>
+                      <div>
+                        <h4 className="text-xs font-black text-amber-950 uppercase tracking-wide">
+                          Smart Packaging Auto-Deduction Rules
+                        </h4>
+                        <p className="text-[10px] text-amber-800">
+                          Chunein ki ye dabba ya plate kab aur kis menu item ke sath automatic deduct hoga
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* 1. Channel Selector (3 Interactive Cards) */}
                     <div>
-                      <h4 className="text-xs font-black text-amber-950 uppercase tracking-wide">
-                        Smart Packaging Rule & Auto-Deduction
-                      </h4>
-                      <p className="text-[10px] text-amber-800">
-                        Set karein ki ye dabba ya plate kab aur kis item ke sath auto-deduct hoga
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* 1. Channel Selector */}
-                  <div>
-                    <label className="block text-[11px] font-extrabold text-stone-700 uppercase mb-1.5">
-                      Yeh Packaging Kab Lagti Hai? *
-                    </label>
-                    <div className="grid grid-cols-3 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setFormData({ ...formData, packagingChannel: 'online' })}
-                        className={`px-2 py-2 rounded-xl text-[11px] font-bold border transition-all text-center cursor-pointer ${
-                          formData.packagingChannel === 'online'
-                            ? 'bg-amber-500 text-stone-950 border-amber-600 shadow-xs'
-                            : 'bg-white text-stone-700 border-stone-200 hover:bg-stone-50'
-                        }`}
-                      >
-                        📦 Zomato / Swiggy (Parcel Only)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setFormData({ ...formData, packagingChannel: 'dinein' })}
-                        className={`px-2 py-2 rounded-xl text-[11px] font-bold border transition-all text-center cursor-pointer ${
-                          formData.packagingChannel === 'dinein'
-                            ? 'bg-amber-500 text-stone-950 border-amber-600 shadow-xs'
-                            : 'bg-white text-stone-700 border-stone-200 hover:bg-stone-50'
-                        }`}
-                      >
-                        🍽️ Dine-In (Counter Plate)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setFormData({ ...formData, packagingChannel: 'both' })}
-                        className={`px-2 py-2 rounded-xl text-[11px] font-bold border transition-all text-center cursor-pointer ${
-                          formData.packagingChannel === 'both'
-                            ? 'bg-amber-500 text-stone-950 border-amber-600 shadow-xs'
-                            : 'bg-white text-stone-700 border-stone-200 hover:bg-stone-50'
-                        }`}
-                      >
-                        🔄 Dono Me (Glass / Cup)
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* 2. Menu Items Selection */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label className="block text-[11px] font-extrabold text-stone-700 uppercase">
-                        Kin Items Ke Sath Jayega? ({formData.linkedItemIds.length} Selected)
+                      <label className="block text-[11px] font-black text-stone-800 uppercase mb-1.5">
+                        1. Yeh Packaging Kab Lagti Hai? *
                       </label>
-                      {menuItems.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (formData.linkedItemIds.length === menuItems.length) {
-                              setFormData({ ...formData, linkedItemIds: [] });
-                            } else {
-                              setFormData({ ...formData, linkedItemIds: menuItems.map(m => m.id) });
-                            }
-                          }}
-                          className="text-[10px] text-amber-700 font-bold hover:underline cursor-pointer"
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        {/* Option 1: Online / Parcel Only */}
+                        <div
+                          onClick={() => setFormData({ ...formData, packagingChannel: 'online' })}
+                          className={`p-2.5 rounded-xl border-2 transition-all cursor-pointer text-left flex flex-col justify-between ${
+                            formData.packagingChannel === 'online'
+                              ? 'bg-white border-amber-500 ring-2 ring-amber-500/20 shadow-xs'
+                              : 'bg-white/70 border-stone-200 hover:border-amber-300 hover:bg-white'
+                          }`}
                         >
-                          {formData.linkedItemIds.length === menuItems.length ? 'Deselect All' : 'Select All Items'}
-                        </button>
-                      )}
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-base">📦</span>
+                            <span className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${
+                              formData.packagingChannel === 'online' ? 'border-amber-600 bg-amber-600' : 'border-stone-300'
+                            }`}>
+                              {formData.packagingChannel === 'online' && <span className="w-1.5 h-1.5 rounded-full bg-white"></span>}
+                            </span>
+                          </div>
+                          <h5 className="text-xs font-extrabold text-stone-900 leading-tight">Parcel Only</h5>
+                          <p className="text-[10px] text-stone-500 leading-tight mt-0.5">Zomato, Swiggy & Parcel orders</p>
+                        </div>
+
+                        {/* Option 2: Dine-In Only */}
+                        <div
+                          onClick={() => setFormData({ ...formData, packagingChannel: 'dinein' })}
+                          className={`p-2.5 rounded-xl border-2 transition-all cursor-pointer text-left flex flex-col justify-between ${
+                            formData.packagingChannel === 'dinein'
+                              ? 'bg-white border-amber-500 ring-2 ring-amber-500/20 shadow-xs'
+                              : 'bg-white/70 border-stone-200 hover:border-amber-300 hover:bg-white'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-base">🍽️</span>
+                            <span className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${
+                              formData.packagingChannel === 'dinein' ? 'border-amber-600 bg-amber-600' : 'border-stone-300'
+                            }`}>
+                              {formData.packagingChannel === 'dinein' && <span className="w-1.5 h-1.5 rounded-full bg-white"></span>}
+                            </span>
+                          </div>
+                          <h5 className="text-xs font-extrabold text-stone-900 leading-tight">Dine-In Plate</h5>
+                          <p className="text-[10px] text-stone-500 leading-tight mt-0.5">Counter & Table serve plate</p>
+                        </div>
+
+                        {/* Option 3: Both Channels */}
+                        <div
+                          onClick={() => setFormData({ ...formData, packagingChannel: 'both' })}
+                          className={`p-2.5 rounded-xl border-2 transition-all cursor-pointer text-left flex flex-col justify-between ${
+                            formData.packagingChannel === 'both'
+                              ? 'bg-white border-amber-500 ring-2 ring-amber-500/20 shadow-xs'
+                              : 'bg-white/70 border-stone-200 hover:border-amber-300 hover:bg-white'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-base">🔄</span>
+                            <span className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${
+                              formData.packagingChannel === 'both' ? 'border-amber-600 bg-amber-600' : 'border-stone-300'
+                            }`}>
+                              {formData.packagingChannel === 'both' && <span className="w-1.5 h-1.5 rounded-full bg-white"></span>}
+                            </span>
+                          </div>
+                          <h5 className="text-xs font-extrabold text-stone-900 leading-tight">Dono Me (Both)</h5>
+                          <p className="text-[10px] text-stone-500 leading-tight mt-0.5">Glasses, Cups, Paper Bags</p>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="bg-white border border-stone-200 rounded-xl p-2 max-h-40 overflow-y-auto space-y-1">
-                      {menuItems.length === 0 ? (
-                        <p className="text-[11px] text-stone-400 text-center py-2">Menu me koi items nahi hain.</p>
-                      ) : (
-                        menuItems.map(item => {
-                          const isSelected = formData.linkedItemIds.includes(item.id);
-                          return (
-                            <label
-                              key={item.id}
-                              className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
-                                isSelected ? 'bg-amber-100/70 text-stone-950 font-bold' : 'hover:bg-stone-50 text-stone-700'
+                    {/* 2. Menu Items Linking with Filter & Search */}
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <div>
+                          <label className="block text-[11px] font-black text-stone-800 uppercase">
+                            2. Kin Menu Items Ke Sath Jayega?
+                          </label>
+                          <span className="text-[10px] font-bold text-amber-900">
+                            {(formData.linkedItemIds || []).length} items linked
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          {filteredPackagingMenuItems.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={handleSelectAllFiltered}
+                              className="text-[10px] px-2 py-0.5 rounded-md bg-white border border-amber-300 text-amber-900 font-extrabold hover:bg-amber-100 cursor-pointer shadow-2xs transition-colors"
+                            >
+                              {filteredPackagingMenuItems.every(m => (formData.linkedItemIds || []).includes(m.id))
+                                ? 'Deselect Shown'
+                                : 'Select Shown'}
+                            </button>
+                          )}
+                          {(formData.linkedItemIds || []).length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setFormData({ ...formData, linkedItemIds: [] })}
+                              className="text-[10px] px-2 py-0.5 rounded-md bg-stone-100 text-stone-600 font-bold hover:bg-rose-50 hover:text-rose-700 cursor-pointer transition-colors"
+                            >
+                              Clear All
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Search & Category Filter Bar */}
+                      <div className="bg-white/80 p-2 rounded-xl border border-stone-200/90 space-y-2 mb-2">
+                        {/* Search input */}
+                        <div className="relative">
+                          <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400" />
+                          <input
+                            type="text"
+                            value={packagingSearch}
+                            onChange={(e) => setPackagingSearch(e.target.value)}
+                            placeholder="Menu item search karein (e.g. Pizza, Burger, Cold Coffee)..."
+                            className="w-full pl-8 pr-7 py-1.5 bg-stone-50 border border-stone-200 rounded-lg text-xs font-medium text-stone-800 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:bg-white"
+                          />
+                          {packagingSearch && (
+                            <button
+                              type="button"
+                              onClick={() => setPackagingSearch('')}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 text-xs font-bold"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Category filter chips */}
+                        {menuCategories.length > 0 && (
+                          <div className="flex items-center gap-1 overflow-x-auto pb-1 text-[10px] scrollbar-none">
+                            <button
+                              type="button"
+                              onClick={() => setPackagingCategory('ALL')}
+                              className={`px-2 py-0.5 rounded-full font-bold shrink-0 transition-colors cursor-pointer ${
+                                packagingCategory === 'ALL'
+                                  ? 'bg-amber-600 text-white'
+                                  : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
                               }`}
                             >
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="checkbox"
-                                  checked={isSelected}
-                                  onChange={(e) => {
-                                    if (e.target.checked) {
-                                      setFormData({
-                                        ...formData,
-                                        linkedItemIds: [...formData.linkedItemIds, item.id]
-                                      });
-                                    } else {
-                                      setFormData({
-                                        ...formData,
-                                        linkedItemIds: formData.linkedItemIds.filter(id => id !== item.id)
-                                      });
-                                    }
-                                  }}
-                                  className="w-3.5 h-3.5 rounded text-amber-600 focus:ring-amber-500 cursor-pointer"
-                                />
-                                <span>{item.name}</span>
-                              </div>
-                              <span className="text-[10px] text-stone-400 font-medium">({item.category})</span>
-                            </label>
-                          );
-                        })
-                      )}
-                    </div>
-                    <p className="text-[10px] text-stone-500 mt-1">
-                      💡 Jaise: 7 inch pizza tick karoge toh order aane par ye dabba/plate automatic deduct hoga!
-                    </p>
-                  </div>
-                </div>
-              )}
+                              All ({menuItems.length})
+                            </button>
+                            {menuCategories.map(cat => {
+                              const count = menuItems.filter(m => m.category === cat).length;
+                              return (
+                                <button
+                                  key={cat}
+                                  type="button"
+                                  onClick={() => setPackagingCategory(cat)}
+                                  className={`px-2 py-0.5 rounded-full font-bold shrink-0 transition-colors cursor-pointer ${
+                                    packagingCategory === cat
+                                      ? 'bg-amber-600 text-white'
+                                      : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                                  }`}
+                                >
+                                  {cat} ({count})
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-stone-100">
+                      {/* Scrollable Checkbox List */}
+                      <div className="bg-white border border-stone-200 rounded-xl p-2 max-h-48 overflow-y-auto space-y-1">
+                        {filteredPackagingMenuItems.length === 0 ? (
+                          <p className="text-[11px] text-stone-400 text-center py-4">
+                            {menuItems.length === 0 ? 'Menu me koi items nahi hain.' : 'Koi matching item nahi mila.'}
+                          </p>
+                        ) : (
+                          filteredPackagingMenuItems.map(item => {
+                            const isSelected = (formData.linkedItemIds || []).includes(item.id);
+                            return (
+                              <label
+                                key={item.id}
+                                className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
+                                  isSelected ? 'bg-amber-100/80 text-stone-950 font-bold border border-amber-200' : 'hover:bg-stone-50 text-stone-700'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => toggleLinkedItem(item.id)}
+                                    className="w-3.5 h-3.5 rounded text-amber-600 focus:ring-amber-500 cursor-pointer shrink-0"
+                                  />
+                                  <span className="truncate">{item.name}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                                  <span className="text-[10px] text-stone-400 font-medium">₹{item.price}</span>
+                                  <span className="text-[9px] bg-stone-100 text-stone-600 px-1.5 py-0.2 rounded font-semibold">
+                                    {item.category}
+                                  </span>
+                                </div>
+                              </label>
+                            );
+                          })
+                        )}
+                      </div>
+
+                      {/* Selected Items summary tags if any */}
+                      {(formData.linkedItemIds || []).length > 0 && (
+                        <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                          <span className="text-[9px] font-bold text-stone-500 uppercase">Selected:</span>
+                          {(formData.linkedItemIds || []).slice(0, 6).map(id => {
+                            const found = menuItems.find(m => m.id === id);
+                            if (!found) return null;
+                            return (
+                              <span
+                                key={id}
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white border border-amber-200 text-[10px] font-semibold text-stone-800 shadow-2xs"
+                              >
+                                <span className="max-w-[100px] truncate">{found.name}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleLinkedItem(id)}
+                                  className="text-stone-400 hover:text-rose-600 text-[10px] font-black cursor-pointer"
+                                >
+                                  ✕
+                                </button>
+                              </span>
+                            );
+                          })}
+                          {(formData.linkedItemIds || []).length > 6 && (
+                            <span className="text-[10px] font-bold text-amber-800">
+                              +{(formData.linkedItemIds || []).length - 6} more
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      <p className="text-[10px] text-stone-500 mt-1.5 leading-snug">
+                        💡 <strong>Smart Rule:</strong> Jaise hi POS ya Online se <em>{formData.materialName || 'yeh packaging item'}</em> se jude item ka order aayega, ye automatically stock se deduct ho jayega!
+                      </p>
+                    </div>
+
+                  </div>
+                )}
+
+              </div>
+
+              {/* Sticky Footer with Save & Cancel Buttons (Never Hidden!) */}
+              <div className="shrink-0 px-4 sm:px-6 py-3.5 bg-stone-50 border-t border-stone-200 flex items-center justify-between gap-3">
                 <button 
                   type="button" 
                   onClick={() => setIsModalOpen(false)} 
-                  className="px-3.5 py-1.5 text-xs text-stone-600 font-bold hover:bg-stone-100 rounded-xl cursor-pointer"
+                  className="px-4 py-2 text-xs text-stone-600 font-bold hover:bg-stone-200 rounded-xl cursor-pointer transition-colors"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit" 
-                  className="px-4 py-1.5 text-xs bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl shadow cursor-pointer active:scale-95 transition-all"
+                  className="px-5 py-2 text-xs bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-black rounded-xl shadow-md shadow-amber-600/20 cursor-pointer active:scale-95 transition-all flex items-center gap-1.5"
                 >
-                  Save Material
+                  <span>{editingItem ? 'Update Material' : 'Save Material'}</span>
+                  <span>✓</span>
                 </button>
               </div>
+
             </form>
+
           </div>
         </div>
       )}
