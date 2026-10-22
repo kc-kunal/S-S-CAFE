@@ -111,10 +111,11 @@ export const INITIAL_INVENTORY_ITEMS = [
   { id: 'inv-14', materialName: 'Paneer (Cottage Cheese)', category: 'Dairy', currentStock: 2000, unit: 'Gram', reorderLevel: 400, unitCost: 0.38, lastUpdated: getTodayDateString(0) },
   { id: 'inv-15', materialName: 'Cheese Slice', category: 'Dairy', currentStock: 50, unit: 'Piece', reorderLevel: 10, unitCost: 8, lastUpdated: getTodayDateString(0) },
   // 📦 Takeaway & Delivery Packaging Materials
-  { id: 'inv-16', materialName: 'Pizza Delivery Box (7 inch)', category: 'Packaging', currentStock: 80, unit: 'Piece', reorderLevel: 20, unitCost: 6, lastUpdated: getTodayDateString(0) },
-  { id: 'inv-17', materialName: 'Burger Packaging Box', category: 'Packaging', currentStock: 80, unit: 'Piece', reorderLevel: 20, unitCost: 3.5, lastUpdated: getTodayDateString(0) },
-  { id: 'inv-18', materialName: 'Cold Drink Cup with Lid (300ml)', category: 'Packaging', currentStock: 100, unit: 'Piece', reorderLevel: 25, unitCost: 4.5, lastUpdated: getTodayDateString(0) },
-  { id: 'inv-19', materialName: 'Delivery Kraft Paper Carry Bag', category: 'Packaging', currentStock: 120, unit: 'Piece', reorderLevel: 25, unitCost: 5, lastUpdated: getTodayDateString(0) }
+  { id: 'inv-16', materialName: 'Pizza Delivery Box (7 inch)', category: 'Packaging', currentStock: 80, unit: 'Piece', reorderLevel: 20, unitCost: 6, packagingChannel: 'online', lastUpdated: getTodayDateString(0) },
+  { id: 'inv-17', materialName: 'Burger Packaging Box', category: 'Packaging', currentStock: 80, unit: 'Piece', reorderLevel: 20, unitCost: 3.5, packagingChannel: 'online', lastUpdated: getTodayDateString(0) },
+  { id: 'inv-18', materialName: 'Cold Drink Cup with Lid (300ml)', category: 'Packaging', currentStock: 100, unit: 'Piece', reorderLevel: 25, unitCost: 4.5, packagingChannel: 'both', lastUpdated: getTodayDateString(0) },
+  { id: 'inv-19', materialName: 'Delivery Kraft Paper Carry Bag', category: 'Packaging', currentStock: 120, unit: 'Piece', reorderLevel: 25, unitCost: 5, packagingChannel: 'online', lastUpdated: getTodayDateString(0) },
+  { id: 'inv-20', materialName: 'Paper Plate (Serving)', category: 'Packaging', currentStock: 200, unit: 'Piece', reorderLevel: 50, unitCost: 1.0, packagingChannel: 'dinein', lastUpdated: getTodayDateString(0) }
 ];
 
 // Official S&S Cafe Menu Catalog with Built-in Recipes

@@ -146,18 +146,22 @@ export default function ProcurementLog({
 
 
 
+  // Whenever materialName exactly matches an existing inventory item, auto-sync unit & category!
+  useEffect(() => {
+    if (exactMatch && exactMatch.unit) {
+      setUnit(exactMatch.unit);
+      if (exactMatch.category) setCategory(exactMatch.category);
+    }
+  }, [exactMatch]);
+
   // Choose a raw material from suggestions or quick chips
   const handleSelectMaterial = (item) => {
     const itemName = item?.name || item?.materialName || '';
     setMaterialName(itemName);
-    setCategory(item.category || 'Groceries');
+    if (item.category) setCategory(item.category);
 
-    // Auto-select unit: If recipe uses Grams, purchase default is Kg; if recipe uses ml, purchase is Liters
-    if (item.unit === 'Gram') {
-      setUnit('Kg');
-    } else if (item.unit === 'ml') {
-      setUnit('Liters');
-    } else if (item.unit) {
+    // Auto-select unit: Exactly match whatever unit user saved in Stock!
+    if (item.unit) {
       setUnit(item.unit);
     }
 

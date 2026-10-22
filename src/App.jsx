@@ -1010,17 +1010,19 @@ export default function App() {
       }
     });
 
-    // 🛵 Automatic Delivery Packaging Deduction for Online / Parcel Orders (Swiggy / Zomato / Takeaway):
+    // 📦 SMART PACKAGING & DISPOSABLE MATERIAL AUTO-DEDUCTION ENGINE
+    // Handles Dine-In Paper Plates, Online Delivery Boxes & Carry Bags, and Glasses/Cups for drinks!
     let packagingDeducted = [];
     const isOnlineOrDelivery = salesList.some(s => {
       const pm = (s.paymentMethod || '').toLowerCase();
       return pm === 'swiggy' || pm === 'zomato' || Number(s.packagingCharge) > 0;
     });
 
+    // 1. If Online / Delivery, deduct 1x Carry Bag for the whole order
     if (isOnlineOrDelivery) {
-      // 1. Deduct 1x Carry Bag for the whole delivery parcel
       const bagIndex = currentInv.findIndex(i =>
         i.category === 'Packaging' &&
+        (i.packagingChannel === 'online' || !i.packagingChannel) &&
         (i.materialName.toLowerCase().includes('carry bag') ||
          i.materialName.toLowerCase().includes('paper bag') ||
          i.materialName.toLowerCase().includes('parcel bag'))
@@ -1033,66 +1035,84 @@ export default function App() {
         };
         packagingDeducted.push(`1x ${currentInv[bagIndex].materialName}`);
       }
+    }
 
-      // 2. Deduct item-specific packaging if the item recipe does not already include packaging
-      salesList.forEach(sale => {
-        const targetItem = menuItems.find(m => m.id === sale.itemId || m.name === sale.itemName);
-        const hasPackagingInRecipe = targetItem && Array.isArray(targetItem.recipe) &&
-          targetItem.recipe.some(r => {
-            const nameLower = (r.name || '').toLowerCase();
-            return nameLower.includes('box') || nameLower.includes('cup') || nameLower.includes('wrap');
-          });
+    // 2. Deduct item-specific packaging (Boxes for Online, Paper Plates for Dine-In, Glasses/Cups for Both)
+    salesList.forEach(sale => {
+      const targetItem = menuItems.find(m => m.id === sale.itemId || m.name === sale.itemName);
+      const qty = Number(sale.quantitySold) || 1;
+      const itemId = targetItem?.id || sale.itemId;
+      const itemName = (sale.itemName || targetItem?.name || '').toLowerCase();
+      const catLower = ((sale.category || '') + ' ' + (targetItem?.category || '')).toLowerCase();
 
-        if (!hasPackagingInRecipe) {
-          const itemLower = (sale.itemName || '').toLowerCase();
-          const catLower = ((sale.category || '') + ' ' + (targetItem?.category || '')).toLowerCase();
-          const qty = Number(sale.quantitySold) || 1;
+      // Check if targetItem's recipe already contains packaging to avoid double deduction
+      const hasPackagingInRecipe = targetItem && Array.isArray(targetItem.recipe) &&
+        targetItem.recipe.some(r => {
+          const nameLower = (r.name || '').toLowerCase();
+          return nameLower.includes('box') || nameLower.includes('cup') || nameLower.includes('plate') || nameLower.includes('glass');
+        });
 
-          // Pizza -> Pizza Box
-          if (catLower.includes('pizza') || itemLower.includes('pizza')) {
-            const boxIdx = currentInv.findIndex(i =>
-              i.category === 'Packaging' && i.materialName.toLowerCase().includes('pizza')
-            );
-            if (boxIdx !== -1 && currentInv[boxIdx].currentStock > 0) {
-              currentInv[boxIdx] = {
-                ...currentInv[boxIdx],
-                currentStock: Math.max(0, currentInv[boxIdx].currentStock - qty),
-                lastUpdated: new Date().toISOString().split('T')[0]
-              };
-              packagingDeducted.push(`${qty}x Pizza Box`);
-            }
+      if (!hasPackagingInRecipe) {
+        let matchedPackagingIndex = -1;
+
+        // A. PRIORITY 1: Explicit mapping from Stock (user selected this item in packaging's linkedItemIds!)
+        matchedPackagingIndex = currentInv.findIndex(inv => {
+          if (inv.category !== 'Packaging' || inv.currentStock <= 0) return false;
+          // Channel match
+          const channel = inv.packagingChannel || (inv.materialName.toLowerCase().includes('box') ? 'online' : inv.materialName.toLowerCase().includes('plate') ? 'dinein' : 'both');
+          const isChannelValid = channel === 'both' || (isOnlineOrDelivery ? channel === 'online' : channel === 'dinein');
+          if (!isChannelValid) return false;
+
+          // Item match
+          if (Array.isArray(inv.linkedItemIds) && inv.linkedItemIds.length > 0) {
+            return inv.linkedItemIds.includes(itemId) || (targetItem && inv.linkedItemIds.includes(targetItem.id)) || inv.linkedItemIds.includes(sale.itemName);
           }
-          // Burger -> Burger Box
-          else if (catLower.includes('burger') || itemLower.includes('burger')) {
-            const boxIdx = currentInv.findIndex(i =>
-              i.category === 'Packaging' && i.materialName.toLowerCase().includes('burger')
-            );
-            if (boxIdx !== -1 && currentInv[boxIdx].currentStock > 0) {
-              currentInv[boxIdx] = {
-                ...currentInv[boxIdx],
-                currentStock: Math.max(0, currentInv[boxIdx].currentStock - qty),
-                lastUpdated: new Date().toISOString().split('T')[0]
-              };
-              packagingDeducted.push(`${qty}x Burger Box`);
+          return false;
+        });
+
+        // B. PRIORITY 2: Smart Auto-Matching by Category / Size (Zero Setup Fallback)
+        if (matchedPackagingIndex === -1) {
+          if (isOnlineOrDelivery) {
+            // Online: Pizza Box, Burger Box, Cup with Lid
+            if (catLower.includes('pizza') || itemName.includes('pizza')) {
+              matchedPackagingIndex = currentInv.findIndex(i =>
+                i.category === 'Packaging' && i.materialName.toLowerCase().includes('pizza') && i.currentStock > 0
+              );
+            } else if (catLower.includes('burger') || itemName.includes('burger')) {
+              matchedPackagingIndex = currentInv.findIndex(i =>
+                i.category === 'Packaging' && i.materialName.toLowerCase().includes('burger') && i.currentStock > 0
+              );
+            } else if (catLower.includes('coffee') || catLower.includes('shake') || itemName.includes('shake') || itemName.includes('coffee') || itemName.includes('mojito') || itemName.includes('drink')) {
+              matchedPackagingIndex = currentInv.findIndex(i =>
+                i.category === 'Packaging' && (i.materialName.toLowerCase().includes('cup') || i.materialName.toLowerCase().includes('glass')) && i.currentStock > 0
+              );
             }
-          }
-          // Cold Coffee / Shakes -> Cup with Lid
-          else if (catLower.includes('coffee') || catLower.includes('shake') || itemLower.includes('shake') || itemLower.includes('cold coffee')) {
-            const cupIdx = currentInv.findIndex(i =>
-              i.category === 'Packaging' && (i.materialName.toLowerCase().includes('cup') || i.materialName.toLowerCase().includes('glass'))
-            );
-            if (cupIdx !== -1 && currentInv[cupIdx].currentStock > 0) {
-              currentInv[cupIdx] = {
-                ...currentInv[cupIdx],
-                currentStock: Math.max(0, currentInv[cupIdx].currentStock - qty),
-                lastUpdated: new Date().toISOString().split('T')[0]
-              };
-              packagingDeducted.push(`${qty}x Cup`);
+          } else {
+            // Dine-In / Counter: Paper Plate for food, Cup/Glass for drinks!
+            if (catLower.includes('coffee') || catLower.includes('shake') || itemName.includes('shake') || itemName.includes('coffee') || itemName.includes('mojito') || itemName.includes('drink')) {
+              matchedPackagingIndex = currentInv.findIndex(i =>
+                i.category === 'Packaging' && (i.materialName.toLowerCase().includes('cup') || i.materialName.toLowerCase().includes('glass')) && i.currentStock > 0
+              );
+            } else {
+              // Food item in Dine-In -> Paper Plate
+              matchedPackagingIndex = currentInv.findIndex(i =>
+                i.category === 'Packaging' && i.materialName.toLowerCase().includes('plate') && i.currentStock > 0
+              );
             }
           }
         }
-      });
-    }
+
+        // Apply deduction if found
+        if (matchedPackagingIndex !== -1 && currentInv[matchedPackagingIndex].currentStock > 0) {
+          currentInv[matchedPackagingIndex] = {
+            ...currentInv[matchedPackagingIndex],
+            currentStock: Math.max(0, currentInv[matchedPackagingIndex].currentStock - qty),
+            lastUpdated: new Date().toISOString().split('T')[0]
+          };
+          packagingDeducted.push(`${qty}x ${currentInv[matchedPackagingIndex].materialName}`);
+        }
+      }
+    });
 
     updateSales(currentSales);
     updateInventory(currentInv);
@@ -1976,6 +1996,7 @@ export default function App() {
         {activeTab === 'inventory' && (
           <InventoryTracker
             inventoryItems={inventoryItems}
+            menuItems={menuItems}
             onSaveItem={handleSaveInventoryItem}
             onDeleteItem={handleDeleteInventoryItem}
             onAdjustStock={handleAdjustStock}
