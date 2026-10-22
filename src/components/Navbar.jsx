@@ -10,8 +10,7 @@ import {
   Bot,
   Lock,
   Unlock,
-  User,
-  RefreshCw
+  User
 } from 'lucide-react';
 import BrandLogo from './BrandLogo';
 
@@ -27,9 +26,7 @@ export default function Navbar({
   onLogout,
   isStaffMode = false,
   onLockToStaffMode,
-  onPromptUnlockStaffMode,
-  onManualSync,
-  isSyncing = false
+  onPromptUnlockStaffMode
 }) {
   const cafeName = currentCafe?.cafeName || 'S&S Cafe';
   const ownerName = currentCafe?.ownerName || currentUser?.displayName || 'Owner';
@@ -77,7 +74,7 @@ export default function Navbar({
 
   return (
     <header className="bg-slate-900 text-slate-100 sticky top-0 z-30 shadow-md border-b border-slate-800 backdrop-blur-md bg-slate-900/95 w-full">
-      
+
       {/* ⚠️ Demo Mode Notice Banner */}
       {isDemoMode && (
         <div className="bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 px-3 py-1 text-center text-xs font-extrabold shadow-inner">
@@ -107,7 +104,7 @@ export default function Navbar({
 
         {/* Brand Logo & Active Cafe Name */}
         <div className="flex items-center space-x-2.5 sm:space-x-4 min-w-0">
-          
+
           {/* Software Logo */}
           <div className="shrink-0">
             <BrandLogo size="sm" showText={false} textLight={true} />
@@ -121,7 +118,7 @@ export default function Navbar({
               <h1 className="text-base sm:text-xl font-bold tracking-tight text-white truncate">
                 {cafeName}
               </h1>
-              
+
               {/* Outlet / Branch Switcher Badge */}
               <button
                 type="button"
@@ -147,31 +144,17 @@ export default function Navbar({
           </div>
         </div>
 
-        {/* Clean Header Right: Multi-Device Sync + Staff Toggle + Profile Dropdown */}
+        {/* Clean Header Right: Staff Toggle + Profile Dropdown */}
         <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
-
-          {/* 🔄 Multi-Device Live Sync Button */}
-          {onManualSync && (
-            <button
-              type="button"
-              onClick={onManualSync}
-              className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 sm:py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border bg-slate-800/80 hover:bg-slate-700/80 text-emerald-300 border-slate-700 hover:border-emerald-500/50 shadow-xs active:scale-95"
-              title="Multi-Device Live Sync: Click to instantly fetch latest updates from mobile/laptop"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 ${isSyncing ? 'animate-spin' : ''}`} />
-              <span className="hidden md:inline">{isSyncing ? 'Syncing...' : 'Live Sync'}</span>
-            </button>
-          )}
 
           {/* 🔒 Staff Mode / Owner Mode Toggle */}
           <button
             type="button"
             onClick={isStaffMode ? onPromptUnlockStaffMode : onLockToStaffMode}
-            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border shadow-xs ${
-              isStaffMode
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border shadow-xs ${isStaffMode
                 ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 hover:bg-rose-500/30'
                 : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30'
-            }`}
+              }`}
             title={isStaffMode ? 'Staff Mode Active (Profit & Owner Data Locked). Click to unlock with PIN.' : 'Owner Mode Active. Click to lock counter boy to Staff Mode.'}
           >
             {isStaffMode ? <Lock className="w-3.5 h-3.5 text-rose-400" /> : <Unlock className="w-3.5 h-3.5 text-emerald-400" />}
@@ -212,7 +195,7 @@ export default function Navbar({
               {/* Sleek Enterprise Dropdown Menu */}
               {dropdownOpen && (
                 <div className="absolute right-0 top-full mt-1.5 w-64 bg-slate-900/95 backdrop-blur-xl border border-slate-700/90 rounded-2xl shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
-                  
+
                   {/* Dropdown Header Info */}
                   <div className="px-3 py-2.5 border-b border-slate-800/90 mb-1 bg-slate-800/40 rounded-xl">
                     <div className="flex items-center justify-between gap-2">
@@ -228,7 +211,7 @@ export default function Navbar({
 
                   {/* Dropdown Actions */}
                   <div className="space-y-0.5">
-                    
+
                     {/* 1. Profile Page Button */}
                     <button
                       type="button"

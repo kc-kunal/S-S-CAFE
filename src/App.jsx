@@ -154,7 +154,6 @@ export default function App() {
   // Cloud Database Sync State
   const [isCloudConnected, setIsCloudConnected] = useState(isFirebaseConfigured());
   const [isCloudModalOpen, setIsCloudModalOpen] = useState(false);
-  const [isManualSyncing, setIsManualSyncing] = useState(false);
 
   // Excel Export Modal State
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -486,11 +485,11 @@ export default function App() {
         if (isFirebaseConfigured() && activeId) {
           fetchAllCloudData(activeId).then((cloudData) => {
             if (cloudData) {
-              if (Array.isArray(cloudData.menu) && cloudData.menu.length > 0) {
+              if (Array.isArray(cloudData.menu)) {
                 setMenuItems(cloudData.menu);
                 saveStoredMenu(cloudData.menu, activeId);
               }
-              if (Array.isArray(cloudData.inventory) && cloudData.inventory.length > 0) {
+              if (Array.isArray(cloudData.inventory)) {
                 setInventoryItems(cloudData.inventory);
                 saveStoredInventory(cloudData.inventory, activeId);
               }
@@ -533,55 +532,6 @@ export default function App() {
     };
   }, [currentCafe?.cafeId]);
 
-  // 4. Manual Multi-Device Refresh Trigger
-  const handleManualSync = async () => {
-    const activeId = currentCafe?.cafeId || 'default';
-    if (!isFirebaseConfigured() || !activeId) return;
-    setIsManualSyncing(true);
-    try {
-      const cloudData = await fetchAllCloudData(activeId);
-      if (cloudData) {
-        if (Array.isArray(cloudData.menu)) {
-          setMenuItems(cloudData.menu);
-          saveStoredMenu(cloudData.menu, activeId);
-        }
-        if (Array.isArray(cloudData.inventory)) {
-          setInventoryItems(cloudData.inventory);
-          saveStoredInventory(cloudData.inventory, activeId);
-        }
-        if (Array.isArray(cloudData.sales)) {
-          const sorted = [...cloudData.sales].sort((a, b) => {
-            const timeA = new Date(a.createdAt || `${a.date}T00:00:00`).getTime();
-            const timeB = new Date(b.createdAt || `${b.date}T00:00:00`).getTime();
-            return timeB - timeA;
-          });
-          setSalesLogs(sorted);
-          saveStoredSales(sorted, activeId);
-        }
-        if (Array.isArray(cloudData.procurement)) {
-          setProcurementLogs(cloudData.procurement);
-          saveStoredProcurement(cloudData.procurement, activeId);
-        }
-        if (Array.isArray(cloudData.expenses)) {
-          setExpenses(cloudData.expenses);
-          saveStoredExpenses(cloudData.expenses, activeId);
-        }
-        if (Array.isArray(cloudData.wastage)) {
-          setWastageLogs(cloudData.wastage);
-          saveStoredWastage(cloudData.wastage, activeId);
-        }
-        if (Array.isArray(cloudData.diningOrders)) {
-          setDiningOrders(cloudData.diningOrders);
-          saveStoredDiningOrders(cloudData.diningOrders, activeId);
-        }
-        showToast('🟢 Multi-Device Live Sync: Latest data refreshed!');
-      }
-    } catch (err) {
-      console.error('Manual sync error:', err);
-    } finally {
-      setTimeout(() => setIsManualSyncing(false), 500);
-    }
-  };
 
   // Save State (LocalStorage + Cloud Firestore) scoped to active cafe
   const updateMenu = (newItems) => {
@@ -1755,8 +1705,6 @@ export default function App() {
         isStaffMode={isStaffMode}
         onLockToStaffMode={handleLockToStaffMode}
         onPromptUnlockStaffMode={handlePromptUnlockStaffMode}
-        onManualSync={handleManualSync}
-        isSyncing={isManualSyncing}
       />
 
       {/* Main Container with Left Sidebar & Content (Bounded to max 1920px, centered with responsive gutters) */}
