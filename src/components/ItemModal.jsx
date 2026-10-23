@@ -68,6 +68,18 @@ export default function ItemModal({ isOpen, onClose, onSave, editingItem, onDupl
 
   if (!isOpen) return null;
 
+  // Helper to determine compatible recipe units based on raw material's stock unit
+  const getCompatibleUnitsForStock = (stockUnit) => {
+    const u = (stockUnit || '').trim().toLowerCase();
+    if (u === 'kg' || u === 'kilogram' || u === 'kgs' || u === 'gram' || u === 'gm' || u === 'g') {
+      return ['Gram', 'Kg'];
+    }
+    if (u === 'liters' || u === 'liter' || u === 'l' || u === 'ml') {
+      return ['ml', 'Liters'];
+    }
+    return ['Piece', 'Slice', 'Portion', 'Pack', 'Gram', 'Kg', 'ml', 'Liters'];
+  };
+
   // Recipe helpers
   const handleAddRecipeIngredient = () => {
     const newIngredient = {
@@ -88,6 +100,7 @@ export default function ItemModal({ isOpen, onClose, onSave, editingItem, onDupl
           ...updated[index],
           ingredientId: `custom-${Date.now()}`,
           name: '',
+          unit: 'Piece',
           isCustom: true
         };
       } else if (!value) {
@@ -101,15 +114,62 @@ export default function ItemModal({ isOpen, onClose, onSave, editingItem, onDupl
       } else {
         const selectedInv = inventoryItems.find(i => i.id === value);
         if (selectedInv) {
+          const invU = (selectedInv.unit || '').trim().toLowerCase();
+          let defaultUnit = selectedInv.unit;
+          let defaultQty = updated[index].quantity || 1;
+
+          // Kitchen recipe friendly defaults: Gram for weight, ml for liquid
+          if (invU === 'kg' || invU === 'kilogram' || invU === 'kgs') {
+            defaultUnit = 'Gram';
+            if (Number(defaultQty) < 1 && Number(defaultQty) > 0) {
+              defaultQty = Math.round(Number(defaultQty) * 1000);
+            } else if (defaultQty === 1) {
+              defaultQty = 25; // standard cafe recipe starting amount (e.g. 25g cheese / 15g sauce)
+            }
+          } else if (invU === 'liters' || invU === 'liter' || invU === 'l') {
+            defaultUnit = 'ml';
+            if (Number(defaultQty) < 1 && Number(defaultQty) > 0) {
+              defaultQty = Math.round(Number(defaultQty) * 1000);
+            } else if (defaultQty === 1) {
+              defaultQty = 100;
+            }
+          } else {
+            defaultUnit = selectedInv.unit || 'Piece';
+          }
+
           updated[index] = {
             ...updated[index],
             ingredientId: selectedInv.id,
             name: selectedInv.materialName,
-            unit: selectedInv.unit,
+            unit: defaultUnit,
+            quantity: defaultQty,
             isCustom: false
           };
         }
       }
+    } else if (field === 'unit') {
+      const oldUnit = (updated[index].unit || '').trim().toLowerCase();
+      const newUnit = (value || '').trim().toLowerCase();
+      let curQty = Number(updated[index].quantity);
+
+      // Smart auto-convert quantity between Gram and Kg or ml and Liters
+      if (!isNaN(curQty) && curQty > 0) {
+        if ((oldUnit === 'kg' || oldUnit === 'kilogram' || oldUnit === 'kgs') && (newUnit === 'gram' || newUnit === 'gm' || newUnit === 'g')) {
+          curQty = Math.round(curQty * 1000 * 100) / 100;
+        } else if ((oldUnit === 'gram' || oldUnit === 'gm' || oldUnit === 'g') && (newUnit === 'kg' || newUnit === 'kilogram' || newUnit === 'kgs')) {
+          curQty = Math.round((curQty / 1000) * 10000) / 10000;
+        } else if ((oldUnit === 'liters' || oldUnit === 'liter' || oldUnit === 'l') && (newUnit === 'ml')) {
+          curQty = Math.round(curQty * 1000 * 100) / 100;
+        } else if ((newUnit === 'liters' || newUnit === 'liter' || newUnit === 'l') && (oldUnit === 'ml')) {
+          curQty = Math.round((curQty / 1000) * 10000) / 10000;
+        }
+      }
+
+      updated[index] = {
+        ...updated[index],
+        unit: value,
+        quantity: isNaN(curQty) || curQty <= 0 ? updated[index].quantity : curQty
+      };
     } else {
       updated[index] = {
         ...updated[index],
@@ -130,7 +190,7 @@ export default function ItemModal({ isOpen, onClose, onSave, editingItem, onDupl
     if (!matchedInv) return sum;
     const invUnitCost = Number(matchedInv.unitCost) || 0;
     const itemQty = Number(item.quantity) || 0;
-    // Convert recipe unit to inventory unit (e.g. 60g -> 0.06kg, or 250ml -> 0.25L)
+    // Convert recipe unit to inventory unit (e.g. 60g -> 0.06kg, or 250ml -> 0.25L, or 1 Piece -> 1 Piece)
     const convertedQty = convertQuantity(itemQty, item.unit || matchedInv.unit, matchedInv.unit);
     return sum + (convertedQty * invUnitCost);
   }, 0);
@@ -171,12 +231,17 @@ export default function ItemModal({ isOpen, onClose, onSave, editingItem, onDupl
     // Filter valid recipe ingredients and ensure no undefined values
     const cleanedRecipe = recipe
       .filter(r => r && r.name && String(r.name).trim() && Number(r.quantity) > 0)
-      .map(r => ({
-        ingredientId: r.ingredientId || `custom-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-        name: String(r.name).trim(),
-        quantity: Number(r.quantity),
-        unit: r.unit || 'Piece'
-      }));
+      .map(r => {
+        // Auto-heal ingredientId to matching stock item ID if available
+        const matched = findMatchingInventoryItem(r.ingredientId, inventoryItems) ||
+                        findMatchingInventoryItem(r.name, inventoryItems);
+        return {
+          ingredientId: matched ? matched.id : (r.ingredientId || `custom-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`),
+          name: matched ? matched.materialName : String(r.name).trim(),
+          quantity: Number(r.quantity),
+          unit: r.unit || (matched ? matched.unit : 'Piece')
+        };
+      });
 
     const itemToSave = {
       id: editingItem ? editingItem.id : `item-${Date.now()}`,
@@ -456,100 +521,172 @@ export default function ItemModal({ isOpen, onClose, onSave, editingItem, onDupl
             ) : (
               <div className="space-y-2">
                 {recipe.map((ing, idx) => {
-                  const matchedInv = inventoryItems.find(
-                    i => i.id === ing.ingredientId || (i.materialName && ing.name && i.materialName.toLowerCase() === ing.name.toLowerCase())
-                  );
+                  const matchedInv = findMatchingInventoryItem(ing.ingredientId, inventoryItems) ||
+                    findMatchingInventoryItem(ing.name, inventoryItems);
                   const ingUnitCost = matchedInv ? (Number(matchedInv.unitCost) || 0) : 0;
-                  const lineCost = Math.round((Number(ing.quantity) || 0) * ingUnitCost * 100) / 100;
+                  const rawQty = Number(ing.quantity) || 0;
+                  const recipeUnit = ing.unit || matchedInv?.unit || 'Piece';
+                  const stockUnit = matchedInv?.unit || recipeUnit;
+
+                  // Accurate Unit Conversion: 60g @ ₹490/Kg -> 0.060 * 490 = ₹29.40
+                  const convertedQty = convertQuantity(rawQty, recipeUnit, stockUnit);
+                  const lineCost = Math.round(convertedQty * ingUnitCost * 100) / 100;
+
+                  // Compatible units for this raw material
+                  const compatibleUnits = matchedInv ? getCompatibleUnitsForStock(matchedInv.unit) : INGREDIENT_UNITS;
+
+                  // Rate breakdown text & micro-gram check
+                  const stockUnitLower = stockUnit.toLowerCase();
+                  const recUnitLower = recipeUnit.toLowerCase();
+                  let rateInfo = null;
+                  let isMicroGramWarning = false;
+                  let microGramFixQty = 0;
+
+                  if (matchedInv && ingUnitCost > 0) {
+                    if (stockUnitLower === 'kg' || stockUnitLower === 'kilogram' || stockUnitLower === 'kgs') {
+                      const perGm = ingUnitCost / 1000;
+                      const formattedGmRate = perGm >= 0.01 ? perGm.toFixed(2) : perGm.toFixed(4);
+                      if (recUnitLower === 'gram' || recUnitLower === 'gm' || recUnitLower === 'g') {
+                        rateInfo = `₹${ingUnitCost}/Kg (₹${formattedGmRate}/gm)`;
+                        if (rawQty > 0 && rawQty < 0.5) {
+                          isMicroGramWarning = true;
+                          microGramFixQty = Math.round(rawQty * 1000);
+                        }
+                      } else {
+                        rateInfo = `₹${ingUnitCost}/Kg`;
+                      }
+                    } else if (stockUnitLower === 'liters' || stockUnitLower === 'liter' || stockUnitLower === 'l') {
+                      const perMl = ingUnitCost / 1000;
+                      const formattedMlRate = perMl >= 0.01 ? perMl.toFixed(2) : perMl.toFixed(4);
+                      if (recUnitLower === 'ml') {
+                        rateInfo = `₹${ingUnitCost}/L (₹${formattedMlRate}/ml)`;
+                        if (rawQty > 0 && rawQty < 0.5) {
+                          isMicroGramWarning = true;
+                          microGramFixQty = Math.round(rawQty * 1000);
+                        }
+                      } else {
+                        rateInfo = `₹${ingUnitCost}/L`;
+                      }
+                    } else {
+                      rateInfo = `₹${ingUnitCost}/${stockUnit}`;
+                    }
+                  }
 
                   return (
-                    <div key={idx} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-white p-2.5 sm:p-3 rounded-xl border border-stone-200 shadow-2xs">
+                    <div key={idx} className="flex flex-col gap-1.5 bg-white p-2.5 sm:p-3 rounded-xl border border-stone-200 shadow-2xs">
                       
-                      {/* Select Raw Material or Custom Name */}
-                      <div className="flex-1 min-w-0">
-                        {ing.isCustom ? (
-                          <div className="flex items-center gap-1">
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                        {/* Select Raw Material or Custom Name */}
+                        <div className="flex-1 min-w-0">
+                          {ing.isCustom ? (
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="text"
+                                value={ing.name}
+                                onChange={(e) => handleUpdateRecipeIngredient(idx, 'name', e.target.value)}
+                                placeholder="Ingredient name (e.g. Burger Buns)"
+                                className="w-full px-2.5 py-1.5 text-xs font-bold bg-amber-50/50 border border-amber-300 rounded-lg focus:outline-none text-stone-900"
+                              />
+                              {inventoryItems.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleUpdateRecipeIngredient(idx, 'ingredientId', inventoryItems[0].id)}
+                                  className="text-[10px] text-stone-600 hover:text-stone-900 px-2 py-1.5 bg-stone-100 rounded border border-stone-200 shrink-0 cursor-pointer font-bold"
+                                  title="Choose from existing stock list"
+                                >
+                                  Stock List
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            <select
+                              value={matchedInv ? matchedInv.id : (ing.ingredientId || '')}
+                              onChange={(e) => handleUpdateRecipeIngredient(idx, 'ingredientId', e.target.value)}
+                              className={`w-full px-2.5 py-1.5 text-xs font-bold rounded-lg focus:outline-none transition-all ${
+                                !ing.ingredientId && !matchedInv
+                                  ? 'bg-amber-50/80 border-2 border-amber-400 text-amber-900' 
+                                  : 'bg-stone-50 border border-stone-300 text-stone-800'
+                              }`}
+                            >
+                              <option value="">-- Select Raw Material ({inventoryItems.length} in Stock) --</option>
+                              {inventoryItems.map(inv => (
+                                <option key={inv.id} value={inv.id}>
+                                  📦 {inv.materialName} ({inv.currentStock} {inv.unit} in stock • ₹{inv.unitCost}/{inv.unit})
+                                </option>
+                              ))}
+                              <option value="custom">➕ Type New Raw Material Name (Custom)...</option>
+                            </select>
+                          )}
+                        </div>
+
+                        {/* Row for Quantity, Unit, Cost and Delete */}
+                        <div className="flex items-center justify-between sm:justify-start gap-2 shrink-0">
+                          {/* Quantity */}
+                          <div className="w-20 sm:w-24 shrink-0">
                             <input
-                              type="text"
-                              value={ing.name}
-                              onChange={(e) => handleUpdateRecipeIngredient(idx, 'name', e.target.value)}
-                              placeholder="Ingredient name (e.g. Burger Buns)"
-                              className="w-full px-2.5 py-1.5 text-xs font-bold bg-amber-50/50 border border-amber-300 rounded-lg focus:outline-none text-stone-900"
+                              type="number"
+                              step="any"
+                              value={ing.quantity}
+                              onChange={(e) => handleUpdateRecipeIngredient(idx, 'quantity', e.target.value)}
+                              placeholder="Qty"
+                              className="w-full px-2.5 py-1.5 text-xs font-bold text-center bg-stone-50 border border-stone-300 rounded-lg focus:outline-none"
                             />
-                            {inventoryItems.length > 0 && (
-                              <button
-                                type="button"
-                                onClick={() => handleUpdateRecipeIngredient(idx, 'ingredientId', inventoryItems[0].id)}
-                                className="text-[10px] text-stone-600 hover:text-stone-900 px-2 py-1.5 bg-stone-100 rounded border border-stone-200 shrink-0 cursor-pointer font-bold"
-                                title="Choose from existing stock list"
-                              >
-                                Stock List
-                              </button>
+                          </div>
+
+                          {/* Unit */}
+                          <div className="w-20 sm:w-24 shrink-0">
+                            <select
+                              value={ing.unit || (matchedInv ? matchedInv.unit : 'Piece')}
+                              onChange={(e) => handleUpdateRecipeIngredient(idx, 'unit', e.target.value)}
+                              className="w-full px-2 py-1.5 text-xs font-semibold bg-stone-50 border border-stone-300 rounded-lg focus:outline-none text-stone-700"
+                            >
+                              {compatibleUnits.map(u => (
+                                <option key={u} value={u}>{u}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Estimated Subtotal Cost */}
+                          <div className="w-16 sm:w-20 shrink-0 text-right pr-1">
+                            <span className="text-xs font-extrabold text-stone-800">₹{lineCost}</span>
+                          </div>
+
+                          {/* Delete Ingredient */}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveRecipeIngredient(idx)}
+                            className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer shrink-0"
+                            title="Remove ingredient"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Helpful Live Rate Breakdown Strip */}
+                      {matchedInv && (
+                        <div className="flex flex-wrap items-center justify-between gap-1 text-[10.5px] text-stone-500 pt-1 border-t border-stone-100 px-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-medium text-stone-500">Stock Rate: <strong className="text-stone-700">{rateInfo}</strong></span>
+                            {rawQty > 0 && (
+                              <span className="text-amber-900 font-bold bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
+                                {rawQty} {recipeUnit} = ₹{lineCost}
+                              </span>
                             )}
                           </div>
-                        ) : (
-                          <select
-                            value={ing.ingredientId || ''}
-                            onChange={(e) => handleUpdateRecipeIngredient(idx, 'ingredientId', e.target.value)}
-                            className={`w-full px-2.5 py-1.5 text-xs font-bold rounded-lg focus:outline-none transition-all ${
-                              !ing.ingredientId 
-                                ? 'bg-amber-50/80 border-2 border-amber-400 text-amber-900' 
-                                : 'bg-stone-50 border border-stone-300 text-stone-800'
-                            }`}
-                          >
-                            <option value="">-- Select Raw Material ({inventoryItems.length} in Stock) --</option>
-                            {inventoryItems.map(inv => (
-                              <option key={inv.id} value={inv.id}>
-                                📦 {inv.materialName} ({inv.currentStock} {inv.unit} in stock • ₹{inv.unitCost}/{inv.unit})
-                              </option>
-                            ))}
-                            <option value="custom">➕ Type New Raw Material Name (Custom)...</option>
-                          </select>
-                        )}
-                      </div>
 
-                      {/* Row for Quantity, Unit, Cost and Delete */}
-                      <div className="flex items-center justify-between sm:justify-start gap-2 shrink-0">
-                        {/* Quantity */}
-                        <div className="w-20 sm:w-24 shrink-0">
-                          <input
-                            type="number"
-                            step="any"
-                            value={ing.quantity}
-                            onChange={(e) => handleUpdateRecipeIngredient(idx, 'quantity', e.target.value)}
-                            placeholder="Qty"
-                            className="w-full px-2.5 py-1.5 text-xs font-bold text-center bg-stone-50 border border-stone-300 rounded-lg focus:outline-none"
-                          />
+                          {isMicroGramWarning && microGramFixQty > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateRecipeIngredient(idx, 'quantity', microGramFixQty)}
+                              className="text-[10px] font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 px-2 py-0.5 rounded-md border border-amber-300 cursor-pointer transition-colors"
+                              title={`Click to set ${microGramFixQty} ${recipeUnit}`}
+                            >
+                              ⚠️ {rawQty} {recipeUnit} bohot kam hai! Click karein: <strong>{microGramFixQty} {recipeUnit}</strong>
+                            </button>
+                          )}
                         </div>
-
-                        {/* Unit */}
-                        <div className="w-20 sm:w-24 shrink-0">
-                          <select
-                            value={ing.unit || 'Piece'}
-                            onChange={(e) => handleUpdateRecipeIngredient(idx, 'unit', e.target.value)}
-                            className="w-full px-2 py-1.5 text-xs font-semibold bg-stone-50 border border-stone-300 rounded-lg focus:outline-none text-stone-700"
-                          >
-                            {INGREDIENT_UNITS.map(u => (
-                              <option key={u} value={u}>{u}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        {/* Estimated Subtotal Cost */}
-                        <div className="w-16 sm:w-20 shrink-0 text-right pr-1">
-                          <span className="text-xs font-extrabold text-stone-700">₹{lineCost}</span>
-                        </div>
-
-                        {/* Delete Ingredient */}
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveRecipeIngredient(idx)}
-                          className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer shrink-0"
-                          title="Remove ingredient"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+                      )}
 
                     </div>
                   );

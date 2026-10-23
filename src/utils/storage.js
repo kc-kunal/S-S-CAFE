@@ -1908,7 +1908,7 @@ export const KNOWN_MATERIAL_ALIASES = {
   'delivery kraft paper carry bag': ['paper bag', 'carry bag', 'parcel bag', 'delivery bag', 'thaili', 'kraft bag', 'bag', 'parcel pouch']
 };
 
-// Unit conversion helper (handles Kg <-> Gram, Liters <-> ml)
+// Unit conversion helper (handles Kg <-> Gram, Liters <-> ml, Piece <-> Packets/Boxes/Units/Slices)
 export const convertQuantity = (qty, fromUnit, toUnit) => {
   const q = Number(qty) || 0;
   if (!fromUnit || !toUnit) return q;
@@ -1917,19 +1917,38 @@ export const convertQuantity = (qty, fromUnit, toUnit) => {
   if (from === to) return q;
 
   // Weight: Kg <-> Gram
-  if ((from === 'kg' || from === 'kilogram' || from === 'kgs') && (to === 'gram' || to === 'gm' || to === 'g' || to === 'grams')) {
-    return q * 1000;
-  }
-  if ((from === 'gram' || from === 'gm' || from === 'g' || from === 'grams') && (to === 'kg' || to === 'kilogram' || to === 'kgs')) {
-    return q / 1000;
-  }
+  const isFromKg = from === 'kg' || from === 'kilogram' || from === 'kgs' || from === 'kilo';
+  const isToKg = to === 'kg' || to === 'kilogram' || to === 'kgs' || to === 'kilo';
+  const isFromGram = from === 'gram' || from === 'gm' || from === 'g' || from === 'grams';
+  const isToGram = to === 'gram' || to === 'gm' || to === 'g' || to === 'grams';
+
+  if (isFromKg && isToGram) return q * 1000;
+  if (isFromGram && isToKg) return q / 1000;
 
   // Volume: Liter <-> ml
-  if ((from === 'liters' || from === 'liter' || from === 'l') && (to === 'ml' || to === 'milliliter' || to === 'milliliters')) {
-    return q * 1000;
+  const isFromL = from === 'liters' || from === 'liter' || from === 'l' || from === 'litre' || from === 'litres';
+  const isToL = to === 'liters' || to === 'liter' || to === 'l' || to === 'litre' || to === 'litres';
+  const isFromMl = from === 'ml' || from === 'milliliter' || from === 'milliliters' || from === 'millilitre';
+  const isToMl = to === 'ml' || to === 'milliliter' || to === 'milliliters' || to === 'millilitre';
+
+  if (isFromL && isToMl) return q * 1000;
+  if (isFromMl && isToL) return q / 1000;
+
+  // Count / Discrete Units: Piece <-> Pcs <-> Unit <-> Slice <-> Portion <-> Satche
+  const countAliases = ['piece', 'pieces', 'pc', 'pcs', 'unit', 'units', 'slice', 'slices', 'portion', 'portions', 'cup', 'cups', 'glass', 'glasses', 'plate', 'plates', 'satche', 'sachet', 'pouch', 'pouches'];
+  if (countAliases.includes(from) && countAliases.includes(to)) {
+    return q; // 1 Piece = 1 Unit = 1 Slice = 1 Portion = 1 Sachet
   }
-  if ((from === 'ml' || from === 'milliliter' || from === 'milliliters') && (to === 'liters' || to === 'liter' || to === 'l')) {
-    return q / 1000;
+
+  // Count to Packets / Boxes / Bags (standard fallback: 1 Pack/Box/Bag = 10 Pieces)
+  const isFromPack = from === 'packet' || from === 'packets' || from === 'pack' || from === 'packs' || from === 'box' || from === 'boxes' || from === 'bag' || from === 'bags';
+  const isToPack = to === 'packet' || to === 'packets' || to === 'pack' || to === 'packs' || to === 'box' || to === 'boxes' || to === 'bag' || to === 'bags';
+
+  if (isFromPack && countAliases.includes(to)) {
+    return q * 10;
+  }
+  if (countAliases.includes(from) && isToPack) {
+    return q / 10;
   }
 
   return q;

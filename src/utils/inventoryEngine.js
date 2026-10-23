@@ -63,7 +63,7 @@ export function resolveItemRecipe(menuItem, recipesMap, subRecipesMap, inventory
 
       subRecipe.forEach(subItem => {
         const invItem = inventoryMasterMap[subItem.ingredientId];
-        const unitCost = invItem ? UnitConverter.getUnitCostPerConsumptionUnit(invItem.purchaseRate, invItem.purchaseUnit, invItem.consumptionUnit, invItem.conversionFactor) : 0;
+        const unitCost = invItem ? UnitConverter.getUnitCostPerConsumptionUnit(invItem.purchaseRate || invItem.unitCost, invItem.purchaseUnit || invItem.unit, subItem.unit || invItem.consumptionUnit, invItem.conversionFactor) : 0;
 
         resolvedBaseIngredients.push({
           ingredientId: subItem.ingredientId,
@@ -75,7 +75,7 @@ export function resolveItemRecipe(menuItem, recipesMap, subRecipesMap, inventory
       });
     } else {
       const invItem = inventoryMasterMap[ingredient.ingredientId];
-      const unitCost = invItem ? UnitConverter.getUnitCostPerConsumptionUnit(invItem.purchaseRate, invItem.purchaseUnit, invItem.consumptionUnit, invItem.conversionFactor) : (ingredient.unitCost || 0);
+      const unitCost = invItem ? UnitConverter.getUnitCostPerConsumptionUnit(invItem.purchaseRate || invItem.unitCost, invItem.purchaseUnit || invItem.unit, ingredient.unit || invItem.consumptionUnit, invItem.conversionFactor) : (ingredient.unitCost || 0);
 
       resolvedBaseIngredients.push({
         ingredientId: ingredient.ingredientId,
