@@ -144,15 +144,49 @@ export default function ProcurementLog({
     return allAvailableMaterials.find(m => String(m?.name || m?.materialName || '').toLowerCase() === q);
   }, [materialName, allAvailableMaterials]);
 
-
-
-  // Whenever materialName exactly matches an existing inventory item, auto-sync unit & category!
-  useEffect(() => {
-    if (exactMatch && exactMatch.unit) {
-      setUnit(exactMatch.unit);
-      if (exactMatch.category) setCategory(exactMatch.category);
+  // Look up previous purchase rate or stock unit cost for the selected material
+  const previousRateInfo = useMemo(() => {
+    if (!materialName || !materialName.trim()) return null;
+    const q = materialName.toLowerCase().trim();
+    // 1. Check most recent procurement log
+    const prevLog = (procurementLogs || []).find(p => String(p?.materialName || '').toLowerCase().trim() === q);
+    if (prevLog && Number(prevLog.ratePerUnit) > 0) {
+      return {
+        rate: Math.round(Number(prevLog.ratePerUnit) * 100) / 100,
+        unit: prevLog.unit || 'Piece',
+        date: prevLog.date,
+        source: 'Pichhli Khareed'
+      };
     }
-  }, [exactMatch]);
+    // 2. Check stock item
+    if (exactMatch && Number(exactMatch.unitCost) > 0) {
+      return {
+        rate: Math.round(Number(exactMatch.unitCost) * 100) / 100,
+        unit: exactMatch.unit || 'Piece',
+        source: 'Stock Rate'
+      };
+    }
+    return null;
+  }, [materialName, procurementLogs, exactMatch]);
+
+  // Whenever materialName exactly matches an existing inventory item, auto-sync unit, category & suggested rate!
+  useEffect(() => {
+    if (exactMatch) {
+      if (exactMatch.unit) setUnit(exactMatch.unit);
+      if (exactMatch.category) setCategory(exactMatch.category);
+
+      const q = (materialName || '').toLowerCase().trim();
+      const prevLog = (procurementLogs || []).find(p => String(p?.materialName || '').toLowerCase().trim() === q);
+      const rate = prevLog?.ratePerUnit || exactMatch.unitCost || 0;
+      if (Number(rate) > 0) {
+        const roundedRate = Math.round(Number(rate) * 100) / 100;
+        setRatePerUnit(roundedRate);
+        if (quantity && Number(quantity) > 0 && !totalCost) {
+          setTotalCost((Number(quantity) * roundedRate).toFixed(2));
+        }
+      }
+    }
+  }, [exactMatch, materialName, procurementLogs]);
 
   // Choose a raw material from suggestions or quick chips
   const handleSelectMaterial = (item) => {
@@ -160,37 +194,53 @@ export default function ProcurementLog({
     setMaterialName(itemName);
     if (item.category) setCategory(item.category);
 
-    // Auto-select unit: Exactly match whatever unit user saved in Stock!
-    if (item.unit) {
-      setUnit(item.unit);
-    }
+    const targetUnit = item.unit || 'Piece';
+    setUnit(targetUnit);
 
-    // Suggest previous rate if exists in procurementLogs
-    const prevLog = procurementLogs.find(p => String(p?.materialName || '').toLowerCase() === itemName.toLowerCase());
-    if (prevLog && prevLog.ratePerUnit) {
-      setRatePerUnit(prevLog.ratePerUnit);
-      if (quantity) {
-        setTotalCost((Number(quantity) * Number(prevLog.ratePerUnit)).toFixed(2));
+    // Look up previous rate
+    const q = itemName.toLowerCase().trim();
+    const prevLog = (procurementLogs || []).find(p => String(p?.materialName || '').toLowerCase().trim() === q);
+    const rate = prevLog?.ratePerUnit || item.defaultRate || item.unitCost || 0;
+
+    if (rate > 0) {
+      const roundedRate = Math.round(Number(rate) * 100) / 100;
+      setRatePerUnit(roundedRate);
+      if (quantity && Number(quantity) > 0) {
+        setTotalCost((Number(quantity) * roundedRate).toFixed(2));
       }
-    } else if (item.unitCost && Number(item.unitCost) > 0) {
-      // If unit was converted from Gram to Kg, adjust rate
-      const adjustedRate = (item.unit === 'Gram' && unit === 'Kg') ? item.unitCost * 1000 : item.unitCost;
-      setRatePerUnit(adjustedRate);
-      if (quantity) {
-        setTotalCost((Number(quantity) * adjustedRate).toFixed(2));
-      }
+    } else {
+      setRatePerUnit('');
     }
 
     setShowSuggestions(false);
   };
 
-  // Auto-calculate Total Cost and unit rate breakdown
+  // 2-Way Reactive Calculation: Quantity × Rate = Total Cost
   const handleQuantityChange = (val) => {
     setQuantity(val);
+    const q = Number(val);
+    const r = Number(ratePerUnit);
+    if (q > 0 && r > 0) {
+      setTotalCost((Math.round(q * r * 100) / 100).toFixed(2));
+    }
+  };
+
+  const handleRateChange = (val) => {
+    setRatePerUnit(val);
+    const r = Number(val);
+    const q = Number(quantity);
+    if (r > 0 && q > 0) {
+      setTotalCost((Math.round(q * r * 100) / 100).toFixed(2));
+    }
   };
 
   const handleTotalCostChange = (val) => {
     setTotalCost(val);
+    const tc = Number(val);
+    const q = Number(quantity);
+    if (tc > 0 && q > 0) {
+      setRatePerUnit(Math.round((tc / q) * 10000) / 10000);
+    }
   };
 
   // ⚖️ Live Auto-Calculated Rate Breakdown (e.g. 1 piece rate, 1 ml rate, 1 gm rate)
@@ -240,14 +290,18 @@ export default function ProcurementLog({
     const autoDate = now.toISOString().split('T')[0];
     const autoTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+    const q = Number(quantity);
+    const tc = Number(totalCost);
+    const calculatedRate = (tc && q) ? (tc / q) : (Number(ratePerUnit) || 0);
+
     const newEntry = {
       id: `proc-${Date.now()}`,
       materialName: finalName,
       category: category || matched?.category || 'Groceries',
-      quantityReceived: Number(quantity),
+      quantityReceived: q,
       unit: unit || matched?.unit || 'Piece',
-      ratePerUnit: Number(totalCost) / Number(quantity),
-      totalCost: Number(totalCost),
+      ratePerUnit: Math.round(calculatedRate * 10000) / 10000,
+      totalCost: tc,
       supplier: supplier.trim(),
       date: autoDate,
       time: autoTime,
@@ -347,6 +401,11 @@ export default function ProcurementLog({
                 >
                   <span>📦</span>
                   <span>{m.name}</span>
+                  {m.defaultRate > 0 && (
+                    <span className="text-[10px] bg-emerald-500/25 text-emerald-300 px-1.5 py-0.2 rounded font-black border border-emerald-500/30">
+                      ₹{m.defaultRate}/{m.unit}
+                    </span>
+                  )}
                   {m.purchaseCount > 0 ? (
                     <span className="text-[10px] bg-amber-500/30 text-amber-300 px-1.5 py-0.5 rounded-md font-extrabold">
                       {m.purchaseCount}x
@@ -446,22 +505,69 @@ export default function ProcurementLog({
                       ✕
                     </button>
                   </div>
-                  {suggestions.map((item) => (
-                    <button
-                      key={item.name}
-                      type="button"
-                      onClick={() => handleSelectMaterial(item)}
-                      className="w-full text-left px-3.5 py-2.5 text-xs hover:bg-amber-50/70 transition-colors flex items-center justify-between cursor-pointer group"
-                    >
-                      <div>
-                        <span className="font-bold text-stone-900 group-hover:text-amber-900">{item.name}</span>
-                        <span className="text-[10px] text-stone-400 ml-1.5 font-medium">({item.category})</span>
-                      </div>
-                      <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                        {item.currentStock} {item.unit} in stock
+                  {suggestions.map((item) => {
+                    const itemRate = item.defaultRate || item.unitCost || 0;
+                    return (
+                      <button
+                        key={item.name}
+                        type="button"
+                        onClick={() => handleSelectMaterial(item)}
+                        className="w-full text-left px-3.5 py-2.5 text-xs hover:bg-amber-50/70 transition-colors flex items-center justify-between cursor-pointer group"
+                      >
+                        <div>
+                          <span className="font-bold text-stone-900 group-hover:text-amber-900">{item.name}</span>
+                          <span className="text-[10px] text-stone-400 ml-1.5 font-medium">({item.category})</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          {itemRate > 0 && (
+                            <span className="text-[10px] font-black text-amber-900 bg-amber-100/90 px-2 py-0.5 rounded border border-amber-300">
+                              Rate: ₹{itemRate}/{item.unit}
+                            </span>
+                          )}
+                          <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                            {item.currentStock} {item.unit} in stock
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Previous Rate Suggestion Banner */}
+              {previousRateInfo && (
+                <div className="mt-2 p-2.5 bg-gradient-to-r from-amber-50 to-orange-50/60 border border-amber-300/90 rounded-xl flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">💡</span>
+                    <div>
+                      <span className="text-stone-700 font-medium">
+                        Pichhla Rate: <strong className="text-amber-950 font-black text-sm">₹{previousRateInfo.rate} per {previousRateInfo.unit}</strong>
                       </span>
-                    </button>
-                  ))}
+                      {previousRateInfo.date && (
+                        <span className="text-[10px] text-stone-500 ml-1.5">
+                          ({previousRateInfo.source}: {previousRateInfo.date})
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {quantity && Number(quantity) > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-stone-600 font-semibold">
+                        {quantity} {previousRateInfo.unit} × ₹{previousRateInfo.rate} = <strong className="text-emerald-800 font-black">₹{(Number(quantity) * previousRateInfo.rate).toFixed(2)}</strong>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRatePerUnit(previousRateInfo.rate);
+                          setTotalCost((Number(quantity) * previousRateInfo.rate).toFixed(2));
+                        }}
+                        className="text-[10px] font-black px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-white rounded-lg cursor-pointer shadow-2xs transition-colors"
+                      >
+                        Auto Apply ₹{(Number(quantity) * previousRateInfo.rate).toFixed(2)}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -490,7 +596,7 @@ export default function ProcurementLog({
 
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-start pt-2 border-t border-stone-100">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 items-start pt-2 border-t border-stone-100">
 
             {/* 4. Kitna Maal Kharida (Quantity) */}
             <div>
@@ -505,17 +611,45 @@ export default function ProcurementLog({
                   step="any"
                   value={quantity}
                   onChange={(e) => handleQuantityChange(e.target.value)}
-                  placeholder={`Kitne ${unit || 'Piece'} kharide? (e.g. 1, 10)`}
+                  placeholder={`Kitne ${unit || 'Piece'} kharide?`}
                   className="w-full px-3.5 py-2.5 text-xs bg-stone-50 border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 font-extrabold text-stone-900"
                 />
               </div>
             </div>
 
-            {/* 5. Kitne Ka Aaya Total (₹) */}
+            {/* 5. 1 Unit Ka Rate (Auto-Suggested & 2-Way Synced) */}
             <div>
-              <label className="block text-xs font-bold text-stone-700 uppercase mb-1">
-                5. Kitne Ka Aaya Total (₹) *
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-stone-700 uppercase">
+                  5. 1 {unit || 'Piece'} Ka Rate (₹)
+                </label>
+                {previousRateInfo && (
+                  <span className="text-[10px] text-amber-800 font-black bg-amber-100 px-1.5 py-0.2 rounded">
+                    Pichhla: ₹{previousRateInfo.rate}
+                  </span>
+                )}
+              </div>
+              <div className="relative">
+                <span className="absolute left-3 top-2.5 text-stone-400 font-bold text-xs">₹</span>
+                <input
+                  type="number"
+                  step="any"
+                  value={ratePerUnit}
+                  onChange={(e) => handleRateChange(e.target.value)}
+                  placeholder={previousRateInfo ? `Pichhla: ${previousRateInfo.rate}` : `Rate per ${unit || 'Piece'}`}
+                  className="w-full pl-7 pr-3 py-2.5 text-xs font-extrabold bg-white border border-amber-300/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 text-stone-900"
+                />
+              </div>
+            </div>
+
+            {/* 6. Total Bill Amount (₹) - Auto-Calculated */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-stone-700 uppercase">
+                  6. Kitne Ka Aaya Total (₹) *
+                </label>
+                <span className="text-[10px] text-stone-400 font-semibold">(Qty × Rate)</span>
+              </div>
               <div className="relative">
                 <span className="absolute left-3 top-2.5 text-amber-900 font-bold text-xs">₹</span>
                 <input
@@ -525,39 +659,39 @@ export default function ProcurementLog({
                   step="any"
                   value={totalCost}
                   onChange={(e) => handleTotalCostChange(e.target.value)}
-                  placeholder="Total bill amount (e.g. 150, 200)"
-                  className="w-full pl-7 pr-3 py-2.5 text-xs font-black bg-amber-50 border border-amber-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 text-amber-950"
+                  placeholder="Total amount"
+                  className="w-full pl-7 pr-3 py-2.5 text-xs font-black bg-amber-50 border-2 border-amber-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 text-amber-950"
                 />
               </div>
             </div>
 
-            {/* Supplier / Vendor Name (Optional) */}
+            {/* 7. Supplier / Vendor Name (Optional) */}
             <div>
               <label className="block text-xs font-bold text-stone-700 uppercase mb-1 flex items-center gap-1">
                 <Truck className="w-3.5 h-3.5 text-stone-500" />
-                <span>Supplier / Dukaan (Optional)</span>
+                <span>Supplier / Dukaan</span>
               </label>
               <input
                 type="text"
                 value={supplier}
                 onChange={(e) => setSupplier(e.target.value)}
-                placeholder="e.g. D-Mart, Local Vendor"
+                placeholder="e.g. D-Mart, Vendor"
                 className="w-full px-3.5 py-2.5 text-xs font-semibold bg-stone-50 border border-stone-300 rounded-xl focus:outline-none"
               />
             </div>
 
-            {/* Automatic Date & Time Indicator + Submit Button */}
+            {/* 8. Submit Button */}
             <div className="space-y-1">
               <div className="text-[10px] text-stone-500 font-semibold flex items-center justify-between mb-1">
-                <span>📅 Date & Time:</span>
-                <span className="text-emerald-700 font-bold">⏱️ Live Auto Timestamp</span>
+                <span>⏱️ Live Auto Time</span>
+                <span className="text-emerald-700 font-bold">Auto</span>
               </div>
               <button
                 type="submit"
-                className="w-full py-2.5 px-4 bg-amber-600 hover:bg-amber-500 text-white text-xs font-black rounded-xl shadow-md flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-98"
+                className="w-full py-2.5 px-3 bg-amber-600 hover:bg-amber-500 text-white text-xs font-black rounded-xl shadow-md flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-98"
               >
                 <Plus className="w-4 h-4 stroke-[3]" />
-                <span>Add Purchase & Update Stock</span>
+                <span>+ Add Stock</span>
               </button>
             </div>
 
@@ -579,9 +713,28 @@ export default function ProcurementLog({
                   )}
                 </div>
               </div>
-              <span className="text-[10px] text-emerald-700 font-medium bg-emerald-100/60 px-2 py-1 rounded-lg">
-                Stock me yahi rate auto-save hoga
-              </span>
+
+              {previousRateInfo && previousRateInfo.rate > 0 && rateBreakdown.rate > 0 ? (
+                <div className="text-[11px] font-bold">
+                  {Math.abs(rateBreakdown.rate - previousRateInfo.rate) < 0.01 ? (
+                    <span className="text-emerald-700 bg-emerald-100/70 px-2.5 py-1 rounded-lg border border-emerald-300">
+                      ✓ Pichhle rate (₹{previousRateInfo.rate}) ke barabar hai
+                    </span>
+                  ) : rateBreakdown.rate > previousRateInfo.rate ? (
+                    <span className="text-rose-700 bg-rose-100/70 px-2.5 py-1 rounded-lg border border-rose-300">
+                      ▲ Pichhle rate (₹{previousRateInfo.rate}) se ₹{(rateBreakdown.rate - previousRateInfo.rate).toFixed(2)} mehenga
+                    </span>
+                  ) : (
+                    <span className="text-emerald-700 bg-emerald-100/70 px-2.5 py-1 rounded-lg border border-emerald-300">
+                      ▼ Pichhle rate (₹{previousRateInfo.rate}) se ₹{(previousRateInfo.rate - rateBreakdown.rate).toFixed(2)} sasta
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <span className="text-[10px] text-emerald-700 font-medium bg-emerald-100/60 px-2 py-1 rounded-lg">
+                  Stock me yahi rate auto-save hoga
+                </span>
+              )}
             </div>
           )}
 
