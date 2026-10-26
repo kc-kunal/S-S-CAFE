@@ -358,7 +358,7 @@ service cloud.firestore {
                   <div className="font-extrabold text-stone-900">{currentMenu.length}</div>
                 </div>
                 <div className="p-2 bg-stone-50 border border-stone-200 rounded-xl">
-                  <div className="text-[10px] text-stone-500 font-bold uppercase">Stock</div>
+                  <div className="text-[10px] text-stone-500 font-bold uppercase">Inventory</div>
                   <div className="font-extrabold text-stone-900">{currentInventory.length}</div>
                 </div>
                 <div className="p-2 bg-stone-50 border border-stone-200 rounded-xl">

@@ -505,7 +505,7 @@ export default function ProcurementLog({
               {showSuggestions && suggestions.length > 0 && (
                 <div className="absolute z-30 left-0 right-0 top-full mt-1.5 bg-white border border-stone-200 rounded-2xl shadow-xl overflow-hidden max-h-60 overflow-y-auto divide-y divide-stone-100">
                   <div className="p-2 bg-stone-50 text-[10px] font-bold text-stone-500 uppercase tracking-wider flex items-center justify-between">
-                    <span>Aapke Stock Me Se Chuniye ({suggestions.length}):</span>
+                    <span>Aapki Inventory Me Se Chuniye ({suggestions.length}):</span>
                     <button
                       type="button"
                       onClick={() => setShowSuggestions(false)}

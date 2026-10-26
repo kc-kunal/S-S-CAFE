@@ -470,13 +470,13 @@ export default function ItemModal({ isOpen, onClose, onSave, editingItem, onDupl
                   <span>Recipe Ingredients (Raw Material Auto-Deduction)</span>
                 </h4>
                 <p className="text-[11px] text-stone-500 mt-0.5">
-                  Pehle Stock tab me raw material add karein, wahi yahan recipe me select hoga.
+                  Pehle Inventory tab me raw material add karein, wahi yahan recipe me select hoga.
                 </p>
               </div>
 
               <div className="flex items-center gap-2 self-start sm:self-auto">
                 <span className="text-[11px] font-bold text-amber-900 bg-amber-100/80 border border-amber-300/80 px-2.5 py-1 rounded-xl shrink-0">
-                  📦 {inventoryItems.length} Stock Items
+                  📦 {inventoryItems.length} Inventory Items
                 </span>
                 <button
                   type="button"

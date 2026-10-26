@@ -1759,7 +1759,7 @@ export default function App() {
               )}
             </button>
 
-            {/* 3. Raw Material Stock Tab */}
+            {/* 3. Raw Material Inventory Tab */}
             <button
               type="button"
               onClick={() => handleTabClick('inventory')}
@@ -1772,7 +1772,7 @@ export default function App() {
             >
               <div className="flex items-center gap-2.5">
                 <Boxes className={`w-4 h-4 ${activeTab === 'inventory' ? 'text-white' : 'text-emerald-600'}`} />
-                <span>Stock</span>
+                <span>Inventory</span>
               </div>
               {isStaffMode && <span className="text-[10px]">🔒</span>}
             </button>
@@ -2363,7 +2363,7 @@ export default function App() {
             }`}
         >
           <Boxes className="w-4 h-4" />
-          <span className="text-[10px]">Stock{isStaffMode ? '🔒' : ''}</span>
+          <span className="text-[10px]">Inventory{isStaffMode ? '🔒' : ''}</span>
         </button>
 
         <button
