@@ -797,7 +797,7 @@ export default function App() {
         // Convert wastage entry unit to the inventory base unit (e.g. Kg <-> gm, L <-> ml)
         const convertedDeduct = convertQuantity(Number(entry.quantity) || 0, entry.unit, item.unit);
         deductedQty = convertedDeduct;
-        const newStock = Math.max(0, Math.round((Number(item.currentStock) - convertedDeduct) * 100) / 100);
+        const newStock = Math.round((Number(item.currentStock) - convertedDeduct) * 100) / 100;
         return {
           ...item,
           currentStock: newStock,
@@ -846,33 +846,35 @@ export default function App() {
     showToast('Wastage record deleted & raw material stock restored');
   };
 
-  // ⚡ Sales Handlers with Automatic Recipe Raw Material Deduction & Strict Stock Guard
+  // ⚡ Sales Handlers with Automatic Recipe Raw Material Deduction & Negative Stock Allowance
+  // (Billing NEVER blocks: if ingredients run out, stock goes negative and adjusts automatically on purchase!)
   const handleAddSale = (newSale) => {
-    // 1. Verify that raw materials exist and are in stock
     const targetMenuItem = menuItems.find(m => m.id === newSale.itemId || m.name === newSale.itemName);
     const qty = Number(newSale.quantitySold) || 1;
 
+    // Check if item is explicitly disabled by owner
+    if (targetMenuItem && targetMenuItem.isAvailable === false) {
+      showToast(`🚫 Item Disabled: "${newSale.itemName}" menu me band hai.`);
+      return false;
+    }
+
+    // Inform if stock was insufficient, but DO NOT block billing!
     if (targetMenuItem) {
       const stockStatus = checkItemStock(targetMenuItem, inventoryItems);
       if (stockStatus.isOutOfStock) {
         const missingList = stockStatus.missing && stockStatus.missing.length > 0
           ? stockStatus.missing.map(m => m.name).join(', ')
           : 'Raw Material 0 stock';
-        showToast(`🚫 Sale Blocked: "${newSale.itemName}" OUT OF STOCK hai! Raw material uplabdh nahi hai (${missingList}).`);
-        return false; // Stop! Strict block.
-      }
-
-      if (stockStatus.maxPortions < qty) {
-        showToast(`⚠️ Stock kam hai! "${newSale.itemName}" ke sirf ${stockStatus.maxPortions} portions ban sakte hain.`);
-        return false;
+        // Non-blocking toast info: billing proceeds and stock adjusts into negative!
+        console.warn(`⚡ Negative Inventory Sale: "${newSale.itemName}" punched (${missingList}).`);
       }
     }
 
-    // 2. Commit Sale
+    // Commit Sale
     const updatedSales = [newSale, ...salesLogs];
     updateSales(updatedSales);
 
-    // 3. Deduct raw materials from inventory based on recipe with unit conversion
+    // Deduct raw materials from inventory based on recipe with unit conversion (Allowing negative stock)
     if (targetMenuItem && Array.isArray(targetMenuItem.recipe) && targetMenuItem.recipe.length > 0) {
       let deductedInfo = [];
       const updatedInv = inventoryItems.map(invItem => {
@@ -885,7 +887,8 @@ export default function App() {
         if (recipeMatch) {
           const recipeNeeded = (Number(recipeMatch.quantity) || 0) * qty;
           const deductAmount = convertQuantity(recipeNeeded, recipeMatch.unit, invItem.unit);
-          const newStock = Math.max(0, Math.round((Number(invItem.currentStock) - deductAmount) * 100) / 100);
+          // Allow stock to go negative so billing never stops!
+          const newStock = Math.round((Number(invItem.currentStock) - deductAmount) * 100) / 100;
           deductedInfo.push(`${deductAmount} ${invItem.unit} ${invItem.materialName}`);
           return {
             ...invItem,
@@ -902,14 +905,14 @@ export default function App() {
         return true;
       }
     } else if (targetMenuItem) {
-      // Check direct raw material deduction if matching item exists
+      // Direct raw material deduction if matching item exists
       const directIndex = inventoryItems.findIndex(
         i => i.materialName.toLowerCase() === targetMenuItem.name.toLowerCase()
       );
       if (directIndex !== -1) {
         const updatedInv = inventoryItems.map((inv, idx) => {
           if (idx === directIndex) {
-            const newStock = Math.max(0, Math.round((Number(inv.currentStock) - qty) * 100) / 100);
+            const newStock = Math.round((Number(inv.currentStock) - qty) * 100) / 100;
             return {
               ...inv,
               currentStock: newStock,
@@ -927,20 +930,9 @@ export default function App() {
   };
 
   // ⚡ High-Speed Batch Sales Handler (For multi-item Swiggy/Zomato orders & rush hour punching)
+  // Billing NEVER blocks on stock shortfall: negative stock tracks ingredient deficit!
   const handleAddBatchSales = (salesList) => {
     if (!salesList || salesList.length === 0) return true;
-
-    // Check stock for all items
-    for (const newSale of salesList) {
-      const targetMenuItem = menuItems.find(m => m.id === newSale.itemId || m.name === newSale.itemName);
-      if (targetMenuItem) {
-        const stockStatus = checkItemStock(targetMenuItem, inventoryItems);
-        if (stockStatus.isOutOfStock) {
-          showToast(`🚫 Order Blocked: "${newSale.itemName}" OUT OF STOCK hai!`);
-          return false;
-        }
-      }
-    }
 
     let currentSales = [...salesLogs];
     let currentInv = [...inventoryItems];
@@ -961,7 +953,8 @@ export default function App() {
           if (recipeMatch) {
             const recipeNeeded = (Number(recipeMatch.quantity) || 0) * qty;
             const deductAmount = convertQuantity(recipeNeeded, recipeMatch.unit, invItem.unit);
-            const newStock = Math.max(0, Math.round((Number(invItem.currentStock) - deductAmount) * 100) / 100);
+            // Stock can go negative freely
+            const newStock = Math.round((Number(invItem.currentStock) - deductAmount) * 100) / 100;
             return {
               ...invItem,
               currentStock: newStock,
@@ -977,7 +970,7 @@ export default function App() {
         if (directIndex !== -1) {
           currentInv = currentInv.map((inv, idx) => {
             if (idx === directIndex) {
-              const newStock = Math.max(0, Math.round((Number(inv.currentStock) - qty) * 100) / 100);
+              const newStock = Math.round((Number(inv.currentStock) - qty) * 100) / 100;
               return {
                 ...inv,
                 currentStock: newStock,
@@ -991,7 +984,6 @@ export default function App() {
     });
 
     // 📦 SMART PACKAGING & DISPOSABLE MATERIAL AUTO-DEDUCTION ENGINE
-    // Handles Dine-In Paper Plates, Online Delivery Boxes & Carry Bags, and Glasses/Cups for drinks!
     let packagingDeducted = [];
     const isOnlineOrDelivery = salesList.some(s => {
       const pm = (s.paymentMethod || '').toLowerCase();
@@ -1007,10 +999,10 @@ export default function App() {
          i.materialName.toLowerCase().includes('paper bag') ||
          i.materialName.toLowerCase().includes('parcel bag'))
       );
-      if (bagIndex !== -1 && currentInv[bagIndex].currentStock > 0) {
+      if (bagIndex !== -1) {
         currentInv[bagIndex] = {
           ...currentInv[bagIndex],
-          currentStock: Math.max(0, currentInv[bagIndex].currentStock - 1),
+          currentStock: Math.round((Number(currentInv[bagIndex].currentStock) - 1) * 100) / 100,
           lastUpdated: new Date().toISOString().split('T')[0]
         };
         packagingDeducted.push(`1x ${currentInv[bagIndex].materialName}`);
@@ -1037,7 +1029,7 @@ export default function App() {
 
         // A. PRIORITY 1: Explicit mapping from Stock (user selected this item in packaging's linkedItemIds!)
         matchedPackagingIndex = currentInv.findIndex(inv => {
-          if (inv.category !== 'Packaging' || inv.currentStock <= 0) return false;
+          if (inv.category !== 'Packaging') return false;
           // Channel match
           const channel = inv.packagingChannel || (inv.materialName.toLowerCase().includes('box') ? 'online' : inv.materialName.toLowerCase().includes('plate') ? 'dinein' : 'both');
           const isChannelValid = channel === 'both' || (isOnlineOrDelivery ? channel === 'online' : channel === 'dinein');
@@ -1056,37 +1048,37 @@ export default function App() {
             // Online: Pizza Box, Burger Box, Cup with Lid
             if (catLower.includes('pizza') || itemName.includes('pizza')) {
               matchedPackagingIndex = currentInv.findIndex(i =>
-                i.category === 'Packaging' && i.materialName.toLowerCase().includes('pizza') && i.currentStock > 0
+                i.category === 'Packaging' && i.materialName.toLowerCase().includes('pizza')
               );
             } else if (catLower.includes('burger') || itemName.includes('burger')) {
               matchedPackagingIndex = currentInv.findIndex(i =>
-                i.category === 'Packaging' && i.materialName.toLowerCase().includes('burger') && i.currentStock > 0
+                i.category === 'Packaging' && i.materialName.toLowerCase().includes('burger')
               );
             } else if (catLower.includes('coffee') || catLower.includes('shake') || itemName.includes('shake') || itemName.includes('coffee') || itemName.includes('mojito') || itemName.includes('drink')) {
               matchedPackagingIndex = currentInv.findIndex(i =>
-                i.category === 'Packaging' && (i.materialName.toLowerCase().includes('cup') || i.materialName.toLowerCase().includes('glass')) && i.currentStock > 0
+                i.category === 'Packaging' && (i.materialName.toLowerCase().includes('cup') || i.materialName.toLowerCase().includes('glass'))
               );
             }
           } else {
             // Dine-In / Counter: Paper Plate for food, Cup/Glass for drinks!
             if (catLower.includes('coffee') || catLower.includes('shake') || itemName.includes('shake') || itemName.includes('coffee') || itemName.includes('mojito') || itemName.includes('drink')) {
               matchedPackagingIndex = currentInv.findIndex(i =>
-                i.category === 'Packaging' && (i.materialName.toLowerCase().includes('cup') || i.materialName.toLowerCase().includes('glass')) && i.currentStock > 0
+                i.category === 'Packaging' && (i.materialName.toLowerCase().includes('cup') || i.materialName.toLowerCase().includes('glass'))
               );
             } else {
               // Food item in Dine-In -> Paper Plate
               matchedPackagingIndex = currentInv.findIndex(i =>
-                i.category === 'Packaging' && i.materialName.toLowerCase().includes('plate') && i.currentStock > 0
+                i.category === 'Packaging' && i.materialName.toLowerCase().includes('plate')
               );
             }
           }
         }
 
-        // Apply deduction if found
-        if (matchedPackagingIndex !== -1 && currentInv[matchedPackagingIndex].currentStock > 0) {
+        // Apply deduction if found (allowing negative stock)
+        if (matchedPackagingIndex !== -1) {
           currentInv[matchedPackagingIndex] = {
             ...currentInv[matchedPackagingIndex],
-            currentStock: Math.max(0, currentInv[matchedPackagingIndex].currentStock - qty),
+            currentStock: Math.round((Number(currentInv[matchedPackagingIndex].currentStock) - qty) * 100) / 100,
             lastUpdated: new Date().toISOString().split('T')[0]
           };
           packagingDeducted.push(`${qty}x ${currentInv[matchedPackagingIndex].materialName}`);
@@ -1127,7 +1119,7 @@ export default function App() {
             // If diff > 0 (reduced qty): restore into stock; if diff < 0 (increased qty): deduct additional stock
             const recipeChange = (Number(recipeMatch.quantity) || 0) * diff;
             const changeAmount = convertQuantity(recipeChange, recipeMatch.unit, invItem.unit);
-            const newStock = Math.max(0, Math.round((Number(invItem.currentStock) + changeAmount) * 100) / 100);
+            const newStock = Math.round((Number(invItem.currentStock) + changeAmount) * 100) / 100;
             return {
               ...invItem,
               currentStock: newStock,
@@ -1249,7 +1241,7 @@ export default function App() {
         const convertedQty = convertQuantity(qty, toDelete.unit, matchedItem.unit);
         const updatedInv = inventoryItems.map(inv => {
           if (inv.id === matchedItem.id) {
-            const newStock = Math.max(0, Math.round((Number(inv.currentStock) - convertedQty) * 100) / 100);
+            const newStock = Math.round((Number(inv.currentStock) - convertedQty) * 100) / 100;
             return {
               ...inv,
               currentStock: newStock,
@@ -1298,7 +1290,7 @@ export default function App() {
   const handleAdjustStock = (id, delta) => {
     const updated = inventoryItems.map(item => {
       if (item.id === id) {
-        const newStock = Math.max(0, Math.round((Number(item.currentStock) + delta) * 100) / 100);
+        const newStock = Math.round((Number(item.currentStock) + delta) * 100) / 100;
         return {
           ...item,
           currentStock: newStock,

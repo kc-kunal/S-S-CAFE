@@ -424,17 +424,18 @@ export default function SalesTracker({
   // 💵 COUNTER CART HANDLERS
   // ========================
   const handleAddToCounterCart = (item, qtyToAdd = 1) => {
-    const stockStatus = getRecipeStockStatus(item);
-    if (stockStatus.isOutOfStock) {
-      showWarning(`❌ "${item.name}" Out of Stock hai! Raw material uplabdh nahi hai.`);
+    if (item.isAvailable === false) {
+      showWarning(`❌ "${item.name}" Menu me Band (Disabled) hai.`);
       return;
     }
+
+    const stockStatus = getRecipeStockStatus(item);
     const currentQty = counterCart[item.id]?.qty || 0;
     const newQty = currentQty + qtyToAdd;
 
-    if (stockStatus.maxPortions < newQty) {
-      showWarning(`⚠️ Stock limit: "${item.name}" ke sirf ${stockStatus.maxPortions} portions ban sakte hain.`);
-      return;
+    if (stockStatus.isOutOfStock || stockStatus.maxPortions < newQty) {
+      // Gentle warning that negative stock is being used, but allow adding!
+      showWarning(`⚡ Note: "${item.name}" raw material kam/0 hai - Negative stock billing chalu hai.`);
     }
 
     setCounterCart(prev => ({
@@ -644,17 +645,18 @@ export default function SalesTracker({
   // 🛵 ONLINE CART HANDLERS
   // =======================
   const handleAddToOnlineCart = (item, qtyToAdd = 1) => {
-    const stockStatus = getRecipeStockStatus(item);
-    if (stockStatus.isOutOfStock) {
-      showWarning(`❌ "${item.name}" Out of Stock hai!`);
+    if (item.isAvailable === false) {
+      showWarning(`❌ "${item.name}" Menu me Band (Disabled) hai.`);
       return;
     }
+
+    const stockStatus = getRecipeStockStatus(item);
     const currentQty = onlineCart[item.id]?.qty || 0;
     const newQty = currentQty + qtyToAdd;
 
-    if (stockStatus.maxPortions < newQty) {
-      showWarning(`⚠️ Stock limit: "${item.name}" ke sirf ${stockStatus.maxPortions} portions ban sakte hain.`);
-      return;
+    if (stockStatus.isOutOfStock || stockStatus.maxPortions < newQty) {
+      // Gentle warning that negative stock is being used, but allow adding!
+      showWarning(`⚡ Note: "${item.name}" raw material kam/0 hai - Negative stock billing chalu hai.`);
     }
 
     setOnlineCart(prev => ({
@@ -1403,14 +1405,18 @@ export default function SalesTracker({
                             <div
                               key={item.id}
                               onClick={() => {
-                                if (!stockStatus.isOutOfStock) {
+                                if (item.isAvailable !== false) {
                                   if (punchTab === 'counter') handleAddToCounterCart(item, 1);
                                   else handleAddToOnlineCart(item, 1);
                                 }
                               }}
                               className={`p-2 sm:p-2.5 rounded-xl border transition-all flex flex-col justify-between cursor-pointer select-none group relative ${
-                                stockStatus.isOutOfStock
-                                  ? 'bg-rose-50/20 border-rose-200 opacity-60 cursor-not-allowed'
+                                item.isAvailable === false
+                                  ? 'bg-stone-100 border-stone-200 opacity-50 cursor-not-allowed'
+                                  : stockStatus.isOutOfStock
+                                  ? inCartQty > 0
+                                    ? currentTheme.cardActive
+                                    : 'bg-amber-50/25 hover:bg-amber-100/40 border-amber-300 hover:border-amber-400 shadow-2xs hover:shadow-xs active:scale-[0.98]'
                                   : inCartQty > 0
                                   ? currentTheme.cardActive
                                   : 'bg-white hover:bg-amber-50/40 border-stone-200 hover:border-amber-400 shadow-2xs hover:shadow-xs active:scale-[0.98]'
@@ -1429,9 +1435,16 @@ export default function SalesTracker({
 
                                 {/* Badges: Stock & In-Cart */}
                                 <div className="flex items-center justify-between gap-1 mt-1 text-[9px]">
-                                  {stockStatus.isOutOfStock ? (
-                                    <span className="font-extrabold text-rose-700 bg-rose-100 px-1 py-0.2 rounded">
-                                      Out of Stock
+                                  {item.isAvailable === false ? (
+                                    <span className="font-extrabold text-stone-500 bg-stone-100 px-1 py-0.2 rounded">
+                                      Disabled
+                                    </span>
+                                  ) : stockStatus.isOutOfStock ? (
+                                    <span 
+                                      className="font-bold text-amber-800 bg-amber-100 px-1 py-0.2 rounded border border-amber-300 truncate max-w-[95px]"
+                                      title="Negative stock allowed: Billing nahi rukegi, maal khareedne par auto-adjust hoga"
+                                    >
+                                      ⚠️ 0 left (Billing On)
                                     </span>
                                   ) : (
                                     <span className="font-semibold text-emerald-800 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200 truncate max-w-[70px]">
@@ -1474,9 +1487,9 @@ export default function SalesTracker({
                                         if (punchTab === 'counter') handleAddToCounterCart(item, 1);
                                         else handleAddToOnlineCart(item, 1);
                                       }}
-                                      disabled={stockStatus.isOutOfStock}
+                                      disabled={item.isAvailable === false}
                                       className={`flex-1 py-1 rounded-lg text-[11px] font-black transition-all flex items-center justify-center gap-0.5 cursor-pointer active:scale-95 ${
-                                        stockStatus.isOutOfStock
+                                        item.isAvailable === false
                                           ? 'bg-stone-200 text-stone-400 cursor-not-allowed'
                                           : `${currentTheme.addBtn}`
                                       }`}
@@ -1493,7 +1506,7 @@ export default function SalesTracker({
                                         if (punchTab === 'counter') handleAddToCounterCart(item, 5);
                                         else handleAddToOnlineCart(item, 5);
                                       }}
-                                      disabled={stockStatus.isOutOfStock || stockStatus.maxPortions < (inCartQty + 5)}
+                                      disabled={item.isAvailable === false}
                                       className="px-1.5 py-1 bg-stone-100 hover:bg-amber-100 text-stone-800 border border-stone-200 rounded-lg text-[10px] font-bold cursor-pointer active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
                                       title="Add 5"
                                     >
@@ -1509,9 +1522,9 @@ export default function SalesTracker({
                                         if (punchTab === 'counter') handleAddToCounterCart(item, 1);
                                         else handleAddToOnlineCart(item, 1);
                                       }}
-                                      disabled={stockStatus.isOutOfStock}
+                                      disabled={item.isAvailable === false}
                                       className={`flex-1 py-1 rounded-lg text-[11px] font-extrabold transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-95 ${
-                                        stockStatus.isOutOfStock
+                                        item.isAvailable === false
                                           ? 'bg-stone-200 text-stone-400 cursor-not-allowed'
                                           : `${currentTheme.addBtn}`
                                       }`}
@@ -1527,7 +1540,7 @@ export default function SalesTracker({
                                         if (punchTab === 'counter') handleAddToCounterCart(item, 5);
                                         else handleAddToOnlineCart(item, 5);
                                       }}
-                                      disabled={stockStatus.isOutOfStock || stockStatus.maxPortions < (inCartQty + 5)}
+                                      disabled={item.isAvailable === false}
                                       className="px-1.5 py-1 bg-stone-100 hover:bg-amber-100 text-stone-800 border border-stone-200 rounded-lg text-[10px] font-bold cursor-pointer active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
                                       title="Quick Add 5"
                                     >

@@ -167,10 +167,10 @@ export default function ItemTable({ items, inventoryItems = [], salesLogs = [], 
                   <td className="py-3.5 px-4 text-center">
                     {stockStatus.isOutOfStock ? (
                       <span
-                        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200"
-                        title={stockStatus.missing.map(m => m.name).join(', ')}
+                        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300"
+                        title={stockStatus.missing && stockStatus.missing.length > 0 ? `Kam pda: ${stockStatus.missing.map(m => m.name).join(', ')} (Billing Allowed)` : 'Negative Stock Billing Active'}
                       >
-                        🚫 Out of Stock
+                        ⚠️ 0 left (Billing Active)
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">

@@ -141,10 +141,10 @@ export default function ItemCards({
                       <div className="flex items-center gap-1.5">
                         {stockStatus.isOutOfStock ? (
                           <span
-                            className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-800 border border-rose-200"
-                            title={stockStatus.missing.map(m => m.name).join(', ')}
+                            className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300"
+                            title={stockStatus.missing && stockStatus.missing.length > 0 ? `Kam pda: ${stockStatus.missing.map(m => m.name).join(', ')} (Billing Allowed)` : 'Negative Stock Billing Active'}
                           >
-                            🚫 Out of Stock
+                            ⚠️ 0 left (Billing Active)
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">

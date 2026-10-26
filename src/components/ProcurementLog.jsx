@@ -486,10 +486,19 @@ export default function ProcurementLog({
 
               {/* Exact Stock Match Indicator */}
               {exactMatch && (
-                <div className="mt-1.5 text-[11px] text-emerald-700 font-bold flex items-center gap-1">
-                  <Check className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Existing Stock Item: <strong>{exactMatch.currentStock} {exactMatch.unit}</strong> in stock</span>
-                </div>
+                exactMatch.currentStock < 0 ? (
+                  <div className="mt-1.5 text-[11px] text-purple-800 font-bold flex items-center gap-1.5 bg-purple-50 px-2.5 py-1 rounded-xl border border-purple-200">
+                    <span className="w-2 h-2 rounded-full bg-purple-600 animate-pulse"></span>
+                    <span>
+                      Deficit Stock: <strong className="underline">{exactMatch.currentStock} {exactMatch.unit}</strong> (Minus me chal raha hai) • Purchase log karte hi yeh automatic adjust ho jayega!
+                    </span>
+                  </div>
+                ) : (
+                  <div className="mt-1.5 text-[11px] text-emerald-700 font-bold flex items-center gap-1">
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Existing Stock Item: <strong>{exactMatch.currentStock} {exactMatch.unit}</strong> in stock</span>
+                  </div>
+                )
               )}
 
               {/* Suggestions Dropdown */}
@@ -507,6 +516,7 @@ export default function ProcurementLog({
                   </div>
                   {suggestions.map((item) => {
                     const itemRate = item.defaultRate || item.unitCost || 0;
+                    const isDeficit = item.currentStock < 0;
                     return (
                       <button
                         key={item.name}
@@ -524,8 +534,12 @@ export default function ProcurementLog({
                               Rate: ₹{itemRate}/{item.unit}
                             </span>
                           )}
-                          <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                            {item.currentStock} {item.unit} in stock
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${
+                            isDeficit
+                              ? 'text-purple-800 bg-purple-50 border-purple-300'
+                              : 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                          }`}>
+                            {isDeficit ? `Deficit: ${item.currentStock}` : `${item.currentStock}`} {item.unit}
                           </span>
                         </div>
                       </button>

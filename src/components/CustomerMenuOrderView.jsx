@@ -71,9 +71,7 @@ export default function CustomerMenuOrderView({
     const nextQty = Math.max(0, currentQty + delta);
 
     if (delta > 0) {
-      const stockInfo = getItemStockInfo(item);
-      if (stockInfo.isOutOfStock) return;
-      if (stockInfo.maxPortions < nextQty) return;
+      if (item.isAvailable === false) return;
     }
 
     if (nextQty === 0) {
@@ -340,7 +338,7 @@ export default function CustomerMenuOrderView({
                 <div
                   key={item.id}
                   className={`bg-stone-900/90 rounded-2xl p-2.5 sm:p-3 border transition-all flex flex-col justify-between shadow-sm relative group ${
-                    isOut 
+                    item.isAvailable === false 
                       ? 'border-stone-800/50 opacity-60' 
                       : qtyInCart > 0 
                         ? 'border-amber-500/60 shadow-lg shadow-amber-950/40 ring-1 ring-amber-500/30' 
@@ -374,7 +372,7 @@ export default function CustomerMenuOrderView({
                     </div>
 
                     {/* Out of Stock or Low Stock Badge Overlay */}
-                    {isOut ? (
+                    {item.isAvailable === false ? (
                       <div className="absolute top-1.5 right-1.5 bg-red-950/90 border border-red-700/80 text-red-300 px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider shadow-xs">
                         Sold Out
                       </div>
@@ -520,9 +518,9 @@ export default function CustomerMenuOrderView({
 
                     {/* Stock / Fresh Tag */}
                     <div className="mt-2.5 flex items-center gap-2 flex-wrap">
-                      {isOut ? (
+                      {item.isAvailable === false ? (
                         <span className="text-[10px] font-bold text-red-400 bg-red-950/60 px-2 py-0.5 rounded border border-red-800/40">
-                          Out of Stock
+                          Currently Unavailable
                         </span>
                       ) : stockInfo.maxPortions <= 5 && stockInfo.maxPortions > 0 ? (
                         <span className="text-[10px] text-amber-400/90 flex items-center gap-1 font-semibold">

@@ -43,17 +43,18 @@ export const formatStockRate = (item) => {
 export const formatStockQuantity = (item) => {
   const stock = Number(item?.currentStock) || 0;
   const unit = (item?.unit || '').trim().toLowerCase();
+  const absStock = Math.abs(stock);
 
-  if ((unit === 'gram' || unit === 'gm' || unit === 'g') && stock >= 1000) {
-    const inKg = (stock / 1000).toFixed(stock % 1000 === 0 ? 0 : 2);
+  if ((unit === 'gram' || unit === 'gm' || unit === 'g') && absStock >= 1000) {
+    const inKg = (stock / 1000).toFixed(absStock % 1000 === 0 ? 0 : 2);
     return {
       primary: `${stock.toLocaleString()} gm`,
       secondary: `(${inKg} Kg)`
     };
   }
 
-  if ((unit === 'ml' || unit === 'milliliter') && stock >= 1000) {
-    const inL = (stock / 1000).toFixed(stock % 1000 === 0 ? 0 : 2);
+  if ((unit === 'ml' || unit === 'milliliter') && absStock >= 1000) {
+    const inL = (stock / 1000).toFixed(absStock % 1000 === 0 ? 0 : 2);
     return {
       primary: `${stock.toLocaleString()} ml`,
       secondary: `(${inL} L)`
@@ -214,9 +215,10 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
 
   // Derived Statistics
   const totalItems = inventoryItems.length;
-  const totalValuation = inventoryItems.reduce((sum, item) => sum + (item.currentStock * (item.unitCost || 0)), 0);
+  const totalValuation = inventoryItems.reduce((sum, item) => sum + (Math.max(0, item.currentStock) * (item.unitCost || 0)), 0);
   const lowStockCount = inventoryItems.filter(item => item.currentStock > 0 && item.currentStock <= item.reorderLevel).length;
-  const outOfStockCount = inventoryItems.filter(item => item.currentStock <= 0).length;
+  const outOfStockCount = inventoryItems.filter(item => item.currentStock === 0).length;
+  const deficitStockCount = inventoryItems.filter(item => item.currentStock < 0).length;
 
   // Filtering
   const filteredItems = useMemo(() => {
@@ -231,7 +233,9 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
       if (statusFilter === 'LOW') {
         matchesStatus = item.currentStock > 0 && item.currentStock <= item.reorderLevel;
       } else if (statusFilter === 'OUT') {
-        matchesStatus = item.currentStock <= 0;
+        matchesStatus = item.currentStock === 0;
+      } else if (statusFilter === 'DEFICIT') {
+        matchesStatus = item.currentStock < 0;
       } else if (statusFilter === 'OK') {
         matchesStatus = item.currentStock > item.reorderLevel;
       }
@@ -321,35 +325,39 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
           </div>
         </button>
 
-        {/* Out of Stock */}
+        {/* Out of Stock & Deficit */}
         <button
           type="button"
-          onClick={() => setStatusFilter(statusFilter === 'OUT' ? 'ALL' : 'OUT')}
+          onClick={() => setStatusFilter(statusFilter === 'OUT' || statusFilter === 'DEFICIT' ? 'ALL' : deficitStockCount > 0 ? 'DEFICIT' : 'OUT')}
           className={`bg-white rounded-2xl p-3 sm:p-3.5 border transition-all text-left cursor-pointer group shadow-xs ${
-            statusFilter === 'OUT'
-              ? 'border-rose-500 ring-2 ring-rose-500/10 bg-rose-50/20'
+            statusFilter === 'OUT' || statusFilter === 'DEFICIT'
+              ? 'border-purple-500 ring-2 ring-purple-500/10 bg-purple-50/20'
               : 'border-stone-200 hover:border-stone-300'
           }`}
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-stone-500">
-              Out of Stock
+              {deficitStockCount > 0 ? 'Out / Negative Deficit' : 'Out of Stock'}
             </span>
             <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${
-              outOfStockCount > 0 ? 'bg-rose-100 text-rose-700' : 'bg-stone-100 text-stone-400'
+              deficitStockCount > 0 ? 'bg-purple-100 text-purple-700' : outOfStockCount > 0 ? 'bg-rose-100 text-rose-700' : 'bg-stone-100 text-stone-400'
             }`}>
               <XCircle className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-1 flex items-baseline gap-1.5">
-            <h3 className={`text-xl sm:text-2xl font-black ${outOfStockCount > 0 ? 'text-rose-700' : 'text-stone-900'}`}>
-              {outOfStockCount}
+            <h3 className={`text-xl sm:text-2xl font-black ${deficitStockCount > 0 ? 'text-purple-700' : outOfStockCount > 0 ? 'text-rose-700' : 'text-stone-900'}`}>
+              {deficitStockCount > 0 ? `${outOfStockCount + deficitStockCount}` : outOfStockCount}
             </h3>
-            {outOfStockCount > 0 && (
+            {deficitStockCount > 0 ? (
+              <span className="text-[10px] font-extrabold text-purple-700 bg-purple-100 px-1.5 py-0.2 rounded-md">
+                {deficitStockCount} Deficit (-)
+              </span>
+            ) : outOfStockCount > 0 ? (
               <span className="text-[10px] font-extrabold text-rose-700 bg-rose-100 px-1.5 py-0.2 rounded-md">
                 Urgent
               </span>
-            )}
+            ) : null}
           </div>
         </button>
 
@@ -402,7 +410,10 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
               <option value="ALL">All Stock Status</option>
               <option value="OK">In Stock Only</option>
               <option value="LOW">Low Stock Alerts</option>
-              <option value="OUT">Out of Stock</option>
+              <option value="OUT">Out of Stock (0)</option>
+              {deficitStockCount > 0 && (
+                <option value="DEFICIT">⚠️ Negative Deficit ({deficitStockCount})</option>
+              )}
             </select>
 
             {/* Log Purchase Button */}
@@ -500,8 +511,9 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
                 </thead>
                 <tbody className="divide-y divide-stone-100 text-stone-700">
                   {filteredItems.map(item => {
-                    const stockVal = item.currentStock * (item.unitCost || 0);
-                    const isOut = item.currentStock <= 0;
+                    const stockVal = Math.max(0, item.currentStock) * (item.unitCost || 0);
+                    const isDeficit = item.currentStock < 0;
+                    const isOut = item.currentStock === 0;
                     const isLow = item.currentStock > 0 && item.currentStock <= item.reorderLevel;
                     const rateMeta = formatStockRate(item);
                     const qtyMeta = formatStockQuantity(item);
@@ -525,11 +537,15 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
                         <td className="py-2.5 px-3 text-center">
                           <div className="flex flex-col items-center">
                             <span className={`font-black text-sm ${
-                              isOut ? 'text-rose-600' : isLow ? 'text-amber-700' : 'text-stone-900'
+                              isDeficit ? 'text-purple-700' : isOut ? 'text-rose-600' : isLow ? 'text-amber-700' : 'text-stone-900'
                             }`}>
                               {qtyMeta.primary}
                             </span>
-                            {qtyMeta.secondary && (
+                            {isDeficit ? (
+                              <span className="text-[9px] font-bold text-purple-700 bg-purple-50 px-1.5 py-0.2 rounded border border-purple-200 mt-0.5" title="Order punch hone se minus me hai. Nayi kharid par auto adjust hoga.">
+                                Deficit (Minus)
+                              </span>
+                            ) : qtyMeta.secondary && (
                               <span className="text-[10px] font-bold text-stone-500 bg-stone-100 px-1.5 py-0.2 rounded-md mt-0.5">
                                 {qtyMeta.secondary}
                               </span>
@@ -570,7 +586,15 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
 
                         {/* Stock Status Badge */}
                         <td className="py-2.5 px-3 text-center">
-                          {isOut ? (
+                          {isDeficit ? (
+                            <span 
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-100 text-purple-900 border border-purple-300 shadow-2xs"
+                              title="Negative stock: Billing chalu hai, maal khareedne par auto-adjust hoga"
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-purple-600 animate-pulse"></span>
+                              <span>⚠️ Minus / Deficit</span>
+                            </span>
+                          ) : isOut ? (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-800">
                               <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
                               <span>Out of Stock</span>

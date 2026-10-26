@@ -197,7 +197,8 @@ export default function InventoryMasterView({ inventoryMaster, onSaveItem, onDel
             </thead>
             <tbody className="divide-y divide-stone-200 text-stone-700">
               {filteredItems.map(item => {
-                const isOut = item.currentStock <= 0;
+                const isDeficit = item.currentStock < 0;
+                const isOut = item.currentStock === 0;
                 const isLow = item.currentStock > 0 && item.currentStock <= item.minimumStock;
 
                 return (
@@ -226,7 +227,9 @@ export default function InventoryMasterView({ inventoryMaster, onSaveItem, onDel
                     </td>
 
                     <td className="py-3.5 px-4 text-center font-extrabold text-base text-stone-900">
-                      {item.currentStock} <span className="text-xs font-normal text-stone-500">{item.consumptionUnit}</span>
+                      <span className={isDeficit ? 'text-purple-700 underline' : ''}>
+                        {item.currentStock}
+                      </span> <span className="text-xs font-normal text-stone-500">{item.consumptionUnit}</span>
                     </td>
 
                     <td className="py-3.5 px-4 text-center text-xs font-semibold text-stone-500">
@@ -234,7 +237,9 @@ export default function InventoryMasterView({ inventoryMaster, onSaveItem, onDel
                     </td>
 
                     <td className="py-3.5 px-4 text-center">
-                      {isOut ? (
+                      {isDeficit ? (
+                        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-900 border border-purple-300">Deficit (Minus)</span>
+                      ) : isOut ? (
                         <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800">Out of Stock</span>
                       ) : isLow ? (
                         <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900">Low Stock Alert</span>

@@ -82,9 +82,9 @@ export default function InventoryDashboardSection({
                   <div className="text-right">
                     <span className="text-sm font-extrabold text-stone-900 block">{item.currentStock} {item.consumptionUnit}</span>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                      item.currentStock <= 0 ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-900'
+                      item.currentStock < 0 ? 'bg-purple-100 text-purple-900 border border-purple-300' : item.currentStock === 0 ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-900'
                     }`}>
-                      {item.currentStock <= 0 ? 'OUT OF STOCK' : 'LOW STOCK'}
+                      {item.currentStock < 0 ? 'DEFICIT (MINUS)' : item.currentStock === 0 ? 'OUT OF STOCK' : 'LOW STOCK'}
                     </span>
                   </div>
                 </div>

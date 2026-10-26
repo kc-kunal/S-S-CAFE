@@ -79,22 +79,18 @@ export default function OnlineOrderPunchModal({
     });
   }, [menuItems, selectedCategory, searchQuery]);
 
-  // Add item to cart
+  // Add item to cart (Allows negative stock billing)
   const handleAddItemToCart = (item) => {
     setFormError('');
+    if (item.isAvailable === false) {
+      setFormError(`"${item.name}" Menu me Band (Disabled) hai!`);
+      return;
+    }
+
     const stockStatus = checkItemStock(item, inventoryItems);
     const existing = cart[item.id];
     const currentQty = existing ? existing.qty : 0;
     const newQty = currentQty + 1;
-
-    if (stockStatus.isOutOfStock) {
-      setFormError(`"${item.name}" Out of Stock hai!`);
-      return;
-    }
-    if (stockStatus.maxPortions < newQty) {
-      setFormError(`"${item.name}" ke sirf ${stockStatus.maxPortions} portions ban sakte hain!`);
-      return;
-    }
 
     setCart({
       ...cart,
@@ -117,12 +113,6 @@ export default function OnlineOrderPunchModal({
       const next = { ...cart };
       delete next[itemId];
       setCart(next);
-      return;
-    }
-
-    const stockStatus = checkItemStock(entry.item, inventoryItems);
-    if (delta > 0 && stockStatus.maxPortions < newQty) {
-      setFormError(`Stock limit: sirf ${stockStatus.maxPortions} portions bache hain!`);
       return;
     }
 
@@ -390,10 +380,14 @@ export default function OnlineOrderPunchModal({
                         key={item.id}
                         type="button"
                         onClick={() => handleAddItemToCart(item)}
-                        disabled={stockStatus.isOutOfStock}
+                        disabled={item.isAvailable === false}
                         className={`p-2.5 rounded-2xl border text-left transition-all relative flex flex-col justify-between group cursor-pointer active:scale-95 min-h-[76px] ${
-                          stockStatus.isOutOfStock
+                          item.isAvailable === false
                             ? 'bg-stone-100 border-stone-200 opacity-50 cursor-not-allowed'
+                            : stockStatus.isOutOfStock
+                            ? inCartQty > 0
+                              ? 'bg-amber-50/70 border-amber-400 ring-2 ring-amber-400/40 shadow-xs'
+                              : 'bg-amber-50/25 hover:bg-amber-50/50 border-amber-300 hover:border-amber-400'
                             : inCartQty > 0
                             ? 'bg-amber-50/70 border-amber-400 ring-2 ring-amber-400/40 shadow-xs'
                             : 'bg-stone-50/60 hover:bg-amber-50/40 border-stone-200 hover:border-amber-300'
@@ -417,8 +411,10 @@ export default function OnlineOrderPunchModal({
                             ₹{item.sellingPrice}
                           </span>
                           
-                          {stockStatus.isOutOfStock ? (
-                            <span className="text-[9px] font-bold text-rose-600 bg-rose-50 px-1 rounded">Out</span>
+                          {item.isAvailable === false ? (
+                            <span className="text-[9px] font-bold text-stone-500 bg-stone-100 px-1 rounded">Off</span>
+                          ) : stockStatus.isOutOfStock ? (
+                            <span className="text-[9px] font-bold text-amber-800 bg-amber-100 px-1 rounded border border-amber-300">⚠️ 0 (Billing ON)</span>
                           ) : (
                             <span className="text-[9px] font-semibold text-emerald-700 bg-emerald-50 px-1 rounded">
                               ✓ {stockStatus.maxPortions}
