@@ -114,22 +114,46 @@ export default function ProcurementLog({
   }, [menuItems, recipeSearch, recipeCategory]);
 
   const handleRecipeItemQtyChange = (itemId, val) => {
-    setRecipeItemQuantities(prev => ({
-      ...prev,
-      [itemId]: val
-    }));
+    setRecipeItemQuantities(prev => {
+      const next = { ...prev };
+      if (val === '' || val === undefined) {
+        delete next[itemId];
+      } else {
+        next[itemId] = val;
+      }
+      return next;
+    });
+  };
+
+  const handleCommonRecipeQtyChange = (newQty) => {
+    const oldDefault = recipeQuantity;
+    setRecipeQuantity(newQty);
+    setRecipeItemQuantities(prev => {
+      const next = { ...prev };
+      Object.keys(next).forEach(id => {
+        if (next[id] === oldDefault || next[id] === '' || !next[id]) {
+          delete next[id];
+        }
+      });
+      return next;
+    });
+  };
+
+  const handleApplyCommonQtyToAll = () => {
+    setRecipeItemQuantities({});
   };
 
   const toggleRecipeLinkedItem = (itemId) => {
     setRecipeLinkedItemIds(prev => {
       const isSelected = prev.includes(itemId);
       if (isSelected) {
+        setRecipeItemQuantities(qPrev => {
+          const next = { ...qPrev };
+          delete next[itemId];
+          return next;
+        });
         return prev.filter(id => id !== itemId);
       } else {
-        setRecipeItemQuantities(qPrev => ({
-          ...qPrev,
-          [itemId]: qPrev[itemId] || recipeQuantity || '1'
-        }));
         return [...prev, itemId];
       }
     });
@@ -142,18 +166,14 @@ export default function ProcurementLog({
 
     if (allFilteredSelected) {
       const filteredIds = new Set(filteredRecipeMenuItems.map(m => m.id));
-      setRecipeLinkedItemIds(prev => prev.filter(id => !filteredIds.has(id)));
-    } else {
-      setRecipeItemQuantities(prev => {
-        const next = { ...prev };
-        filteredRecipeMenuItems.forEach(item => {
-          current.add(item.id);
-          if (!next[item.id]) {
-            next[item.id] = recipeQuantity || '1';
-          }
-        });
+      setRecipeItemQuantities(qPrev => {
+        const next = { ...qPrev };
+        filteredRecipeMenuItems.forEach(m => delete next[m.id]);
         return next;
       });
+      setRecipeLinkedItemIds(prev => prev.filter(id => !filteredIds.has(id)));
+    } else {
+      filteredRecipeMenuItems.forEach(item => current.add(item.id));
       setRecipeLinkedItemIds(Array.from(current));
     }
   };
@@ -355,11 +375,19 @@ export default function ProcurementLog({
       createdAt: now.toISOString()
     };
 
+    const resolvedItemQuantities = {};
+    (recipeLinkedItemIds || []).forEach(id => {
+      const custom = recipeItemQuantities?.[id];
+      resolvedItemQuantities[id] = (custom !== undefined && custom !== '')
+        ? custom
+        : (recipeQuantity || '1');
+    });
+
     const recipeLinkInfo = showRecipeLinker && recipeLinkedItemIds.length > 0 ? {
       itemIds: recipeLinkedItemIds,
       quantity: Number(recipeQuantity) || 1,
       unit: recipeUnit || unit || 'Piece',
-      itemQuantities: recipeItemQuantities || {}
+      itemQuantities: resolvedItemQuantities
     } : null;
 
     onAddProcurement(newEntry, recipeLinkInfo);
@@ -809,13 +837,25 @@ export default function ProcurementLog({
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <span className="text-[10px] text-stone-500 font-semibold block mb-0.5">Common Default Quantity:</span>
+                      <div className="flex items-center justify-between mb-0.5">
+                        <span className="text-[10px] text-stone-500 font-semibold block">Common Quantity:</span>
+                        {recipeLinkedItemIds.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={handleApplyCommonQtyToAll}
+                            className="text-[9px] text-amber-700 hover:text-amber-900 font-bold underline cursor-pointer"
+                            title="Sabhi selected items me yehi common quantity set karein"
+                          >
+                            Sabhi me lagayein
+                          </button>
+                        )}
+                      </div>
                       <input
                         type="number"
                         step="any"
                         min="0.0001"
                         value={recipeQuantity}
-                        onChange={(e) => setRecipeQuantity(e.target.value)}
+                        onChange={(e) => handleCommonRecipeQtyChange(e.target.value)}
                         placeholder="e.g. 1 (Base/Bun) ya 25 (Gram)"
                         className="w-full px-3 py-1.5 bg-stone-50 border border-stone-300 rounded-lg text-xs font-extrabold text-stone-900 focus:outline-none focus:ring-1 focus:ring-amber-500"
                       />
@@ -938,9 +978,10 @@ export default function ProcurementLog({
                     ) : (
                       filteredRecipeMenuItems.map(item => {
                         const isSelected = recipeLinkedItemIds.includes(item.id);
-                        const itemQty = recipeItemQuantities?.[item.id] !== undefined
+                        const isCustom = recipeItemQuantities?.[item.id] !== undefined && recipeItemQuantities[item.id] !== '';
+                        const itemQty = isCustom
                           ? recipeItemQuantities[item.id]
-                          : (recipeQuantity || '1');
+                          : (recipeQuantity || '');
 
                         return (
                           <div
@@ -977,10 +1018,23 @@ export default function ProcurementLog({
                                   value={itemQty}
                                   onChange={(e) => handleRecipeItemQtyChange(item.id, e.target.value)}
                                   onClick={(e) => e.stopPropagation()}
-                                  placeholder="Qty"
+                                  placeholder={recipeQuantity || 'Qty'}
                                   className="w-14 px-1.5 py-0.5 text-center font-black text-xs text-amber-950 bg-amber-50/70 border border-amber-300 rounded focus:outline-none focus:ring-1 focus:ring-amber-500"
                                 />
                                 <span className="text-[10px] font-black text-stone-700">{recipeUnit || unit || 'Piece'}</span>
+                                {isCustom && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleRecipeItemQtyChange(item.id, '');
+                                    }}
+                                    className="text-[9px] text-stone-400 hover:text-amber-800 font-bold underline cursor-pointer ml-0.5"
+                                    title="Wapas common default quantity lagayein"
+                                  >
+                                    Auto
+                                  </button>
+                                )}
                               </div>
                             )}
                           </div>

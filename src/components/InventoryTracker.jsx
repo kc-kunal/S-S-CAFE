@@ -216,30 +216,62 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
   };
 
   const handleRecipeItemQtyChange = (itemId, val) => {
+    setFormData(prev => {
+      const next = { ...(prev.recipeItemQuantities || {}) };
+      if (val === '' || val === undefined) {
+        delete next[itemId];
+      } else {
+        next[itemId] = val;
+      }
+      return {
+        ...prev,
+        recipeItemQuantities: next
+      };
+    });
+  };
+
+  const handleCommonRecipeQtyChange = (newQty) => {
+    setFormData(prev => {
+      const oldDefault = prev.recipeQuantity;
+      const updatedQuantities = { ...(prev.recipeItemQuantities || {}) };
+
+      // Any item whose quantity was matching oldDefault or was empty gets removed from custom overrides
+      // so it immediately and dynamically tracks the new common quantity!
+      Object.keys(updatedQuantities).forEach(id => {
+        if (updatedQuantities[id] === oldDefault || updatedQuantities[id] === '' || !updatedQuantities[id]) {
+          delete updatedQuantities[id];
+        }
+      });
+
+      return {
+        ...prev,
+        recipeQuantity: newQty,
+        recipeItemQuantities: updatedQuantities
+      };
+    });
+  };
+
+  const handleApplyCommonQtyToAll = () => {
     setFormData(prev => ({
       ...prev,
-      recipeItemQuantities: {
-        ...(prev.recipeItemQuantities || {}),
-        [itemId]: val
-      }
+      recipeItemQuantities: {}
     }));
   };
 
   const toggleLinkedItem = (itemId) => {
     const current = Array.isArray(formData.linkedItemIds) ? formData.linkedItemIds : [];
     if (current.includes(itemId)) {
+      const nextQtys = { ...(formData.recipeItemQuantities || {}) };
+      delete nextQtys[itemId];
       setFormData({
         ...formData,
-        linkedItemIds: current.filter(id => id !== itemId)
+        linkedItemIds: current.filter(id => id !== itemId),
+        recipeItemQuantities: nextQtys
       });
     } else {
       setFormData({
         ...formData,
-        linkedItemIds: [...current, itemId],
-        recipeItemQuantities: {
-          ...(formData.recipeItemQuantities || {}),
-          [itemId]: formData.recipeItemQuantities?.[itemId] || formData.recipeQuantity || '1'
-        }
+        linkedItemIds: [...current, itemId]
       });
     }
   };
@@ -251,22 +283,18 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
 
     if (allFilteredSelected) {
       const filteredIds = new Set(filteredPackagingMenuItems.map(m => m.id));
+      const nextQtys = { ...(formData.recipeItemQuantities || {}) };
+      filteredPackagingMenuItems.forEach(m => delete nextQtys[m.id]);
       setFormData({
         ...formData,
-        linkedItemIds: (Array.isArray(formData.linkedItemIds) ? formData.linkedItemIds : []).filter(id => !filteredIds.has(id))
+        linkedItemIds: (Array.isArray(formData.linkedItemIds) ? formData.linkedItemIds : []).filter(id => !filteredIds.has(id)),
+        recipeItemQuantities: nextQtys
       });
     } else {
-      const updatedQuantities = { ...(formData.recipeItemQuantities || {}) };
-      filteredPackagingMenuItems.forEach(item => {
-        current.add(item.id);
-        if (!updatedQuantities[item.id]) {
-          updatedQuantities[item.id] = formData.recipeQuantity || '1';
-        }
-      });
+      filteredPackagingMenuItems.forEach(item => current.add(item.id));
       setFormData({
         ...formData,
-        linkedItemIds: Array.from(current),
-        recipeItemQuantities: updatedQuantities
+        linkedItemIds: Array.from(current)
       });
     }
   };
@@ -290,11 +318,19 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
       updatedAt: new Date().toISOString()
     };
 
+    const resolvedItemQuantities = {};
+    (formData.linkedItemIds || []).forEach(id => {
+      const custom = formData.recipeItemQuantities?.[id];
+      resolvedItemQuantities[id] = (custom !== undefined && custom !== '')
+        ? custom
+        : (formData.recipeQuantity || '1');
+    });
+
     const recipeLinkInfo = formData.category !== 'Packaging' ? {
       itemIds: Array.isArray(formData.linkedItemIds) ? formData.linkedItemIds : [],
       quantity: Number(formData.recipeQuantity) || 1,
       unit: formData.recipeUnit || formData.unit || 'Piece',
-      itemQuantities: formData.recipeItemQuantities || {},
+      itemQuantities: resolvedItemQuantities,
       syncUnchecked: Boolean(editingItem)
     } : null;
 
@@ -1317,13 +1353,25 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <span className="text-[10px] text-stone-500 font-semibold block mb-0.5">Common Default Quantity:</span>
+                          <div className="flex items-center justify-between mb-0.5">
+                            <span className="text-[10px] text-stone-500 font-semibold block">Common Quantity:</span>
+                            {(formData.linkedItemIds || []).length > 0 && (
+                              <button
+                                type="button"
+                                onClick={handleApplyCommonQtyToAll}
+                                className="text-[9px] text-amber-700 hover:text-amber-900 font-bold underline cursor-pointer"
+                                title="Sabhi selected items me yehi common quantity set karein"
+                              >
+                                Sabhi me lagayein
+                              </button>
+                            )}
+                          </div>
                           <input
                             type="number"
                             step="any"
                             min="0.0001"
                             value={formData.recipeQuantity}
-                            onChange={(e) => setFormData({ ...formData, recipeQuantity: e.target.value })}
+                            onChange={(e) => handleCommonRecipeQtyChange(e.target.value)}
                             placeholder="e.g. 1 ya 25"
                             className="w-full px-3 py-1.5 bg-stone-50 border border-stone-300 rounded-lg text-xs font-extrabold text-stone-900 focus:outline-none focus:ring-1 focus:ring-amber-500"
                           />
@@ -1444,9 +1492,10 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
                         ) : (
                           filteredPackagingMenuItems.map(item => {
                             const isSelected = (formData.linkedItemIds || []).includes(item.id);
-                            const itemQty = formData.recipeItemQuantities?.[item.id] !== undefined 
+                            const isCustom = formData.recipeItemQuantities?.[item.id] !== undefined && formData.recipeItemQuantities[item.id] !== '';
+                            const itemQty = isCustom 
                               ? formData.recipeItemQuantities[item.id] 
-                              : (formData.recipeQuantity || '1');
+                              : (formData.recipeQuantity || '');
 
                             return (
                               <div
@@ -1483,10 +1532,23 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
                                       value={itemQty}
                                       onChange={(e) => handleRecipeItemQtyChange(item.id, e.target.value)}
                                       onClick={(e) => e.stopPropagation()}
-                                      placeholder="Qty"
+                                      placeholder={formData.recipeQuantity || 'Qty'}
                                       className="w-14 px-1.5 py-0.5 text-center font-black text-xs text-amber-950 bg-amber-50/70 border border-amber-300 rounded focus:outline-none focus:ring-1 focus:ring-amber-500"
                                     />
                                     <span className="text-[10px] font-black text-stone-700">{formData.recipeUnit || formData.unit}</span>
+                                    {isCustom && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleRecipeItemQtyChange(item.id, '');
+                                        }}
+                                        className="text-[9px] text-stone-400 hover:text-amber-800 font-bold underline cursor-pointer ml-0.5"
+                                        title="Wapas common default quantity lagayein"
+                                      >
+                                        Auto
+                                      </button>
+                                    )}
                                   </div>
                                 )}
                               </div>
