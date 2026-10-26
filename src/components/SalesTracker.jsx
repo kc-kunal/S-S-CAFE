@@ -29,7 +29,8 @@ import {
   Printer,
   BookOpen,
   Moon,
-  Lock
+  Lock,
+  Building2
 } from 'lucide-react';
 import { checkItemStock, calculateAggregatorLedger, getTodayDateString, classifySalePaymentMethod } from '../utils/storage';
 import OnlineOrderPunchModal from './OnlineOrderPunchModal';
@@ -400,6 +401,7 @@ export default function SalesTracker({
   const [isOnlinePunchOpen, setIsOnlinePunchOpen] = useState(false);
   const [isSettlementModalOpen, setIsSettlementModalOpen] = useState(false);
   const [settlementPlatform, setSettlementPlatform] = useState('Swiggy');
+  const [settlementTab, setSettlementTab] = useState('orders');
 
   const showWarning = (msg) => {
     setWarningMessage(msg);
@@ -1268,6 +1270,21 @@ export default function SalesTracker({
                   }`}
                 >
                   <span>🔴 Zomato</span>
+                </button>
+
+                {/* Quick Settle / Ledger Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSettlementPlatform(onlinePlatform);
+                    setSettlementTab('settle');
+                    setIsSettlementModalOpen(true);
+                  }}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-900 border border-amber-300 transition-all cursor-pointer ml-1"
+                  title="Swiggy/Zomato Bank Payout Ledger & Settlements"
+                >
+                  <Building2 className="w-3.5 h-3.5 text-amber-700" />
+                  <span>🏦 Bank Payout Settle</span>
                 </button>
               </div>
 
@@ -2571,6 +2588,7 @@ export default function SalesTracker({
         salesLogs={salesLogs}
         settlements={settlements}
         initialPlatform={settlementPlatform}
+        initialTab={settlementTab}
         onAddSettlement={onAddSettlement}
         onDeleteSettlement={onDeleteSettlement}
         onClearAllSettlements={onClearAllSettlements}

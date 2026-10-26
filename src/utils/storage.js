@@ -1743,15 +1743,30 @@ export const calculateAggregatorLedger = (salesLogs = [], settlements = []) => {
     }, 0);
 
     // Settlements for this platform
-    const platSettlements = settlements.filter(set => (set.platform || '').toLowerCase() === targetPlat);
+    const platSettlements = (settlements || []).filter(set => (set.platform || '').toLowerCase() === targetPlat);
 
-    // Sort settlements chronologically (oldest first)
-    const sortedSettlements = [...platSettlements].sort((a, b) => {
-      const tA = new Date(a.createdAt || (a.settlementDate ? `${a.settlementDate}T00:00:00` : 0)).getTime();
-      const tB = new Date(b.createdAt || (b.settlementDate ? `${b.settlementDate}T00:00:00` : 0)).getTime();
-      return tA - tB;
+    // Real bank received, commission deducted and gross settled amounts
+    const totalBankReceived = platSettlements.reduce((sum, s) => sum + (Number(s.bankAmountReceived) || 0), 0);
+    const totalCommissionDeducted = platSettlements.reduce((sum, s) => sum + (Number(s.commissionDeducted) || 0), 0);
+    const totalSettledGross = platSettlements.reduce((sum, s) => {
+      const g = Number(s.grossAmount);
+      if (!isNaN(g) && g > 0) return sum + g;
+      return sum + (Number(s.bankAmountReceived) || 0) + (Number(s.commissionDeducted) || 0);
+    }, 0);
+
+    // Pending gross collected in Swiggy/Zomato account awaiting transfer to bank
+    const pendingUnsettled = Math.max(0, totalGross - totalSettledGross);
+
+    // Track which individual sales are settled
+    const settledSaleIds = new Set();
+    // 1. Explicit IDs if provided in settlements
+    platSettlements.forEach(s => {
+      if (Array.isArray(s.settledSaleIds)) {
+        s.settledSaleIds.forEach(id => settledSaleIds.add(id));
+      }
     });
 
+    // 2. Chronologically mark sales as settled up to totalSettledGross
     // Sort sales chronologically (oldest first)
     const sortedSales = [...platSales].sort((a, b) => {
       const tA = new Date(a.createdAt || (a.date ? `${a.date}T00:00:00` : 0)).getTime();
@@ -1759,69 +1774,31 @@ export const calculateAggregatorLedger = (salesLogs = [], settlements = []) => {
       return tA - tB;
     });
 
-    // Track which sales are settled
-    const settledSaleIds = new Set();
-    let totalSettledGross = 0;
-    let totalBankReceived = 0;
-    let totalCommissionDeducted = 0;
+    if (totalSettledGross > 0) {
+      let coveredRevenue = 0;
+      sortedSales.forEach(s => {
+        if (settledSaleIds.has(s.id)) {
+          coveredRevenue += (Number(s.totalRevenue) || 0);
+        }
+      });
 
-    sortedSettlements.forEach(settlement => {
-      let remainingGross = Number(settlement.grossAmount) || 0;
-      const setTime = new Date(
-        settlement.createdAt || 
-        (settlement.settlementDate ? `${settlement.settlementDate}T23:59:59` : 0)
-      ).getTime();
-
-      let matchedInThisSettlement = 0;
-
-      // 1. Direct match by settledSaleIds if present
-      if (Array.isArray(settlement.settledSaleIds) && settlement.settledSaleIds.length > 0) {
-        settlement.settledSaleIds.forEach(id => {
-          const matchedSale = sortedSales.find(s => s.id === id);
-          if (matchedSale && !settledSaleIds.has(id)) {
-            settledSaleIds.add(id);
-            matchedInThisSettlement += (Number(matchedSale.totalRevenue) || 0);
-          }
-        });
-      } else {
-        // 2. Chronological matching: settlements can ONLY settle orders created at or before the settlement timestamp
-        for (const sale of sortedSales) {
-          if (remainingGross <= 0) break;
-          if (settledSaleIds.has(sale.id)) continue;
-
-          const saleTime = new Date(
-            sale.createdAt || 
-            (sale.date ? `${sale.date}T00:00:00` : 0)
-          ).getTime();
-
-          // A settlement created in the past can NEVER settle a future order!
-          if (saleTime > setTime) continue;
-
-          const rev = Number(sale.totalRevenue) || 0;
-          if (rev > 0 && remainingGross >= rev) {
-            settledSaleIds.add(sale.id);
-            remainingGross -= rev;
-            matchedInThisSettlement += rev;
-          }
+      for (const sale of sortedSales) {
+        if (coveredRevenue >= totalSettledGross) break;
+        if (!settledSaleIds.has(sale.id)) {
+          settledSaleIds.add(sale.id);
+          coveredRevenue += (Number(sale.totalRevenue) || 0);
         }
       }
+    }
 
-      // Record bank received and commission ONLY if this settlement actually settled sales in the system
-      if (matchedInThisSettlement > 0) {
-        totalSettledGross += matchedInThisSettlement;
-        totalBankReceived += Number(settlement.bankAmountReceived) || 0;
-        totalCommissionDeducted += Number(settlement.commissionDeducted) || 0;
-      }
-    });
-
-    // Sanity caps: settled gross & bank received can never exceed totalGross
-    totalSettledGross = Math.min(totalGross, totalSettledGross);
-    totalBankReceived = Math.min(totalGross, totalBankReceived);
+    // 3. If fully settled, ensure all sales for this platform are marked settled
+    if (pendingUnsettled <= 0 && platSales.length > 0) {
+      platSales.forEach(s => settledSaleIds.add(s.id));
+    }
 
     // Unsettled sales = sales that have not been settled
     const unsettledSales = platSales.filter(s => !settledSaleIds.has(s.id));
-    const pendingUnsettled = unsettledSales.reduce((sum, s) => sum + (Number(s.totalRevenue) || 0), 0);
-    const pendingOrdersCount = getUniqueOrderCount(unsettledSales);
+    const pendingOrdersCount = pendingUnsettled > 0 ? getUniqueOrderCount(unsettledSales) : 0;
 
     summary[plat] = {
       platform: plat,

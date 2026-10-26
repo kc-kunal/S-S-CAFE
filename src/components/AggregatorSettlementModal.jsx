@@ -25,6 +25,7 @@ export default function AggregatorSettlementModal({
   salesLogs = [],
   settlements = [],
   initialPlatform = 'Swiggy',
+  initialTab = 'orders',
   onAddSettlement,
   onDeleteSettlement,
   onClearAllSettlements,
@@ -39,21 +40,28 @@ export default function AggregatorSettlementModal({
   // Single-input settlement state
   const [settlementDate, setSettlementDate] = useState(new Date().toISOString().split('T')[0]);
   const [bankAmountReceived, setBankAmountReceived] = useState('');
+  const [customGross, setCustomGross] = useState('');
+  const [isEditingGross, setIsEditingGross] = useState(false);
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
 
-  // Sync initial platform when opening
+  // Sync initial platform and tab when opening
   useEffect(() => {
     if (isOpen) {
       if (initialPlatform && (initialPlatform === 'Swiggy' || initialPlatform === 'Zomato')) {
         setSelectedPlatform(initialPlatform);
       }
+      if (initialTab && (initialTab === 'orders' || initialTab === 'settle')) {
+        setActiveTab(initialTab);
+      }
       setSearchQuery('');
       setFormError('');
       setFormSuccess('');
       setBankAmountReceived('');
+      setCustomGross('');
+      setIsEditingGross(false);
     }
-  }, [isOpen, initialPlatform]);
+  }, [isOpen, initialPlatform, initialTab]);
 
   // Overall Ledger calculation
   const ledger = useMemo(() => {
@@ -70,6 +78,7 @@ export default function AggregatorSettlementModal({
     totalBankReceived: 0, 
     totalCommissionDeducted: 0, 
     pendingUnsettled: 0, 
+    pendingOrdersCount: 0,
     settlementsCount: 0 
   };
 
@@ -107,23 +116,28 @@ export default function AggregatorSettlementModal({
       .sort((a, b) => new Date(b.settlementDate || b.createdAt) - new Date(a.settlementDate || a.createdAt));
   }, [settlements, selectedPlatform]);
 
-  // Auto calculate commission deductions: Pending Gross - Net Bank Received
+  // Active gross amount being settled (defaults to full pending balance)
+  const activeGross = useMemo(() => {
+    const g = Number(customGross);
+    if (!isNaN(g) && g > 0) return g;
+    return platLedger.pendingUnsettled;
+  }, [customGross, platLedger.pendingUnsettled]);
+
+  // Auto calculate commission deductions: Active Gross - Net Bank Received
   const calculatedCommission = useMemo(() => {
-    const gross = platLedger.pendingUnsettled;
     const net = Number(bankAmountReceived) || 0;
-    if (gross > 0 && net >= 0) {
-      return Math.max(0, gross - net);
+    if (activeGross > 0 && net >= 0) {
+      return Math.max(0, activeGross - net);
     }
     return 0;
-  }, [platLedger.pendingUnsettled, bankAmountReceived]);
+  }, [activeGross, bankAmountReceived]);
 
   const commissionPct = useMemo(() => {
-    const gross = platLedger.pendingUnsettled;
-    if (gross > 0 && calculatedCommission > 0) {
-      return ((calculatedCommission / gross) * 100).toFixed(1);
+    if (activeGross > 0 && calculatedCommission > 0) {
+      return ((calculatedCommission / activeGross) * 100).toFixed(1);
     }
     return '0.0';
-  }, [platLedger.pendingUnsettled, calculatedCommission]);
+  }, [activeGross, calculatedCommission]);
 
   // Submit Settlement - USER ONLY ENTERS BANK AMOUNT!
   const handleSubmitSettlement = (e) => {
@@ -131,10 +145,10 @@ export default function AggregatorSettlementModal({
     setFormError('');
     setFormSuccess('');
 
-    const gross = platLedger.pendingUnsettled;
+    const targetGross = activeGross;
     const net = Number(bankAmountReceived);
 
-    if (gross <= 0) {
+    if (targetGross <= 0) {
       setFormError('Settle karne ke liye koi pending balance nahi hai.');
       return;
     }
@@ -144,27 +158,39 @@ export default function AggregatorSettlementModal({
       return;
     }
 
-    if (net > gross) {
-      setFormError(`Bank me aaya paisa pending order bill (₹${gross}) se zyada nahi ho sakta!`);
+    if (net > targetGross) {
+      setFormError(`Bank me aaya paisa order bill (₹${targetGross}) se zyada nahi ho sakta!`);
       return;
     }
 
+    const commDeducted = Math.max(0, targetGross - net);
+
+    // Identify sales covered by this settlement (oldest first)
     const settledSet = new Set(platLedger.settledSaleIds || []);
-    const newlySettledSaleIds = platSales
-      .filter(s => !settledSet.has(s.id))
-      .map(s => s.id);
+    let remainingToCover = targetGross;
+    const newlySettledSaleIds = [];
+
+    // platSales is newest first, so reverse to cover oldest first
+    const chronologicalSales = [...platSales].reverse();
+    for (const sale of chronologicalSales) {
+      if (remainingToCover <= 0) break;
+      if (!settledSet.has(sale.id)) {
+        newlySettledSaleIds.push(sale.id);
+        remainingToCover -= (Number(sale.totalRevenue) || 0);
+      }
+    }
 
     const newSettlement = {
       id: `settle-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
       platform: selectedPlatform,
       settlementDate: settlementDate || new Date().toISOString().split('T')[0],
-      grossAmount: gross,
-      commissionDeducted: calculatedCommission,
+      grossAmount: targetGross,
+      commissionDeducted: commDeducted,
       bankAmountReceived: net,
       referenceNo: `Bank Credit - ${settlementDate}`,
       notes: `${selectedPlatform} Weekly Payout Settled`,
       settledSaleIds: newlySettledSaleIds,
-      expenseLogged: calculatedCommission > 0,
+      expenseLogged: commDeducted > 0,
       createdAt: new Date().toISOString()
     };
 
@@ -173,21 +199,23 @@ export default function AggregatorSettlementModal({
     }
 
     // Auto-log commission cut into Cafe Expenses
-    if (calculatedCommission > 0 && onAddExpense) {
+    if (commDeducted > 0 && onAddExpense) {
       onAddExpense({
         id: `exp-comm-${Date.now()}`,
         title: `${selectedPlatform} Commission Cut`,
         category: 'Platform Commission',
-        amount: calculatedCommission,
+        amount: commDeducted,
         date: settlementDate || new Date().toISOString().split('T')[0],
         paymentMode: 'Online',
         paidTo: selectedPlatform,
-        notes: `Platform cut for ₹${gross} orders. Rate: ~${commissionPct}%`
+        notes: `Platform cut for ₹${targetGross} orders. Rate: ~${commissionPct}%`
       });
     }
 
-    setFormSuccess(`✅ ₹${net.toLocaleString()} Bank me jama ho gaya! Sabhi orders settle ho gaye.`);
+    setFormSuccess(`✅ ₹${net.toLocaleString()} Bank me jama ho gaya! ₹${commDeducted.toLocaleString()} ${selectedPlatform} charges/tax cut darj ho gaya.`);
     setBankAmountReceived('');
+    setCustomGross('');
+    setIsEditingGross(false);
     setTimeout(() => {
       setFormSuccess('');
       setActiveTab('orders');
@@ -575,33 +603,113 @@ export default function AggregatorSettlementModal({
           {activeTab === 'settle' && (
             <div className="space-y-4">
               
+              {/* How it works banner */}
+              <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/90 rounded-2xl p-4 text-xs text-amber-950 space-y-2 shadow-2xs">
+                <div className="flex items-center gap-2 font-black text-amber-900 text-sm">
+                  <Sparkles className="w-4 h-4 text-amber-600" />
+                  <span>Simple Online Payout Bank Settlement</span>
+                </div>
+                <p className="text-[12px] text-stone-700 leading-relaxed">
+                  Menu rate par punched orders <strong>{selectedPlatform} Account</strong> me jama rahte hain (Bank me aana baaki). Jab weekly bank payout transfer aaye, bas bank credit amount enter karein.
+                </p>
+                <div className="bg-white/80 rounded-xl p-2.5 border border-amber-200 font-medium text-[11px] text-stone-800 space-y-1">
+                  <div className="font-bold text-amber-900">💡 Udaharan (Example):</div>
+                  <div>• Maan lijiye <strong>₹1,000</strong> ki sell hui aur Bank account me <strong>₹800</strong> credit hue.</div>
+                  <div>• Yahan sirf <strong>₹800</strong> enter karein.</div>
+                  <div>• Bache huye <strong>₹200</strong> apne aap <strong>{selectedPlatform} Tax, Charges & Commission Cut</strong> me darj ho jayenge aur pending balance <strong>₹0</strong> ho jayega.</div>
+                </div>
+              </div>
+
               {/* Clean Settle Box */}
               <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4 sm:p-5 space-y-3">
-                <div>
-                  <h3 className="text-sm font-bold text-stone-900 flex items-center gap-1.5">
-                    <Building2 className="w-4 h-4 text-emerald-600" />
-                    <span>{selectedPlatform} Se Bank Me Paisa Aaya? (Payout Settle Karein)</span>
-                  </h3>
-                  <p className="text-xs text-stone-500 mt-0.5 leading-relaxed">
-                    Aapke <strong>₹{platLedger.pendingUnsettled.toLocaleString()}</strong> ke orders pending hain. Swiggy ne jitna paisa aapke bank account me transfer kiya hai, bas wo amount yahan enter karein.
-                  </p>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-sm font-bold text-stone-900 flex items-center gap-1.5">
+                      <Building2 className="w-4 h-4 text-emerald-600" />
+                      <span>{selectedPlatform} Se Bank Me Paisa Aaya? (Payout Settle Karein)</span>
+                    </h3>
+                    <p className="text-xs text-stone-500 mt-0.5">
+                      {selectedPlatform} ne jitna actual paisa aapke bank account me bheja hai, bas wo amount yahan enter karein.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-stone-500 font-semibold">Date:</span>
+                    <input
+                      type="date"
+                      value={settlementDate}
+                      onChange={(e) => setSettlementDate(e.target.value)}
+                      className="px-2.5 py-1 bg-white border border-stone-300 rounded-lg text-xs font-bold text-stone-800 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    />
+                  </div>
                 </div>
 
                 <form onSubmit={handleSubmitSettlement} className="space-y-3 pt-1">
                   
+                  {/* Gross Amount Info / Optional Edit */}
+                  <div className="bg-white p-3.5 rounded-2xl border border-stone-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <div>
+                      <span className="text-[11px] font-extrabold text-stone-500 uppercase tracking-wide block">
+                        {selectedPlatform} Account me Jama (Pending Sales):
+                      </span>
+                      <span className="text-lg font-black text-amber-700">
+                        ₹{activeGross.toLocaleString()}
+                      </span>
+                      <span className="text-[11px] text-stone-500 ml-2">
+                        ({platLedger.pendingOrdersCount} orders pending)
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {!isEditingGross ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsEditingGross(true);
+                            setCustomGross(String(platLedger.pendingUnsettled));
+                          }}
+                          className="text-[11px] text-amber-800 bg-amber-100 hover:bg-amber-200 font-bold px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                        >
+                          ✏️ Change Gross Bill
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-bold text-stone-600">₹</span>
+                          <input
+                            type="number"
+                            value={customGross}
+                            onChange={(e) => setCustomGross(e.target.value)}
+                            placeholder={String(platLedger.pendingUnsettled)}
+                            className="w-24 px-2 py-1 bg-amber-50 border border-amber-300 rounded-lg text-xs font-black text-amber-950 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsEditingGross(false);
+                              setCustomGross('');
+                            }}
+                            className="text-[10px] bg-stone-200 hover:bg-stone-300 text-stone-700 font-bold px-2 py-1 rounded-lg cursor-pointer"
+                          >
+                            Reset
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Single Clean Input: Bank me kitna aaya */}
                   <div className="bg-white p-4 rounded-2xl border-2 border-emerald-400 shadow-xs space-y-2">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-extrabold text-emerald-900 uppercase tracking-wide">
-                        Bank Account Me Kitna Paisa Aaya? (Net Credit) (₹):
+                        Bank Account Me Kitna Paisa Credit Hua? (Net Transfer) (₹):
                       </label>
-                      {platLedger.pendingUnsettled > 0 && (
+                      {activeGross > 0 && (
                         <button
                           type="button"
-                          onClick={() => setBankAmountReceived(String(platLedger.pendingUnsettled))}
+                          onClick={() => setBankAmountReceived(String(activeGross))}
                           className="text-[10px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold px-2 py-0.5 rounded cursor-pointer"
                         >
-                          Poora ₹{platLedger.pendingUnsettled} Aaya
+                          Poora ₹{activeGross} Aaya
                         </button>
                       )}
                     </div>
@@ -610,7 +718,7 @@ export default function AggregatorSettlementModal({
                       <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-black text-emerald-700 text-lg">₹</span>
                       <input
                         type="number"
-                        placeholder={`e.g. ${platLedger.pendingUnsettled}`}
+                        placeholder={`e.g. ${activeGross > 0 ? (activeGross * 0.8).toFixed(0) : '0'}`}
                         value={bankAmountReceived}
                         onChange={(e) => setBankAmountReceived(e.target.value)}
                         className="w-full pl-8 pr-4 py-2.5 bg-emerald-50/40 border border-emerald-300 rounded-xl text-base font-black text-emerald-950 focus:outline-none focus:ring-2 focus:ring-emerald-500"
@@ -620,14 +728,30 @@ export default function AggregatorSettlementModal({
                     </div>
 
                     {/* Live Commission Calculation Feedback */}
-                    {platLedger.pendingUnsettled > 0 && bankAmountReceived !== '' && (
-                      <div className="pt-2 border-t border-stone-100 flex items-center justify-between text-xs">
-                        <span className="text-stone-500">
-                          Pending: <strong>₹{platLedger.pendingUnsettled}</strong> − Bank: <strong>₹{bankAmountReceived || 0}</strong>
-                        </span>
-                        <span className="font-extrabold text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
-                          {selectedPlatform} Commission Cut: ₹{calculatedCommission} ({commissionPct}%)
-                        </span>
+                    {activeGross > 0 && bankAmountReceived !== '' && (
+                      <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3 text-xs space-y-2 mt-2">
+                        <div className="font-bold text-emerald-950 flex items-center gap-1.5">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          <span>Settlement Calculation Preview:</span>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                          <div className="bg-white p-2 rounded-lg border border-emerald-100">
+                            <span className="text-[10px] text-stone-500 block uppercase font-bold">Gross Orders:</span>
+                            <span className="text-sm font-black text-stone-900">₹{activeGross.toLocaleString()}</span>
+                          </div>
+                          <div className="bg-white p-2 rounded-lg border border-emerald-100">
+                            <span className="text-[10px] text-emerald-700 block uppercase font-bold">Bank me Jama:</span>
+                            <span className="text-sm font-black text-emerald-700">₹{Number(bankAmountReceived || 0).toLocaleString()}</span>
+                          </div>
+                          <div className="bg-white p-2 rounded-lg border border-emerald-100">
+                            <span className="text-[10px] text-rose-600 block uppercase font-bold">Commission Cut:</span>
+                            <span className="text-sm font-black text-rose-600">₹{calculatedCommission.toLocaleString()} ({commissionPct}%)</span>
+                          </div>
+                          <div className="bg-white p-2 rounded-lg border border-emerald-100">
+                            <span className="text-[10px] text-stone-500 block uppercase font-bold">Baki Aana Baaki:</span>
+                            <span className="text-sm font-black text-amber-700">₹{Math.max(0, platLedger.pendingUnsettled - activeGross).toLocaleString()}</span>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -649,10 +773,19 @@ export default function AggregatorSettlementModal({
                   {/* Submit Button */}
                   <button
                     type="submit"
-                    className="w-full py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white rounded-xl text-xs sm:text-sm font-extrabold shadow-md shadow-emerald-600/20 transition-all cursor-pointer flex items-center justify-center gap-2"
+                    disabled={activeGross <= 0}
+                    className={`w-full py-3 text-white rounded-xl text-xs sm:text-sm font-extrabold shadow-md transition-all flex items-center justify-center gap-2 ${
+                      activeGross <= 0
+                        ? 'bg-stone-300 text-stone-500 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 shadow-emerald-600/20 cursor-pointer active:scale-98'
+                    }`}
                   >
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>Settle Karein (Paisa Bank Me Aa Gaya)</span>
+                    <span>
+                      {activeGross <= 0
+                        ? 'Sabhi Payouts Settled Hain (Koi Pending Nahi)'
+                        : `Settle Karein (${selectedPlatform} Payout Bank me Aa Gaya)`}
+                    </span>
                   </button>
 
                 </form>

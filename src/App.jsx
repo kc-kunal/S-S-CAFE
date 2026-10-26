@@ -123,8 +123,16 @@ export default function App() {
   const [inventoryItems, setInventoryItems] = useState(() => getStoredInventory(activeIdOnBoot));
   const [expenses, setExpenses] = useState(() => getStoredExpenses(activeIdOnBoot));
   const [wastageLogs, setWastageLogs] = useState(() => getStoredWastage(activeIdOnBoot));
-  const [settlements, setSettlements] = useState([]);
+  const [settlements, setSettlements] = useState(() => getStoredSettlements(activeIdOnBoot));
   const [isAggregatorModalOpen, setIsAggregatorModalOpen] = useState(false);
+  const [aggregatorModalPlatform, setAggregatorModalPlatform] = useState('Swiggy');
+  const [aggregatorModalTab, setAggregatorModalTab] = useState('orders');
+
+  const handleOpenSettlementsModal = (platform = 'Swiggy', tab = 'orders') => {
+    setAggregatorModalPlatform(platform);
+    setAggregatorModalTab(tab);
+    setIsAggregatorModalOpen(true);
+  };
 
   // Clean slate reactive state & direct clear demo confirmation modal state
   const [isCleanSlate, setIsCleanSlate] = useState(() => Boolean(currentCafe?.isCleanSlate || isCleanSlateActive(activeIdOnBoot)));
@@ -2046,7 +2054,7 @@ export default function App() {
             wastageLogs={wastageLogs}
             settlements={settlements}
             onOpenExportModal={() => setIsExportModalOpen(true)}
-            onOpenSettlementsModal={() => setIsAggregatorModalOpen(true)}
+            onOpenSettlementsModal={handleOpenSettlementsModal}
             isStaffMode={isStaffMode}
             onPromptUnlock={handlePromptUnlockStaffMode}
           />
@@ -2300,7 +2308,8 @@ export default function App() {
         onClose={() => setIsAggregatorModalOpen(false)}
         salesLogs={salesLogs}
         settlements={settlements}
-        initialPlatform="Swiggy"
+        initialPlatform={aggregatorModalPlatform}
+        initialTab={aggregatorModalTab}
         onAddSettlement={handleAddSettlement}
         onDeleteSettlement={handleDeleteSettlement}
         onClearAllSettlements={handleClearAllSettlements}

@@ -1022,7 +1022,7 @@ export default function FinancialDashboard({
                     </span>
                   </h4>
                   <p className="text-[10px] text-stone-400">
-                    Gross orders, platform commission deductions, aur bank me aane wala baaki paisa
+                    Menu rate par orders punch hote hain. Weekly bank payout aane par credit enter karein — commission/tax apne aap cut ho jayega.
                   </p>
                 </div>
               </div>
@@ -1030,10 +1030,10 @@ export default function FinancialDashboard({
               {onOpenSettlementsModal && (
                 <button
                   type="button"
-                  onClick={onOpenSettlementsModal}
-                  className="px-3 py-1.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer self-start sm:self-auto active:scale-95"
+                  onClick={() => onOpenSettlementsModal('Swiggy', 'orders')}
+                  className="px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-200 hover:text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer self-start sm:self-auto active:scale-95 border border-stone-700"
                 >
-                  Manage Payouts & Settlements →
+                  Manage Payouts & Orders →
                 </button>
               )}
             </div>
@@ -1044,24 +1044,36 @@ export default function FinancialDashboard({
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-extrabold text-orange-400 flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-[#f48c06]"></span>
-                    Swiggy
+                    Swiggy Account
                   </span>
-                  <span className="text-[10px] bg-stone-700 text-stone-300 font-bold px-1.5 py-0.2 rounded">
-                    {timeframe !== 'all' ? `${filteredData.swiggyOrdersCount} ord (${timeframe === 'daily' ? 'Today' : timeframe})` : `${aggLedger.Swiggy.totalOrdersCount} ord total`}
+                  <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${
+                    aggLedger.Swiggy.pendingUnsettled > 0 ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                  }`}>
+                    {aggLedger.Swiggy.pendingUnsettled > 0 ? `${aggLedger.Swiggy.pendingOrdersCount} orders pending` : 'Sabhi settled ✅'}
                   </span>
                 </div>
                 <div>
                   <div className="my-1">
-                    <span className="text-[9px] text-stone-400 uppercase font-semibold">Bank me aana baaki hai:</span>
+                    <span className="text-[9px] text-stone-400 uppercase font-semibold">Payment Collected (Bank me aana baaki):</span>
                     <div className="text-xl font-black text-amber-300">
                       ₹{aggLedger.Swiggy.pendingUnsettled.toLocaleString()}
                     </div>
                   </div>
                 </div>
                 <div className="text-[10px] text-stone-400 flex justify-between border-t border-stone-700/60 pt-1">
-                  <span>Gross Orders: ₹{aggLedger.Swiggy.totalGross.toLocaleString()}</span>
+                  <span>Gross: ₹{aggLedger.Swiggy.totalGross.toLocaleString()}</span>
                   <span>In Bank: ₹{aggLedger.Swiggy.totalBankReceived.toLocaleString()}</span>
+                  <span>Cut: ₹{aggLedger.Swiggy.totalCommissionDeducted.toLocaleString()}</span>
                 </div>
+                {onOpenSettlementsModal && aggLedger.Swiggy.pendingUnsettled > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenSettlementsModal('Swiggy', 'settle')}
+                    className="w-full py-1.5 px-2 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white text-[11px] font-extrabold rounded-lg shadow-xs flex items-center justify-center gap-1 transition-all cursor-pointer mt-1"
+                  >
+                    <span>🏦 Swiggy Payout Settle Karein</span>
+                  </button>
+                )}
               </div>
 
               {/* Zomato Box */}
@@ -1069,44 +1081,65 @@ export default function FinancialDashboard({
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-extrabold text-rose-400 flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-[#e5383b]"></span>
-                    Zomato
+                    Zomato Account
                   </span>
-                  <span className="text-[10px] bg-stone-700 text-stone-300 font-bold px-1.5 py-0.2 rounded">
-                    {timeframe !== 'all' ? `${filteredData.zomatoOrdersCount} ord (${timeframe === 'daily' ? 'Today' : timeframe})` : `${aggLedger.Zomato.totalOrdersCount} ord total`}
+                  <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${
+                    aggLedger.Zomato.pendingUnsettled > 0 ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                  }`}>
+                    {aggLedger.Zomato.pendingUnsettled > 0 ? `${aggLedger.Zomato.pendingOrdersCount} orders pending` : 'Sabhi settled ✅'}
                   </span>
                 </div>
                 <div>
                   <div className="my-1">
-                    <span className="text-[9px] text-stone-400 uppercase font-semibold">Bank me aana baaki hai:</span>
+                    <span className="text-[9px] text-stone-400 uppercase font-semibold">Payment Collected (Bank me aana baaki):</span>
                     <div className="text-xl font-black text-rose-300">
                       ₹{aggLedger.Zomato.pendingUnsettled.toLocaleString()}
                     </div>
                   </div>
                 </div>
                 <div className="text-[10px] text-stone-400 flex justify-between border-t border-stone-700/60 pt-1">
-                  <span>Gross Orders: ₹{aggLedger.Zomato.totalGross.toLocaleString()}</span>
+                  <span>Gross: ₹{aggLedger.Zomato.totalGross.toLocaleString()}</span>
                   <span>In Bank: ₹{aggLedger.Zomato.totalBankReceived.toLocaleString()}</span>
+                  <span>Cut: ₹{aggLedger.Zomato.totalCommissionDeducted.toLocaleString()}</span>
                 </div>
+                {onOpenSettlementsModal && aggLedger.Zomato.pendingUnsettled > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenSettlementsModal('Zomato', 'settle')}
+                    className="w-full py-1.5 px-2 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white text-[11px] font-extrabold rounded-lg shadow-xs flex items-center justify-center gap-1 transition-all cursor-pointer mt-1"
+                  >
+                    <span>🏦 Zomato Payout Settle Karein</span>
+                  </button>
+                )}
               </div>
 
               {/* Total Unsettled Bank Transfer */}
-              <div className="bg-amber-950/40 p-3 rounded-xl border border-amber-500/40 flex flex-col justify-between">
+              <div className="bg-amber-950/40 p-3 rounded-xl border border-amber-500/40 flex flex-col justify-between space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-extrabold text-amber-300">
                     🏦 Total Online Pending
                   </span>
                   <Clock className="w-3.5 h-3.5 text-amber-400" />
                 </div>
-                <div className="my-1.5">
+                <div className="my-1">
                   <span className="text-[9px] text-amber-200/80 uppercase font-semibold">Awaiting Transfer to Bank:</span>
                   <div className="text-xl font-black text-amber-300">
                     ₹{aggLedger.overall.pendingUnsettled.toLocaleString()}
                   </div>
                 </div>
                 <div className="text-[10px] text-amber-200/70 flex justify-between border-t border-amber-900/60 pt-1">
-                  <span>Commission: ₹{aggLedger.overall.totalCommission.toLocaleString()}</span>
                   <span>In Bank: ₹{aggLedger.overall.totalBankReceived.toLocaleString()}</span>
+                  <span>Cut: ₹{aggLedger.overall.totalCommission.toLocaleString()}</span>
                 </div>
+                {onOpenSettlementsModal && aggLedger.overall.pendingUnsettled > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenSettlementsModal(aggLedger.Swiggy.pendingUnsettled > 0 ? 'Swiggy' : 'Zomato', 'settle')}
+                    className="w-full py-1.5 px-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 text-[11px] font-black rounded-lg shadow-xs flex items-center justify-center gap-1 transition-all cursor-pointer mt-1"
+                  >
+                    <span>⚡ Weekly Payout Aaya? Enter Karein</span>
+                  </button>
+                )}
               </div>
 
             </div>
