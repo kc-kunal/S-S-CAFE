@@ -1189,18 +1189,16 @@ export default function App() {
       const costPerInvUnit = convertedQty > 0 ? (totalPurchasedCost / convertedQty) : (Number(newProc.ratePerUnit) || matchedItem.unitCost);
       const roundedCostPerInvUnit = Math.round(costPerInvUnit * 10000) / 10000;
 
-      updatedInv = inventoryItems.map(inv => {
-        if (inv.id === matchedItem.id) {
-          const newStock = Math.round((Number(inv.currentStock) + convertedQty) * 100) / 100;
-          return {
-            ...inv,
-            currentStock: newStock,
-            unitCost: roundedCostPerInvUnit > 0 ? roundedCostPerInvUnit : inv.unitCost,
-            lastUpdated: new Date().toISOString().split('T')[0]
-          };
-        }
-        return inv;
-      });
+      const newStock = Math.round((Number(matchedItem.currentStock) + convertedQty) * 100) / 100;
+      const updatedItem = {
+        ...matchedItem,
+        currentStock: newStock,
+        unitCost: roundedCostPerInvUnit > 0 ? roundedCostPerInvUnit : matchedItem.unitCost,
+        lastUpdated: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      // Place recently replenished item right at the top
+      updatedInv = [updatedItem, ...inventoryItems.filter(i => i.id !== matchedItem.id)];
 
       const conversionNote = (newProc.unit !== matchedItem.unit)
         ? ` (${qty} ${newProc.unit} = ${convertedQty} ${matchedItem.unit})`
@@ -1223,7 +1221,8 @@ export default function App() {
         unit: matUnit,
         reorderLevel: 5,
         unitCost: roundedCostPerInvUnit,
-        lastUpdated: new Date().toISOString().split('T')[0]
+        lastUpdated: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
       updatedInv = [newItem, ...inventoryItems];
       showToast(`Logged purchase: Added ${qty} ${matUnit} to "${matName}" stock!`);
@@ -1245,7 +1244,8 @@ export default function App() {
             return {
               ...inv,
               currentStock: newStock,
-              lastUpdated: new Date().toISOString().split('T')[0]
+              lastUpdated: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
             };
           }
           return inv;
@@ -1264,17 +1264,22 @@ export default function App() {
   const handleSaveInventoryItem = (itemToSave) => {
     const activeId = currentCafe?.cafeId || 'default';
     const exists = inventoryItems.some(i => i.id === itemToSave.id);
+    const enrichedItem = {
+      ...itemToSave,
+      lastUpdated: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
     let updated;
     if (exists) {
-      updated = inventoryItems.map(i => i.id === itemToSave.id ? itemToSave : i);
+      updated = [enrichedItem, ...inventoryItems.filter(i => i.id !== itemToSave.id)];
       showToast(`Updated material "${itemToSave.materialName}"`);
     } else {
-      updated = [itemToSave, ...inventoryItems];
+      updated = [enrichedItem, ...inventoryItems];
       showToast(`Added raw material "${itemToSave.materialName}" to inventory`);
     }
     updateInventory(updated);
     if (isFirebaseConfigured()) {
-      syncSingleInventory(itemToSave, activeId);
+      syncSingleInventory(enrichedItem, activeId);
     }
   };
 
@@ -1288,17 +1293,16 @@ export default function App() {
   };
 
   const handleAdjustStock = (id, delta) => {
-    const updated = inventoryItems.map(item => {
-      if (item.id === id) {
-        const newStock = Math.round((Number(item.currentStock) + delta) * 100) / 100;
-        return {
-          ...item,
-          currentStock: newStock,
-          lastUpdated: new Date().toISOString().split('T')[0]
-        };
-      }
-      return item;
-    });
+    const target = inventoryItems.find(i => i.id === id);
+    if (!target) return;
+    const newStock = Math.round((Number(target.currentStock) + delta) * 100) / 100;
+    const updatedItem = {
+      ...target,
+      currentStock: newStock,
+      lastUpdated: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    const updated = [updatedItem, ...inventoryItems.filter(i => i.id !== id)];
     updateInventory(updated);
     showToast(`Stock balance adjusted (${delta > 0 ? '+' : ''}${delta})`);
   };

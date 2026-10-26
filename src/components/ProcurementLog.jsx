@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Plus, PackageCheck, Trash2, Tag, Truck, Calculator, Sparkles, Check, Search, TrendingUp, IndianRupee, Layers, AlertCircle, Calendar } from 'lucide-react';
+import { Plus, PackageCheck, Trash2, Tag, Truck, Calculator, Check, Search, TrendingUp, IndianRupee, Layers, AlertCircle, Calendar } from 'lucide-react';
 import { findMatchingInventoryItem, convertQuantity, classifyMaterialProcurementType } from '../utils/storage';
 
 const CATEGORIES = ['Dairy', 'Bakery', 'Groceries', 'Beans & Teas', 'Frozen', 'Dry', 'Packaging'];
@@ -83,59 +83,6 @@ export default function ProcurementLog({
     const q = materialName.toLowerCase().trim();
     return allAvailableMaterials.filter(m => m.name.toLowerCase().includes(q));
   }, [materialName, allAvailableMaterials]);
-
-  // Dynamically monitor purchase frequency & inventory to build Quick Buttons for THIS cafe (Not hardcoded!)
-  const monitoredQuickMaterials = useMemo(() => {
-    const purchaseCounts = {};
-    const purchaseUnits = {};
-    const purchaseRates = {};
-    const purchaseCategories = {};
-
-    (procurementLogs || []).forEach(p => {
-      const name = p.materialName?.trim();
-      if (name) {
-        purchaseCounts[name] = (purchaseCounts[name] || 0) + 1;
-        if (!purchaseUnits[name] && p.unit) purchaseUnits[name] = p.unit;
-        if (!purchaseRates[name] && p.ratePerUnit) purchaseRates[name] = p.ratePerUnit;
-        if (!purchaseCategories[name] && p.category) purchaseCategories[name] = p.category;
-      }
-    });
-
-    // 1. Sort by purchase frequency descending
-    const sortedFromPurchases = Object.entries(purchaseCounts)
-      .sort((a, b) => b[1] - a[1])
-      .map(([name, count]) => {
-        const safeName = String(name || '').toLowerCase();
-        const matchedInv = (inventoryItems || []).find(
-          i => String(i?.materialName || '').toLowerCase() === safeName
-        );
-        return {
-          name,
-          category: purchaseCategories[name] || matchedInv?.category || 'Groceries',
-          unit: purchaseUnits[name] || matchedInv?.unit || 'Kg',
-          defaultRate: purchaseRates[name] || matchedInv?.unitCost || 0,
-          purchaseCount: count,
-          currentStock: matchedInv?.currentStock,
-          isFrequent: true
-        };
-      });
-
-    // 2. If purchase logs are few (< 12), fill with active inventory items from this cafe
-    const existingNames = new Set(sortedFromPurchases.map(s => String(s.name || '').toLowerCase()));
-    const fromInventory = (inventoryItems || [])
-      .filter(i => i?.materialName && !existingNames.has(String(i.materialName).toLowerCase()))
-      .map(inv => ({
-        name: inv.materialName,
-        category: inv.category || 'Groceries',
-        unit: inv.unit || 'Kg',
-        defaultRate: inv.unitCost || 0,
-        purchaseCount: 0,
-        currentStock: inv.currentStock,
-        isFrequent: false
-      }));
-
-    return [...sortedFromPurchases, ...fromInventory].slice(0, 12);
-  }, [procurementLogs, inventoryItems]);
 
   // Exact Match with existing stock item
   const exactMatch = useMemo(() => {
@@ -319,15 +266,31 @@ export default function ProcurementLog({
     setShowSuggestions(false);
   };
 
-  // Filtered Logs
+  // Filtered Logs - sorted so most recent purchases appear at the top
   const filteredLogs = useMemo(() => {
-    return procurementLogs.filter(p => {
+    const list = procurementLogs.filter(p => {
       const matchesCat = filterCategory === 'ALL' || p.category === filterCategory;
       const freq = classifyMaterialProcurementType(p.materialName);
       const matchesFreq = frequencyFilter === 'ALL' || freq === frequencyFilter;
       const matchesSearch = !searchFilter || String(p?.materialName || '').toLowerCase().includes(searchFilter.toLowerCase()) ||
                             (p?.supplier && String(p.supplier).toLowerCase().includes(searchFilter.toLowerCase()));
       return matchesCat && matchesFreq && matchesSearch;
+    });
+
+    return list.sort((a, b) => {
+      const timeA = new Date(a.createdAt || `${a.date || ''} ${a.time || '00:00'}`).getTime();
+      const timeB = new Date(b.createdAt || `${b.date || ''} ${b.time || '00:00'}`).getTime();
+      if (!isNaN(timeA) && !isNaN(timeB) && timeA !== timeB) return timeB - timeA;
+
+      const dateA = String(a.date || '');
+      const dateB = String(b.date || '');
+      if (dateA !== dateB) return dateB.localeCompare(dateA);
+
+      const numA = Number(String(a.id || '').replace(/\D/g, '')) || 0;
+      const numB = Number(String(b.id || '').replace(/\D/g, '')) || 0;
+      if (numA !== numB) return numB - numA;
+
+      return String(b.id || '').localeCompare(String(a.id || ''));
     });
   }, [procurementLogs, filterCategory, frequencyFilter, searchFilter]);
 
@@ -366,62 +329,6 @@ export default function ProcurementLog({
 
   return (
     <div className="space-y-6">
-      
-      {/* ⚡ MONITORED QUICK SELECTION CHIPS (Dynamic for this Cafe) */}
-      <div className="bg-stone-900 text-white rounded-3xl p-5 border border-stone-800 shadow-xl space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-          <div className="flex items-center space-x-2">
-            <Sparkles className="w-4 h-4 text-amber-400" />
-            <span className="text-xs font-bold text-amber-200 uppercase tracking-wider">
-              Cafe Monitored Raw Materials (Frequent Purchases)
-            </span>
-          </div>
-          <span className="text-[11px] text-stone-400 font-medium">Aapke Cafe Ki Khareedi Par Auto-Monitored</span>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          {monitoredQuickMaterials.length === 0 ? (
-            <p className="text-xs text-stone-400 py-2 italic">
-              💡 Naye cafe ke liye: Jaise-jaise aap maal purchase karenge, aapke cafe ke frequent items yahan auto-monitor hokar 1-click button ban jayenge.
-            </p>
-          ) : (
-            monitoredQuickMaterials.map((m) => {
-              const isSelected = materialName.toLowerCase() === m.name.toLowerCase();
-              return (
-                <button
-                  key={m.name}
-                  type="button"
-                  onClick={() => handleSelectMaterial(m)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                    isSelected
-                      ? 'bg-amber-600 text-white ring-2 ring-amber-400 shadow-md'
-                      : 'bg-stone-800/90 text-stone-200 hover:bg-stone-700 hover:text-white border border-stone-700/60'
-                  }`}
-                  title={`${m.name} (${m.purchaseCount > 0 ? `${m.purchaseCount}x Purchased` : `Stock: ${m.currentStock || 0} ${m.unit}`})`}
-                >
-                  <span>📦</span>
-                  <span>{m.name}</span>
-                  {m.defaultRate > 0 && (
-                    <span className="text-[10px] bg-emerald-500/25 text-emerald-300 px-1.5 py-0.2 rounded font-black border border-emerald-500/30">
-                      ₹{m.defaultRate}/{m.unit}
-                    </span>
-                  )}
-                  {m.purchaseCount > 0 ? (
-                    <span className="text-[10px] bg-amber-500/30 text-amber-300 px-1.5 py-0.5 rounded-md font-extrabold">
-                      {m.purchaseCount}x
-                    </span>
-                  ) : m.currentStock !== undefined ? (
-                    <span className="text-[10px] text-stone-400">
-                      ({m.currentStock} {m.unit})
-                    </span>
-                  ) : null}
-                </button>
-              );
-            })
-          )}
-        </div>
-      </div>
-
       {/* 🛒 ADD RAW MATERIAL PROCUREMENT FORM WITH AUTOCOMPLETE */}
       <div className="bg-white rounded-3xl border border-stone-200 p-6 shadow-sm space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-100 pb-4">

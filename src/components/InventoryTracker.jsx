@@ -206,7 +206,8 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
       unitCost: editingItem ? (Number(editingItem.unitCost) || 0) : 0,
       packagingChannel: formData.category === 'Packaging' ? formData.packagingChannel : undefined,
       linkedItemIds: formData.category === 'Packaging' ? (Array.isArray(formData.linkedItemIds) ? formData.linkedItemIds : []) : undefined,
-      lastUpdated: new Date().toISOString().split('T')[0]
+      lastUpdated: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
     onSaveItem(itemToSave);
@@ -220,9 +221,9 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
   const outOfStockCount = inventoryItems.filter(item => item.currentStock === 0).length;
   const deficitStockCount = inventoryItems.filter(item => item.currentStock < 0).length;
 
-  // Filtering
+  // Filtering & Sorting (Recent items appear at the top)
   const filteredItems = useMemo(() => {
-    return inventoryItems.filter(item => {
+    const list = inventoryItems.filter(item => {
       const mat = String(item?.materialName || '').toLowerCase();
       const cat = String(item?.category || '').toLowerCase();
       const q = (searchQuery || '').toLowerCase();
@@ -241,6 +242,24 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
       }
 
       return matchesSearch && matchesCat && matchesStatus;
+    });
+
+    return list.sort((a, b) => {
+      // 1. Compare lastUpdated / updatedAt / createdAt (ISO date/time)
+      const timeA = new Date(a.updatedAt || a.lastUpdated || a.createdAt || 0).getTime();
+      const timeB = new Date(b.updatedAt || b.lastUpdated || b.createdAt || 0).getTime();
+      if (!isNaN(timeA) && !isNaN(timeB) && timeA !== timeB && timeA > 0 && timeB > 0) {
+        return timeB - timeA;
+      }
+
+      // 2. Numeric timestamp extracted from id (e.g. inv-1740...)
+      const numA = Number(String(a.id || '').replace(/\D/g, '')) || 0;
+      const numB = Number(String(b.id || '').replace(/\D/g, '')) || 0;
+      if (numA !== numB) {
+        return numB - numA;
+      }
+
+      return String(b.id || '').localeCompare(String(a.id || ''));
     });
   }, [inventoryItems, searchQuery, categoryFilter, statusFilter]);
 
