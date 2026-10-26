@@ -85,7 +85,8 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
     packagingChannel: 'online', // 'online' | 'dinein' | 'both'
     linkedItemIds: [],
     recipeQuantity: '1',
-    recipeUnit: 'Piece'
+    recipeUnit: 'Piece',
+    recipeItemQuantities: {}
   });
 
   // Packaging & Recipe selection search & category filter inside modal
@@ -127,7 +128,8 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
       packagingChannel: 'online',
       linkedItemIds: [],
       recipeQuantity: defaultRecipeQty,
-      recipeUnit: defaultRecipeUnit
+      recipeUnit: defaultRecipeUnit,
+      recipeItemQuantities: {}
     });
     setPackagingSearch('');
     setPackagingCategory('ALL');
@@ -142,6 +144,7 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
     let linkedIds = [];
     let defaultRecipeQty = '1';
     let defaultRecipeUnit = item.unit || 'Piece';
+    const initialItemQuantities = {};
 
     if (isPack) {
       linkedIds = Array.isArray(item.linkedItemIds) ? item.linkedItemIds : [];
@@ -157,7 +160,10 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
           );
           if (matchedRec) {
             linkedIds.push(m.id);
-            if (matchedRec.quantity) defaultRecipeQty = String(matchedRec.quantity);
+            if (matchedRec.quantity) {
+              initialItemQuantities[m.id] = String(matchedRec.quantity);
+              defaultRecipeQty = String(matchedRec.quantity);
+            }
             if (matchedRec.unit) defaultRecipeUnit = matchedRec.unit;
           }
         }
@@ -172,7 +178,8 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
       packagingChannel: item.packagingChannel || (isPack ? 'online' : 'both'),
       linkedItemIds: linkedIds,
       recipeQuantity: defaultRecipeQty,
-      recipeUnit: defaultRecipeUnit
+      recipeUnit: defaultRecipeUnit,
+      recipeItemQuantities: initialItemQuantities
     });
     setPackagingSearch('');
     setPackagingCategory('ALL');
@@ -193,7 +200,8 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
         packagingChannel: prev.packagingChannel || 'online',
         linkedItemIds: Array.isArray(prev.linkedItemIds) ? prev.linkedItemIds : [],
         recipeQuantity: prev.recipeQuantity || '1',
-        recipeUnit: prev.recipeUnit || newUnit || 'Piece'
+        recipeUnit: prev.recipeUnit || newUnit || 'Piece',
+        recipeItemQuantities: prev.recipeItemQuantities || {}
       };
     });
   };
@@ -207,6 +215,16 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
     }));
   };
 
+  const handleRecipeItemQtyChange = (itemId, val) => {
+    setFormData(prev => ({
+      ...prev,
+      recipeItemQuantities: {
+        ...(prev.recipeItemQuantities || {}),
+        [itemId]: val
+      }
+    }));
+  };
+
   const toggleLinkedItem = (itemId) => {
     const current = Array.isArray(formData.linkedItemIds) ? formData.linkedItemIds : [];
     if (current.includes(itemId)) {
@@ -217,7 +235,11 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
     } else {
       setFormData({
         ...formData,
-        linkedItemIds: [...current, itemId]
+        linkedItemIds: [...current, itemId],
+        recipeItemQuantities: {
+          ...(formData.recipeItemQuantities || {}),
+          [itemId]: formData.recipeItemQuantities?.[itemId] || formData.recipeQuantity || '1'
+        }
       });
     }
   };
@@ -234,10 +256,17 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
         linkedItemIds: (Array.isArray(formData.linkedItemIds) ? formData.linkedItemIds : []).filter(id => !filteredIds.has(id))
       });
     } else {
-      filteredPackagingMenuItems.forEach(item => current.add(item.id));
+      const updatedQuantities = { ...(formData.recipeItemQuantities || {}) };
+      filteredPackagingMenuItems.forEach(item => {
+        current.add(item.id);
+        if (!updatedQuantities[item.id]) {
+          updatedQuantities[item.id] = formData.recipeQuantity || '1';
+        }
+      });
       setFormData({
         ...formData,
-        linkedItemIds: Array.from(current)
+        linkedItemIds: Array.from(current),
+        recipeItemQuantities: updatedQuantities
       });
     }
   };
@@ -265,6 +294,7 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
       itemIds: Array.isArray(formData.linkedItemIds) ? formData.linkedItemIds : [],
       quantity: Number(formData.recipeQuantity) || 1,
       unit: formData.recipeUnit || formData.unit || 'Piece',
+      itemQuantities: formData.recipeItemQuantities || {},
       syncUnchecked: Boolean(editingItem)
     } : null;
 
@@ -1277,12 +1307,17 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
 
                     {/* 1. Per Item Quantity & Unit */}
                     <div className="bg-white/90 p-3 rounded-xl border border-amber-200/90 space-y-1.5">
-                      <label className="block text-[11px] font-black text-stone-800 uppercase">
-                        1. 1 Order Me Kitna Lagega? (Recipe Portion) *
-                      </label>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                        <label className="block text-[11px] font-black text-stone-800 uppercase">
+                          1. Default Portion (Starting Common Matra) *
+                        </label>
+                        <span className="text-[10px] text-amber-800 font-bold bg-amber-100 px-2 py-0.5 rounded-md">
+                          Neeche har item ki alag quantity bhi set kar sakte hain
+                        </span>
+                      </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <span className="text-[10px] text-stone-500 font-semibold block mb-0.5">Quantity (Matra):</span>
+                          <span className="text-[10px] text-stone-500 font-semibold block mb-0.5">Common Default Quantity:</span>
                           <input
                             type="number"
                             step="any"
@@ -1305,7 +1340,7 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
                         </div>
                       </div>
                       <p className="text-[10px] text-stone-500">
-                        💡 {formData.materialName ? `"${formData.materialName}"` : 'Yeh maal'} 1 order par <strong>{formData.recipeQuantity || 1} {formData.recipeUnit || formData.unit}</strong> deduct hoga.
+                        💡 <strong>Alag-Alag Quantity Tip:</strong> Neeche list me kisi bhi item par tick karte hi uska <strong>Qty</strong> box samne aa jayega, jise aap item ke mutabiq badal sakte hain (jaise Margherita: 25g, Farmhouse: 40g, Double Cheese: 70g)!
                       </p>
                     </div>
 
@@ -1400,8 +1435,8 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
                         )}
                       </div>
 
-                      {/* Scrollable Checkbox List */}
-                      <div className="bg-white border border-stone-200 rounded-xl p-2 max-h-48 overflow-y-auto space-y-1">
+                      {/* Scrollable Checkbox List with Per-Item Quantity Inputs */}
+                      <div className="bg-white border border-stone-200 rounded-xl p-2 max-h-56 overflow-y-auto space-y-1.5">
                         {filteredPackagingMenuItems.length === 0 ? (
                           <p className="text-[11px] text-stone-400 text-center py-4">
                             {menuItems.length === 0 ? 'Menu me koi items nahi hain.' : 'Koi matching item nahi mila.'}
@@ -1409,29 +1444,52 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
                         ) : (
                           filteredPackagingMenuItems.map(item => {
                             const isSelected = (formData.linkedItemIds || []).includes(item.id);
+                            const itemQty = formData.recipeItemQuantities?.[item.id] !== undefined 
+                              ? formData.recipeItemQuantities[item.id] 
+                              : (formData.recipeQuantity || '1');
+
                             return (
-                              <label
+                              <div
                                 key={item.id}
-                                className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
-                                  isSelected ? 'bg-amber-100/80 text-stone-950 font-bold border border-amber-200' : 'hover:bg-stone-50 text-stone-700'
+                                className={`flex items-center justify-between p-2 rounded-xl text-xs transition-all ${
+                                  isSelected ? 'bg-amber-100/90 text-stone-950 border border-amber-300 shadow-2xs' : 'hover:bg-stone-50 text-stone-700 border border-transparent'
                                 }`}
                               >
-                                <div className="flex items-center gap-2 min-w-0">
+                                <label className="flex items-center gap-2 min-w-0 cursor-pointer flex-1">
                                   <input
                                     type="checkbox"
                                     checked={isSelected}
                                     onChange={() => toggleLinkedItem(item.id)}
-                                    className="w-3.5 h-3.5 rounded text-amber-600 focus:ring-amber-500 cursor-pointer shrink-0"
+                                    className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 cursor-pointer shrink-0"
                                   />
-                                  <span className="truncate">{item.name}</span>
-                                </div>
-                                <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                                  <span className="text-[10px] text-stone-400 font-medium">₹{item.price}</span>
-                                  <span className="text-[9px] bg-stone-100 text-stone-600 px-1.5 py-0.2 rounded font-semibold">
-                                    {item.category}
-                                  </span>
-                                </div>
-                              </label>
+                                  <div className="min-w-0">
+                                    <div className="font-bold truncate text-xs">{item.name}</div>
+                                    <div className="flex items-center gap-1.5 text-[10px] text-stone-500">
+                                      <span>₹{item.price}</span>
+                                      <span>•</span>
+                                      <span className="bg-stone-200/80 text-stone-700 px-1.5 py-0.2 rounded font-semibold text-[9px]">{item.category}</span>
+                                    </div>
+                                  </div>
+                                </label>
+
+                                {/* Per-Item Custom Quantity Input */}
+                                {isSelected && (
+                                  <div className="flex items-center gap-1 shrink-0 ml-2 bg-white px-2 py-1 rounded-lg border border-amber-300 shadow-2xs">
+                                    <span className="text-[10px] text-stone-500 font-bold">Qty:</span>
+                                    <input
+                                      type="number"
+                                      step="any"
+                                      min="0.0001"
+                                      value={itemQty}
+                                      onChange={(e) => handleRecipeItemQtyChange(item.id, e.target.value)}
+                                      onClick={(e) => e.stopPropagation()}
+                                      placeholder="Qty"
+                                      className="w-14 px-1.5 py-0.5 text-center font-black text-xs text-amber-950 bg-amber-50/70 border border-amber-300 rounded focus:outline-none focus:ring-1 focus:ring-amber-500"
+                                    />
+                                    <span className="text-[10px] font-black text-stone-700">{formData.recipeUnit || formData.unit}</span>
+                                  </div>
+                                )}
+                              </div>
                             );
                           })
                         )}
@@ -1444,12 +1502,15 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
                           {(formData.linkedItemIds || []).slice(0, 6).map(id => {
                             const found = menuItems.find(m => m.id === id);
                             if (!found) return null;
+                            const specificQty = formData.recipeItemQuantities?.[id] !== undefined
+                              ? formData.recipeItemQuantities[id]
+                              : (formData.recipeQuantity || '1');
                             return (
                               <span
                                 key={id}
                                 className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white border border-amber-200 text-[10px] font-semibold text-stone-800 shadow-2xs"
                               >
-                                <span className="max-w-[100px] truncate">{found.name}</span>
+                                <span className="max-w-[120px] truncate">{found.name} (<strong>{specificQty} {formData.recipeUnit || formData.unit}</strong>)</span>
                                 <button
                                   type="button"
                                   onClick={() => toggleLinkedItem(id)}
@@ -1469,7 +1530,7 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
                       )}
 
                       <p className="text-[10px] text-stone-500 mt-1.5 leading-snug">
-                        💡 <strong>Auto Recipe Link:</strong> Save karte hi in selected menu items ki recipe me <em>{formData.materialName || 'yeh raw material'}</em> jud jayega aur POS sale hone par auto-stock minus hoga!
+                        💡 <strong>Alag-Alag Quantity Saved:</strong> Jis item ke samne jitni quantity bhari hai, sale hone par us item se utna hi stock auto-deduct hoga!
                       </p>
                     </div>
 

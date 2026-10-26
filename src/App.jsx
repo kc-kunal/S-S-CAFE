@@ -1270,8 +1270,9 @@ export default function App() {
   const linkIngredientToMenuItems = (rawItem, recipeLinkInfo) => {
     if (!recipeLinkInfo || !Array.isArray(recipeLinkInfo.itemIds) || !rawItem) return;
     const targetIds = new Set(recipeLinkInfo.itemIds);
-    const reqQty = Number(recipeLinkInfo.quantity) || 1;
+    const fallbackQty = Number(recipeLinkInfo.quantity) || 1;
     const reqUnit = recipeLinkInfo.unit || rawItem.unit || 'Piece';
+    const itemQuantities = recipeLinkInfo.itemQuantities || {};
     let menuModified = false;
 
     const updatedMenu = menuItems.map(m => {
@@ -1283,10 +1284,14 @@ export default function App() {
       );
 
       if (isTarget) {
+        const itemQty = (itemQuantities[m.id] !== undefined && itemQuantities[m.id] !== '')
+          ? (Number(itemQuantities[m.id]) || fallbackQty)
+          : fallbackQty;
+
         const ingObj = {
           ingredientId: rawItem.id,
           name: rawItem.materialName,
-          quantity: reqQty,
+          quantity: itemQty,
           unit: reqUnit,
           isCustom: false
         };
@@ -1309,7 +1314,7 @@ export default function App() {
     if (menuModified) {
       updateMenu(updatedMenu);
       if (targetIds.size > 0) {
-        showToast(`👨‍🍳 Recipe auto-updated: "${rawItem.materialName}" (${reqQty} ${reqUnit}) linked to ${targetIds.size} menu items!`);
+        showToast(`👨‍🍳 Recipe auto-updated: "${rawItem.materialName}" (${reqUnit}) linked across ${targetIds.size} menu items!`);
       }
     }
   };

@@ -29,6 +29,7 @@ export default function ProcurementLog({
   const [showRecipeLinker, setShowRecipeLinker] = useState(false);
   const [recipeLinkedItemIds, setRecipeLinkedItemIds] = useState([]);
   const [recipeQuantity, setRecipeQuantity] = useState('1');
+  const [recipeItemQuantities, setRecipeItemQuantities] = useState({});
   const [recipeUnit, setRecipeUnit] = useState('Piece');
   const [recipeSearch, setRecipeSearch] = useState('');
   const [recipeCategory, setRecipeCategory] = useState('ALL');
@@ -112,10 +113,26 @@ export default function ProcurementLog({
     });
   }, [menuItems, recipeSearch, recipeCategory]);
 
+  const handleRecipeItemQtyChange = (itemId, val) => {
+    setRecipeItemQuantities(prev => ({
+      ...prev,
+      [itemId]: val
+    }));
+  };
+
   const toggleRecipeLinkedItem = (itemId) => {
-    setRecipeLinkedItemIds(prev => 
-      prev.includes(itemId) ? prev.filter(id => id !== itemId) : [...prev, itemId]
-    );
+    setRecipeLinkedItemIds(prev => {
+      const isSelected = prev.includes(itemId);
+      if (isSelected) {
+        return prev.filter(id => id !== itemId);
+      } else {
+        setRecipeItemQuantities(qPrev => ({
+          ...qPrev,
+          [itemId]: qPrev[itemId] || recipeQuantity || '1'
+        }));
+        return [...prev, itemId];
+      }
+    });
   };
 
   const handleSelectAllFilteredRecipe = () => {
@@ -127,10 +144,45 @@ export default function ProcurementLog({
       const filteredIds = new Set(filteredRecipeMenuItems.map(m => m.id));
       setRecipeLinkedItemIds(prev => prev.filter(id => !filteredIds.has(id)));
     } else {
-      filteredRecipeMenuItems.forEach(item => current.add(item.id));
+      setRecipeItemQuantities(prev => {
+        const next = { ...prev };
+        filteredRecipeMenuItems.forEach(item => {
+          current.add(item.id);
+          if (!next[item.id]) {
+            next[item.id] = recipeQuantity || '1';
+          }
+        });
+        return next;
+      });
       setRecipeLinkedItemIds(Array.from(current));
     }
   };
+
+  // Auto-detect and pre-fill recipe links if existing menu items already have this ingredient
+  useEffect(() => {
+    if (!materialName || !materialName.trim()) return;
+    const q = materialName.toLowerCase().trim();
+    const existingIds = [];
+    const existingQtys = {};
+    let foundUnit = '';
+
+    (menuItems || []).forEach(m => {
+      if (Array.isArray(m.recipe)) {
+        const r = m.recipe.find(rec => (rec?.name || '').toLowerCase().trim() === q);
+        if (r) {
+          existingIds.push(m.id);
+          if (r.quantity !== undefined) existingQtys[m.id] = String(r.quantity);
+          if (r.unit && !foundUnit) foundUnit = r.unit;
+        }
+      }
+    });
+
+    if (existingIds.length > 0) {
+      setRecipeLinkedItemIds(prev => prev.length === 0 ? existingIds : prev);
+      setRecipeItemQuantities(prev => ({ ...existingQtys, ...prev }));
+      if (foundUnit) setRecipeUnit(foundUnit);
+    }
+  }, [materialName, menuItems]);
 
   // Exact Match with existing stock item
   const exactMatch = useMemo(() => {
@@ -306,7 +358,8 @@ export default function ProcurementLog({
     const recipeLinkInfo = showRecipeLinker && recipeLinkedItemIds.length > 0 ? {
       itemIds: recipeLinkedItemIds,
       quantity: Number(recipeQuantity) || 1,
-      unit: recipeUnit || unit || 'Piece'
+      unit: recipeUnit || unit || 'Piece',
+      itemQuantities: recipeItemQuantities || {}
     } : null;
 
     onAddProcurement(newEntry, recipeLinkInfo);
@@ -320,6 +373,7 @@ export default function ProcurementLog({
     setShowSuggestions(false);
     setShowRecipeLinker(false);
     setRecipeLinkedItemIds([]);
+    setRecipeItemQuantities({});
     setRecipeSearch('');
   };
 
@@ -745,12 +799,17 @@ export default function ProcurementLog({
 
                 {/* 1. Portion per order */}
                 <div className="bg-white/90 p-3 rounded-xl border border-amber-200/90 space-y-1.5">
-                  <label className="block text-[11px] font-black text-stone-800 uppercase">
-                    1. 1 Order Me Kitna Lagega? *
-                  </label>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                    <label className="block text-[11px] font-black text-stone-800 uppercase">
+                      1. Default Portion (Starting Common Matra) *
+                    </label>
+                    <span className="text-[10px] text-amber-800 font-bold bg-amber-100 px-2 py-0.5 rounded-md">
+                      Neeche har item ki alag quantity bhi set kar sakte hain
+                    </span>
+                  </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <span className="text-[10px] text-stone-500 font-semibold block mb-0.5">Quantity:</span>
+                      <span className="text-[10px] text-stone-500 font-semibold block mb-0.5">Common Default Quantity:</span>
                       <input
                         type="number"
                         step="any"
@@ -762,18 +821,21 @@ export default function ProcurementLog({
                       />
                     </div>
                     <div>
-                      <span className="text-[10px] text-stone-500 font-semibold block mb-0.5">Unit:</span>
+                      <span className="text-[10px] text-stone-500 font-semibold block mb-0.5">Unit (Ikai):</span>
                       <select
                         value={recipeUnit}
                         onChange={(e) => setRecipeUnit(e.target.value)}
                         className="w-full px-2.5 py-1.5 bg-stone-50 border border-stone-300 rounded-lg text-xs font-bold text-stone-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
                       >
-                        {['Piece', 'Slice', 'Gram', 'Kg', 'ml', 'Liters', 'Portion', 'Packets', 'Box'].map(u => (
+                        {['Gram', 'Kg', 'ml', 'Liters', 'Piece', 'Slice', 'Portion', 'Packets', 'Box'].map(u => (
                           <option key={u} value={u}>{u}</option>
                         ))}
                       </select>
                     </div>
                   </div>
+                  <p className="text-[10px] text-stone-500">
+                    💡 <strong>Alag-Alag Quantity Tip:</strong> Neeche list me kisi bhi item par tick karte hi uska <strong>Qty</strong> box samne aa jayega, jise aap item ke mutabiq badal sakte hain (jaise Margherita: 25g, Farmhouse: 40g, Double Cheese: 70g)!
+                  </p>
                 </div>
 
                 {/* 2. Menu Items Search & Checkboxes */}
@@ -867,8 +929,8 @@ export default function ProcurementLog({
                     )}
                   </div>
 
-                  {/* List */}
-                  <div className="bg-white border border-stone-200 rounded-xl p-2 max-h-48 overflow-y-auto space-y-1">
+                  {/* List with Per-Item Quantity Inputs */}
+                  <div className="bg-white border border-stone-200 rounded-xl p-2 max-h-56 overflow-y-auto space-y-1.5">
                     {filteredRecipeMenuItems.length === 0 ? (
                       <p className="text-[11px] text-stone-400 text-center py-4">
                         {menuItems.length === 0 ? 'Menu me koi items nahi hain.' : 'Koi matching item nahi mila.'}
@@ -876,33 +938,90 @@ export default function ProcurementLog({
                     ) : (
                       filteredRecipeMenuItems.map(item => {
                         const isSelected = recipeLinkedItemIds.includes(item.id);
+                        const itemQty = recipeItemQuantities?.[item.id] !== undefined
+                          ? recipeItemQuantities[item.id]
+                          : (recipeQuantity || '1');
+
                         return (
-                          <label
+                          <div
                             key={item.id}
-                            className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
-                              isSelected ? 'bg-amber-100/80 text-stone-950 font-bold border border-amber-200' : 'hover:bg-stone-50 text-stone-700'
+                            className={`flex items-center justify-between p-2 rounded-xl text-xs transition-all ${
+                              isSelected ? 'bg-amber-100/90 text-stone-950 border border-amber-300 shadow-2xs' : 'hover:bg-stone-50 text-stone-700 border border-transparent'
                             }`}
                           >
-                            <div className="flex items-center gap-2 min-w-0">
+                            <label className="flex items-center gap-2 min-w-0 cursor-pointer flex-1">
                               <input
                                 type="checkbox"
                                 checked={isSelected}
                                 onChange={() => toggleRecipeLinkedItem(item.id)}
-                                className="w-3.5 h-3.5 rounded text-amber-600 focus:ring-amber-500 cursor-pointer shrink-0"
+                                className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 cursor-pointer shrink-0"
                               />
-                              <span className="truncate">{item.name}</span>
-                            </div>
-                            <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                              <span className="text-[10px] text-stone-400 font-medium">₹{item.price}</span>
-                              <span className="text-[9px] bg-stone-100 text-stone-600 px-1.5 py-0.2 rounded font-semibold">
-                                {item.category}
-                              </span>
-                            </div>
-                          </label>
+                              <div className="min-w-0">
+                                <div className="font-bold truncate text-xs">{item.name}</div>
+                                <div className="flex items-center gap-1.5 text-[10px] text-stone-500">
+                                  <span>₹{item.price}</span>
+                                  <span>•</span>
+                                  <span className="bg-stone-200/80 text-stone-700 px-1.5 py-0.2 rounded font-semibold text-[9px]">{item.category}</span>
+                                </div>
+                              </div>
+                            </label>
+
+                            {/* Per-Item Custom Quantity Input */}
+                            {isSelected && (
+                              <div className="flex items-center gap-1 shrink-0 ml-2 bg-white px-2 py-1 rounded-lg border border-amber-300 shadow-2xs">
+                                <span className="text-[10px] text-stone-500 font-bold">Qty:</span>
+                                <input
+                                  type="number"
+                                  step="any"
+                                  min="0.0001"
+                                  value={itemQty}
+                                  onChange={(e) => handleRecipeItemQtyChange(item.id, e.target.value)}
+                                  onClick={(e) => e.stopPropagation()}
+                                  placeholder="Qty"
+                                  className="w-14 px-1.5 py-0.5 text-center font-black text-xs text-amber-950 bg-amber-50/70 border border-amber-300 rounded focus:outline-none focus:ring-1 focus:ring-amber-500"
+                                />
+                                <span className="text-[10px] font-black text-stone-700">{recipeUnit || unit || 'Piece'}</span>
+                              </div>
+                            )}
+                          </div>
                         );
                       })
                     )}
                   </div>
+
+                  {/* Selected Items summary tags with individual quantities */}
+                  {recipeLinkedItemIds.length > 0 && (
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                      <span className="text-[9px] font-bold text-stone-500 uppercase">Selected:</span>
+                      {recipeLinkedItemIds.slice(0, 6).map(id => {
+                        const found = menuItems.find(m => m.id === id);
+                        if (!found) return null;
+                        const specificQty = recipeItemQuantities?.[id] !== undefined
+                          ? recipeItemQuantities[id]
+                          : (recipeQuantity || '1');
+                        return (
+                          <span
+                            key={id}
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white border border-amber-200 text-[10px] font-semibold text-stone-800 shadow-2xs"
+                          >
+                            <span className="max-w-[120px] truncate">{found.name} (<strong>{specificQty} {recipeUnit || unit || 'Piece'}</strong>)</span>
+                            <button
+                              type="button"
+                              onClick={() => toggleRecipeLinkedItem(id)}
+                              className="text-stone-400 hover:text-rose-600 text-[10px] font-black cursor-pointer"
+                            >
+                              ✕
+                            </button>
+                          </span>
+                        );
+                      })}
+                      {recipeLinkedItemIds.length > 6 && (
+                        <span className="text-[10px] font-bold text-amber-800">
+                          +{recipeLinkedItemIds.length - 6} more
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   <p className="text-[10px] text-stone-500 mt-1.5 leading-snug">
                     💡 <strong>Auto Recipe Link:</strong> Purchase save hote hi yeh maal in selected items ki recipe me jud jayega!
