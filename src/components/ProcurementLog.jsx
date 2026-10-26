@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Plus, PackageCheck, Trash2, Tag, Truck, Calculator, Check, Search, TrendingUp, IndianRupee, Layers, AlertCircle, Calendar } from 'lucide-react';
+import { Plus, PackageCheck, Trash2, Tag, Truck, Calculator, Check, Search, TrendingUp, IndianRupee, Layers, AlertCircle, Calendar, UtensilsCrossed } from 'lucide-react';
 import { findMatchingInventoryItem, convertQuantity, classifyMaterialProcurementType } from '../utils/storage';
 
 const CATEGORIES = ['Dairy', 'Bakery', 'Groceries', 'Beans & Teas', 'Frozen', 'Dry', 'Packaging'];
@@ -24,6 +24,14 @@ export default function ProcurementLog({
   const [frequencyFilter, setFrequencyFilter] = useState('ALL'); // 'ALL' | 'daily' | 'weekly'
   const [searchFilter, setSearchFilter] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
+  
+  // 👨‍🍳 Recipe Linker inside Purchase Form
+  const [showRecipeLinker, setShowRecipeLinker] = useState(false);
+  const [recipeLinkedItemIds, setRecipeLinkedItemIds] = useState([]);
+  const [recipeQuantity, setRecipeQuantity] = useState('1');
+  const [recipeUnit, setRecipeUnit] = useState('Piece');
+  const [recipeSearch, setRecipeSearch] = useState('');
+  const [recipeCategory, setRecipeCategory] = useState('ALL');
 
   const suggestionsRef = useRef(null);
 
@@ -83,6 +91,46 @@ export default function ProcurementLog({
     const q = materialName.toLowerCase().trim();
     return allAvailableMaterials.filter(m => m.name.toLowerCase().includes(q));
   }, [materialName, allAvailableMaterials]);
+
+  // Menu categories and filtered menu items for Recipe linking
+  const menuCategories = useMemo(() => {
+    const cats = new Set();
+    (menuItems || []).forEach(item => {
+      if (item.category) cats.add(item.category);
+    });
+    return Array.from(cats);
+  }, [menuItems]);
+
+  const filteredRecipeMenuItems = useMemo(() => {
+    return (menuItems || []).filter(item => {
+      const q = recipeSearch.trim().toLowerCase();
+      const matchesSearch = !q || 
+        (item.name || '').toLowerCase().includes(q) ||
+        (item.category || '').toLowerCase().includes(q);
+      const matchesCat = recipeCategory === 'ALL' || item.category === recipeCategory;
+      return matchesSearch && matchesCat;
+    });
+  }, [menuItems, recipeSearch, recipeCategory]);
+
+  const toggleRecipeLinkedItem = (itemId) => {
+    setRecipeLinkedItemIds(prev => 
+      prev.includes(itemId) ? prev.filter(id => id !== itemId) : [...prev, itemId]
+    );
+  };
+
+  const handleSelectAllFilteredRecipe = () => {
+    const current = new Set(recipeLinkedItemIds);
+    const allFilteredSelected = filteredRecipeMenuItems.length > 0 &&
+      filteredRecipeMenuItems.every(item => current.has(item.id));
+
+    if (allFilteredSelected) {
+      const filteredIds = new Set(filteredRecipeMenuItems.map(m => m.id));
+      setRecipeLinkedItemIds(prev => prev.filter(id => !filteredIds.has(id)));
+    } else {
+      filteredRecipeMenuItems.forEach(item => current.add(item.id));
+      setRecipeLinkedItemIds(Array.from(current));
+    }
+  };
 
   // Exact Match with existing stock item
   const exactMatch = useMemo(() => {
@@ -255,7 +303,13 @@ export default function ProcurementLog({
       createdAt: now.toISOString()
     };
 
-    onAddProcurement(newEntry);
+    const recipeLinkInfo = showRecipeLinker && recipeLinkedItemIds.length > 0 ? {
+      itemIds: recipeLinkedItemIds,
+      quantity: Number(recipeQuantity) || 1,
+      unit: recipeUnit || unit || 'Piece'
+    } : null;
+
+    onAddProcurement(newEntry, recipeLinkInfo);
 
     // Reset form
     setMaterialName('');
@@ -264,6 +318,9 @@ export default function ProcurementLog({
     setRatePerUnit('');
     setSupplier('');
     setShowSuggestions(false);
+    setShowRecipeLinker(false);
+    setRecipeLinkedItemIds([]);
+    setRecipeSearch('');
   };
 
   // Filtered Logs - sorted so most recent purchases appear at the top
@@ -659,6 +716,201 @@ export default function ProcurementLog({
             </div>
           )}
 
+          {/* 👨‍🍳 SMART RECIPE AUTO-LINK (Optional Recipe Mapper) */}
+          <div className="pt-2 border-t border-stone-100">
+            <button
+              type="button"
+              onClick={() => setShowRecipeLinker(!showRecipeLinker)}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 hover:text-amber-900 bg-amber-50 hover:bg-amber-100/80 px-3.5 py-2 rounded-xl border border-amber-300 transition-colors cursor-pointer"
+            >
+              <UtensilsCrossed className="w-3.5 h-3.5 text-amber-600" />
+              <span>
+                {showRecipeLinker ? '▲ Hide Recipe Linker' : `👨‍🍳 Menu Recipe me Link Karein (${recipeLinkedItemIds.length > 0 ? `${recipeLinkedItemIds.length} Linked` : 'Optional - e.g. Pizza Base'})`}
+              </span>
+            </button>
+
+            {showRecipeLinker && (
+              <div className="mt-3 bg-amber-50/70 border border-amber-300/80 rounded-2xl p-3.5 sm:p-4 space-y-3.5 shadow-2xs animate-in fade-in duration-150">
+                <div className="flex items-center gap-2 pb-2 border-b border-amber-200/80">
+                  <span className="text-lg">👨‍🍳</span>
+                  <div>
+                    <h4 className="text-xs font-black text-amber-950 uppercase tracking-wide">
+                      Smart Recipe Auto-Link (Menu Recipe me Add Karein)
+                    </h4>
+                    <p className="text-[10px] text-amber-800">
+                      Chunein ki yeh khareeda hua maal kis menu item ki recipe me kitna lagega (jaise Pizza Base sabhi Pizzas me)
+                    </p>
+                  </div>
+                </div>
+
+                {/* 1. Portion per order */}
+                <div className="bg-white/90 p-3 rounded-xl border border-amber-200/90 space-y-1.5">
+                  <label className="block text-[11px] font-black text-stone-800 uppercase">
+                    1. 1 Order Me Kitna Lagega? *
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="text-[10px] text-stone-500 font-semibold block mb-0.5">Quantity:</span>
+                      <input
+                        type="number"
+                        step="any"
+                        min="0.0001"
+                        value={recipeQuantity}
+                        onChange={(e) => setRecipeQuantity(e.target.value)}
+                        placeholder="e.g. 1 (Base/Bun) ya 25 (Gram)"
+                        className="w-full px-3 py-1.5 bg-stone-50 border border-stone-300 rounded-lg text-xs font-extrabold text-stone-900 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-stone-500 font-semibold block mb-0.5">Unit:</span>
+                      <select
+                        value={recipeUnit}
+                        onChange={(e) => setRecipeUnit(e.target.value)}
+                        className="w-full px-2.5 py-1.5 bg-stone-50 border border-stone-300 rounded-lg text-xs font-bold text-stone-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                      >
+                        {['Piece', 'Slice', 'Gram', 'Kg', 'ml', 'Liters', 'Portion', 'Packets', 'Box'].map(u => (
+                          <option key={u} value={u}>{u}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Menu Items Search & Checkboxes */}
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <div>
+                      <label className="block text-[11px] font-black text-stone-800 uppercase">
+                        2. Kin Menu Items Ki Recipe Me Judega?
+                      </label>
+                      <span className="text-[10px] font-bold text-amber-900">
+                        {recipeLinkedItemIds.length} items selected
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {filteredRecipeMenuItems.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleSelectAllFilteredRecipe}
+                          className="text-[10px] px-2 py-0.5 rounded-md bg-white border border-amber-300 text-amber-900 font-extrabold hover:bg-amber-100 cursor-pointer shadow-2xs transition-colors"
+                        >
+                          {filteredRecipeMenuItems.every(m => recipeLinkedItemIds.includes(m.id))
+                            ? 'Deselect Shown'
+                            : 'Select Shown'}
+                        </button>
+                      )}
+                      {recipeLinkedItemIds.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setRecipeLinkedItemIds([])}
+                          className="text-[10px] px-2 py-0.5 rounded-md bg-stone-100 text-stone-600 font-bold hover:bg-rose-50 hover:text-rose-700 cursor-pointer transition-colors"
+                        >
+                          Clear All
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Filter & Search */}
+                  <div className="bg-white/80 p-2 rounded-xl border border-stone-200/90 space-y-2 mb-2">
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400" />
+                      <input
+                        type="text"
+                        value={recipeSearch}
+                        onChange={(e) => setRecipeSearch(e.target.value)}
+                        placeholder="Search menu item (e.g. Pizza, Burger, Coffee)..."
+                        className="w-full pl-8 pr-7 py-1.5 bg-stone-50 border border-stone-200 rounded-lg text-xs font-medium text-stone-800 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:bg-white"
+                      />
+                      {recipeSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setRecipeSearch('')}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 text-xs font-bold"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+
+                    {menuCategories.length > 0 && (
+                      <div className="flex items-center gap-1 overflow-x-auto pb-1 text-[10px] scrollbar-none">
+                        <button
+                          type="button"
+                          onClick={() => setRecipeCategory('ALL')}
+                          className={`px-2 py-0.5 rounded-full font-bold shrink-0 transition-colors cursor-pointer ${
+                            recipeCategory === 'ALL'
+                              ? 'bg-amber-600 text-white'
+                              : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                          }`}
+                        >
+                          All ({menuItems.length})
+                        </button>
+                        {menuCategories.map(cat => {
+                          const count = menuItems.filter(m => m.category === cat).length;
+                          return (
+                            <button
+                              key={cat}
+                              type="button"
+                              onClick={() => setRecipeCategory(cat)}
+                              className={`px-2 py-0.5 rounded-full font-bold shrink-0 transition-colors cursor-pointer ${
+                                recipeCategory === cat
+                                  ? 'bg-amber-600 text-white'
+                                  : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                              }`}
+                            >
+                              {cat} ({count})
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* List */}
+                  <div className="bg-white border border-stone-200 rounded-xl p-2 max-h-48 overflow-y-auto space-y-1">
+                    {filteredRecipeMenuItems.length === 0 ? (
+                      <p className="text-[11px] text-stone-400 text-center py-4">
+                        {menuItems.length === 0 ? 'Menu me koi items nahi hain.' : 'Koi matching item nahi mila.'}
+                      </p>
+                    ) : (
+                      filteredRecipeMenuItems.map(item => {
+                        const isSelected = recipeLinkedItemIds.includes(item.id);
+                        return (
+                          <label
+                            key={item.id}
+                            className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
+                              isSelected ? 'bg-amber-100/80 text-stone-950 font-bold border border-amber-200' : 'hover:bg-stone-50 text-stone-700'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => toggleRecipeLinkedItem(item.id)}
+                                className="w-3.5 h-3.5 rounded text-amber-600 focus:ring-amber-500 cursor-pointer shrink-0"
+                              />
+                              <span className="truncate">{item.name}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                              <span className="text-[10px] text-stone-400 font-medium">₹{item.price}</span>
+                              <span className="text-[9px] bg-stone-100 text-stone-600 px-1.5 py-0.2 rounded font-semibold">
+                                {item.category}
+                              </span>
+                            </div>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  <p className="text-[10px] text-stone-500 mt-1.5 leading-snug">
+                    💡 <strong>Auto Recipe Link:</strong> Purchase save hote hi yeh maal in selected items ki recipe me jud jayega!
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
         </form>
       </div>
 

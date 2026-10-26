@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Package, AlertTriangle, CheckCircle2, XCircle, Plus, Edit2, Trash2, Search, Filter, TrendingDown, Layers, PackageCheck } from 'lucide-react';
+import { Package, AlertTriangle, CheckCircle2, XCircle, Plus, Edit2, Trash2, Search, Filter, TrendingDown, Layers, PackageCheck, UtensilsCrossed } from 'lucide-react';
 
 const CATEGORIES = ['Dairy', 'Beans & Teas', 'Produce', 'Bakery', 'Packaging', 'Groceries', 'Beverages', 'Spices & Sauces', 'Frozen'];
 const UNITS = ['Kg', 'Gram', 'Liters', 'ml', 'Piece', 'Slice', 'Portion', 'Packets', 'Bags', 'Boxes', 'Packs', 'Units'];
@@ -83,14 +83,16 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
     unit: 'Kg',
     reorderLevel: '5',
     packagingChannel: 'online', // 'online' | 'dinein' | 'both'
-    linkedItemIds: []
+    linkedItemIds: [],
+    recipeQuantity: '1',
+    recipeUnit: 'Piece'
   });
 
-  // Packaging selection search & category filter inside modal
+  // Packaging & Recipe selection search & category filter inside modal
   const [packagingSearch, setPackagingSearch] = useState('');
   const [packagingCategory, setPackagingCategory] = useState('ALL');
 
-  // Extract unique categories from menu items for packaging linking filter
+  // Extract unique categories from menu items for packaging & recipe linking filter
   const menuCategories = useMemo(() => {
     const cats = new Set();
     menuItems.forEach(item => {
@@ -99,7 +101,7 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
     return Array.from(cats);
   }, [menuItems]);
 
-  // Filtered menu items for packaging linking
+  // Filtered menu items for packaging & recipe linking
   const filteredPackagingMenuItems = useMemo(() => {
     return menuItems.filter(item => {
       const q = packagingSearch.trim().toLowerCase();
@@ -114,13 +116,18 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
   const handleOpenAdd = (initialCategory = 'Groceries') => {
     setEditingItem(null);
     const cat = typeof initialCategory === 'string' && initialCategory ? initialCategory : 'Groceries';
+    const initUnit = cat === 'Packaging' ? 'Piece' : 'Kg';
+    const defaultRecipeUnit = (initUnit === 'Kg') ? 'Gram' : (initUnit === 'Liters' ? 'ml' : initUnit);
+    const defaultRecipeQty = (initUnit === 'Kg') ? '25' : (initUnit === 'Liters' ? '100' : '1');
     setFormData({
       materialName: '',
       category: cat,
-      unit: cat === 'Packaging' ? 'Piece' : 'Kg',
+      unit: initUnit,
       reorderLevel: cat === 'Packaging' ? '20' : '5',
       packagingChannel: 'online',
-      linkedItemIds: []
+      linkedItemIds: [],
+      recipeQuantity: defaultRecipeQty,
+      recipeUnit: defaultRecipeUnit
     });
     setPackagingSearch('');
     setPackagingCategory('ALL');
@@ -129,13 +136,43 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
 
   const handleOpenEdit = (item) => {
     setEditingItem(item);
+    const isPack = item.category === 'Packaging';
+
+    // For non-packaging: find which menu items already use this raw material in their recipe
+    let linkedIds = [];
+    let defaultRecipeQty = '1';
+    let defaultRecipeUnit = item.unit || 'Piece';
+
+    if (isPack) {
+      linkedIds = Array.isArray(item.linkedItemIds) ? item.linkedItemIds : [];
+    } else {
+      const targetId = String(item.id || '').toLowerCase();
+      const targetName = String(item.materialName || '').toLowerCase().trim();
+
+      menuItems.forEach(m => {
+        if (Array.isArray(m.recipe)) {
+          const matchedRec = m.recipe.find(r => 
+            (r.ingredientId && String(r.ingredientId).toLowerCase() === targetId) ||
+            (r.name && String(r.name).toLowerCase().trim() === targetName)
+          );
+          if (matchedRec) {
+            linkedIds.push(m.id);
+            if (matchedRec.quantity) defaultRecipeQty = String(matchedRec.quantity);
+            if (matchedRec.unit) defaultRecipeUnit = matchedRec.unit;
+          }
+        }
+      });
+    }
+
     setFormData({
       materialName: item.materialName || '',
       category: item.category || 'Groceries',
-      unit: item.unit || (item.category === 'Packaging' ? 'Piece' : 'Kg'),
+      unit: item.unit || (isPack ? 'Piece' : 'Kg'),
       reorderLevel: item.reorderLevel !== undefined ? String(item.reorderLevel) : '5',
-      packagingChannel: item.packagingChannel || (item.category === 'Packaging' ? 'online' : 'both'),
-      linkedItemIds: Array.isArray(item.linkedItemIds) ? item.linkedItemIds : []
+      packagingChannel: item.packagingChannel || (isPack ? 'online' : 'both'),
+      linkedItemIds: linkedIds,
+      recipeQuantity: defaultRecipeQty,
+      recipeUnit: defaultRecipeUnit
     });
     setPackagingSearch('');
     setPackagingCategory('ALL');
@@ -143,16 +180,30 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
   };
 
   const handleCategoryChange = (newCat) => {
+    setFormData(prev => {
+      const isSwitchingToPack = newCat === 'Packaging';
+      const newUnit = isSwitchingToPack && (prev.unit === 'Kg' || prev.unit === 'Gram' || prev.unit === 'Liters' || prev.unit === 'ml')
+        ? 'Piece'
+        : prev.unit;
+      return {
+        ...prev,
+        category: newCat,
+        unit: newUnit,
+        reorderLevel: isSwitchingToPack && prev.reorderLevel === '5' ? '20' : prev.reorderLevel,
+        packagingChannel: prev.packagingChannel || 'online',
+        linkedItemIds: Array.isArray(prev.linkedItemIds) ? prev.linkedItemIds : [],
+        recipeQuantity: prev.recipeQuantity || '1',
+        recipeUnit: prev.recipeUnit || newUnit || 'Piece'
+      };
+    });
+  };
+
+  const handleUnitChange = (newUnit) => {
     setFormData(prev => ({
       ...prev,
-      category: newCat,
-      // Packaging default unit is Piece; if switching from bulk weight/liquid, auto-switch to Piece
-      unit: newCat === 'Packaging' && (prev.unit === 'Kg' || prev.unit === 'Gram' || prev.unit === 'Liters' || prev.unit === 'ml')
-        ? 'Piece'
-        : prev.unit,
-      reorderLevel: newCat === 'Packaging' && prev.reorderLevel === '5' ? '20' : prev.reorderLevel,
-      packagingChannel: prev.packagingChannel || 'online',
-      linkedItemIds: Array.isArray(prev.linkedItemIds) ? prev.linkedItemIds : []
+      unit: newUnit,
+      recipeUnit: (newUnit === 'Kg') ? 'Gram' : (newUnit === 'Liters' ? 'ml' : newUnit),
+      recipeQuantity: (newUnit === 'Kg') ? '25' : (newUnit === 'Liters' ? '100' : (prev.recipeQuantity || '1'))
     }));
   };
 
@@ -210,7 +261,14 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
       updatedAt: new Date().toISOString()
     };
 
-    onSaveItem(itemToSave);
+    const recipeLinkInfo = formData.category !== 'Packaging' ? {
+      itemIds: Array.isArray(formData.linkedItemIds) ? formData.linkedItemIds : [],
+      quantity: Number(formData.recipeQuantity) || 1,
+      unit: formData.recipeUnit || formData.unit || 'Piece',
+      syncUnchecked: Boolean(editingItem)
+    } : null;
+
+    onSaveItem(itemToSave, recipeLinkInfo);
     setIsModalOpen(false);
   };
 
@@ -899,7 +957,7 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
                     <label className="block text-[11px] font-extrabold text-stone-700 uppercase mb-1">Stock Unit *</label>
                     <select
                       value={formData.unit}
-                      onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                      onChange={(e) => handleUnitChange(e.target.value)}
                       className="w-full px-2.5 py-2 border border-stone-300 rounded-xl text-xs font-bold bg-stone-50 text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                     >
                       {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
@@ -1194,6 +1252,224 @@ export default function InventoryTracker({ inventoryItems, menuItems = [], onSav
 
                       <p className="text-[10px] text-stone-500 mt-1.5 leading-snug">
                         💡 <strong>Smart Rule:</strong> Jaise hi POS ya Online se <em>{formData.materialName || 'yeh packaging item'}</em> se jude item ka order aayega, ye automatically stock se deduct ho jayega!
+                      </p>
+                    </div>
+
+                  </div>
+                )}
+
+                {/* 👨‍🍳 SMART RECIPE AUTO-LINK SECTION (Active when category !== 'Packaging') */}
+                {formData.category !== 'Packaging' && (
+                  <div className="bg-amber-50/70 border border-amber-300/80 rounded-2xl p-3.5 sm:p-4 space-y-3.5 shadow-2xs">
+                    
+                    {/* Header */}
+                    <div className="flex items-center gap-2 pb-2 border-b border-amber-200/80">
+                      <span className="text-lg">👨‍🍳</span>
+                      <div>
+                        <h4 className="text-xs font-black text-amber-950 uppercase tracking-wide">
+                          Smart Recipe Auto-Link (Menu Items ki Recipe me Add Karein)
+                        </h4>
+                        <p className="text-[10px] text-amber-800">
+                          Chunein ki yeh raw material kin-kin menu items me use hoga (jaise Pizza Base sabhi Pizzas me, Bun sabhi Burgers me)
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* 1. Per Item Quantity & Unit */}
+                    <div className="bg-white/90 p-3 rounded-xl border border-amber-200/90 space-y-1.5">
+                      <label className="block text-[11px] font-black text-stone-800 uppercase">
+                        1. 1 Order Me Kitna Lagega? (Recipe Portion) *
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <span className="text-[10px] text-stone-500 font-semibold block mb-0.5">Quantity (Matra):</span>
+                          <input
+                            type="number"
+                            step="any"
+                            min="0.0001"
+                            value={formData.recipeQuantity}
+                            onChange={(e) => setFormData({ ...formData, recipeQuantity: e.target.value })}
+                            placeholder="e.g. 1 ya 25"
+                            className="w-full px-3 py-1.5 bg-stone-50 border border-stone-300 rounded-lg text-xs font-extrabold text-stone-900 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                          />
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-stone-500 font-semibold block mb-0.5">Recipe Unit (Ikai):</span>
+                          <select
+                            value={formData.recipeUnit}
+                            onChange={(e) => setFormData({ ...formData, recipeUnit: e.target.value })}
+                            className="w-full px-2.5 py-1.5 bg-stone-50 border border-stone-300 rounded-lg text-xs font-bold text-stone-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                          >
+                            {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-stone-500">
+                        💡 {formData.materialName ? `"${formData.materialName}"` : 'Yeh maal'} 1 order par <strong>{formData.recipeQuantity || 1} {formData.recipeUnit || formData.unit}</strong> deduct hoga.
+                      </p>
+                    </div>
+
+                    {/* 2. Menu Items Linking with Filter & Search */}
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <div>
+                          <label className="block text-[11px] font-black text-stone-800 uppercase">
+                            2. Kin Menu Items Ki Recipe Me Judega?
+                          </label>
+                          <span className="text-[10px] font-bold text-amber-900">
+                            {(formData.linkedItemIds || []).length} items selected
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          {filteredPackagingMenuItems.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={handleSelectAllFiltered}
+                              className="text-[10px] px-2 py-0.5 rounded-md bg-white border border-amber-300 text-amber-900 font-extrabold hover:bg-amber-100 cursor-pointer shadow-2xs transition-colors"
+                            >
+                              {filteredPackagingMenuItems.every(m => (formData.linkedItemIds || []).includes(m.id))
+                                ? 'Deselect Shown'
+                                : 'Select Shown'}
+                            </button>
+                          )}
+                          {(formData.linkedItemIds || []).length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setFormData({ ...formData, linkedItemIds: [] })}
+                              className="text-[10px] px-2 py-0.5 rounded-md bg-stone-100 text-stone-600 font-bold hover:bg-rose-50 hover:text-rose-700 cursor-pointer transition-colors"
+                            >
+                              Clear All
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Search & Category Filter Bar */}
+                      <div className="bg-white/80 p-2 rounded-xl border border-stone-200/90 space-y-2 mb-2">
+                        <div className="relative">
+                          <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400" />
+                          <input
+                            type="text"
+                            value={packagingSearch}
+                            onChange={(e) => setPackagingSearch(e.target.value)}
+                            placeholder="Menu item search karein (e.g. Pizza, Burger, Pasta, Sandwich)..."
+                            className="w-full pl-8 pr-7 py-1.5 bg-stone-50 border border-stone-200 rounded-lg text-xs font-medium text-stone-800 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:bg-white"
+                          />
+                          {packagingSearch && (
+                            <button
+                              type="button"
+                              onClick={() => setPackagingSearch('')}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 text-xs font-bold"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+
+                        {menuCategories.length > 0 && (
+                          <div className="flex items-center gap-1 overflow-x-auto pb-1 text-[10px] scrollbar-none">
+                            <button
+                              type="button"
+                              onClick={() => setPackagingCategory('ALL')}
+                              className={`px-2 py-0.5 rounded-full font-bold shrink-0 transition-colors cursor-pointer ${
+                                packagingCategory === 'ALL'
+                                  ? 'bg-amber-600 text-white'
+                                  : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                              }`}
+                            >
+                              All ({menuItems.length})
+                            </button>
+                            {menuCategories.map(cat => {
+                              const count = menuItems.filter(m => m.category === cat).length;
+                              return (
+                                <button
+                                  key={cat}
+                                  type="button"
+                                  onClick={() => setPackagingCategory(cat)}
+                                  className={`px-2 py-0.5 rounded-full font-bold shrink-0 transition-colors cursor-pointer ${
+                                    packagingCategory === cat
+                                      ? 'bg-amber-600 text-white'
+                                      : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                                  }`}
+                                >
+                                  {cat} ({count})
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Scrollable Checkbox List */}
+                      <div className="bg-white border border-stone-200 rounded-xl p-2 max-h-48 overflow-y-auto space-y-1">
+                        {filteredPackagingMenuItems.length === 0 ? (
+                          <p className="text-[11px] text-stone-400 text-center py-4">
+                            {menuItems.length === 0 ? 'Menu me koi items nahi hain.' : 'Koi matching item nahi mila.'}
+                          </p>
+                        ) : (
+                          filteredPackagingMenuItems.map(item => {
+                            const isSelected = (formData.linkedItemIds || []).includes(item.id);
+                            return (
+                              <label
+                                key={item.id}
+                                className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
+                                  isSelected ? 'bg-amber-100/80 text-stone-950 font-bold border border-amber-200' : 'hover:bg-stone-50 text-stone-700'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => toggleLinkedItem(item.id)}
+                                    className="w-3.5 h-3.5 rounded text-amber-600 focus:ring-amber-500 cursor-pointer shrink-0"
+                                  />
+                                  <span className="truncate">{item.name}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                                  <span className="text-[10px] text-stone-400 font-medium">₹{item.price}</span>
+                                  <span className="text-[9px] bg-stone-100 text-stone-600 px-1.5 py-0.2 rounded font-semibold">
+                                    {item.category}
+                                  </span>
+                                </div>
+                              </label>
+                            );
+                          })
+                        )}
+                      </div>
+
+                      {/* Selected Items summary tags */}
+                      {(formData.linkedItemIds || []).length > 0 && (
+                        <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                          <span className="text-[9px] font-bold text-stone-500 uppercase">Selected:</span>
+                          {(formData.linkedItemIds || []).slice(0, 6).map(id => {
+                            const found = menuItems.find(m => m.id === id);
+                            if (!found) return null;
+                            return (
+                              <span
+                                key={id}
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white border border-amber-200 text-[10px] font-semibold text-stone-800 shadow-2xs"
+                              >
+                                <span className="max-w-[100px] truncate">{found.name}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleLinkedItem(id)}
+                                  className="text-stone-400 hover:text-rose-600 text-[10px] font-black cursor-pointer"
+                                >
+                                  ✕
+                                </button>
+                              </span>
+                            );
+                          })}
+                          {(formData.linkedItemIds || []).length > 6 && (
+                            <span className="text-[10px] font-bold text-amber-800">
+                              +{(formData.linkedItemIds || []).length - 6} more
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      <p className="text-[10px] text-stone-500 mt-1.5 leading-snug">
+                        💡 <strong>Auto Recipe Link:</strong> Save karte hi in selected menu items ki recipe me <em>{formData.materialName || 'yeh raw material'}</em> jud jayega aur POS sale hone par auto-stock minus hoga!
                       </p>
                     </div>
 

@@ -1229,6 +1229,12 @@ export default function App() {
     }
 
     updateInventory(updatedInv);
+
+    // Auto-link to menu recipes if specified
+    if (recipeLinkInfo && Array.isArray(recipeLinkInfo.itemIds) && recipeLinkInfo.itemIds.length > 0) {
+      const targetItemObj = matchedItem || updatedInv[0];
+      linkIngredientToMenuItems(targetItemObj, recipeLinkInfo);
+    }
   };
 
   const handleDeleteProcurement = (id) => {
@@ -1260,8 +1266,56 @@ export default function App() {
     showToast('Procurement log entry deleted & inventory stock adjusted');
   };
 
+  // 👨‍🍳 Helper to auto-link a raw material to menu items' recipes
+  const linkIngredientToMenuItems = (rawItem, recipeLinkInfo) => {
+    if (!recipeLinkInfo || !Array.isArray(recipeLinkInfo.itemIds) || !rawItem) return;
+    const targetIds = new Set(recipeLinkInfo.itemIds);
+    const reqQty = Number(recipeLinkInfo.quantity) || 1;
+    const reqUnit = recipeLinkInfo.unit || rawItem.unit || 'Piece';
+    let menuModified = false;
+
+    const updatedMenu = menuItems.map(m => {
+      const isTarget = targetIds.has(m.id);
+      const curRecipe = Array.isArray(m.recipe) ? [...m.recipe] : [];
+      const matchIdx = curRecipe.findIndex(
+        r => (r.ingredientId && String(r.ingredientId).toLowerCase() === String(rawItem.id).toLowerCase()) ||
+             (r.name && String(r.name).toLowerCase().trim() === String(rawItem.materialName).toLowerCase().trim())
+      );
+
+      if (isTarget) {
+        const ingObj = {
+          ingredientId: rawItem.id,
+          name: rawItem.materialName,
+          quantity: reqQty,
+          unit: reqUnit,
+          isCustom: false
+        };
+        if (matchIdx >= 0) {
+          curRecipe[matchIdx] = ingObj;
+        } else {
+          curRecipe.push(ingObj);
+        }
+        menuModified = true;
+        return { ...m, recipe: curRecipe };
+      } else if (matchIdx >= 0 && recipeLinkInfo.syncUnchecked) {
+        // If explicitly unchecked during edit, remove from that menu item's recipe
+        curRecipe.splice(matchIdx, 1);
+        menuModified = true;
+        return { ...m, recipe: curRecipe };
+      }
+      return m;
+    });
+
+    if (menuModified) {
+      updateMenu(updatedMenu);
+      if (targetIds.size > 0) {
+        showToast(`👨‍🍳 Recipe auto-updated: "${rawItem.materialName}" (${reqQty} ${reqUnit}) linked to ${targetIds.size} menu items!`);
+      }
+    }
+  };
+
   // 📦 Inventory Management Handlers
-  const handleSaveInventoryItem = (itemToSave) => {
+  const handleSaveInventoryItem = (itemToSave, recipeLinkInfo) => {
     const activeId = currentCafe?.cafeId || 'default';
     const exists = inventoryItems.some(i => i.id === itemToSave.id);
     const enrichedItem = {
@@ -1280,6 +1334,10 @@ export default function App() {
     updateInventory(updated);
     if (isFirebaseConfigured()) {
       syncSingleInventory(enrichedItem, activeId);
+    }
+
+    if (recipeLinkInfo) {
+      linkIngredientToMenuItems(enrichedItem, recipeLinkInfo);
     }
   };
 
